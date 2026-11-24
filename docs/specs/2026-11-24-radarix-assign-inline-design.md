@@ -151,3 +151,21 @@ stays.
 
 - The placement of the button within each view.
 - The exact layout of the inline section.
+
+### 5. Refresh one repository (owner, added: "im Kontextmenü auf ein Repo … einzeln neu laden")
+
+- The repository context menu shows "Mark repository as seen" and "Open on
+  GitHub". This adds **"Refresh repository"**. It is in the sidebar row and in
+  the grouped section header, wherever that menu exists.
+- `RadarixController.refresh(repo: RepoID) async` syncs only that
+  repository, with its owning session, through the same engine code as a full
+  pass. That covers items, pull details, the activity probe and attention.
+  Every other repository's state stays untouched.
+- It never runs alongside a full pass. While a pass runs, the request waits
+  for it, then runs unless the pass already synced that repository after the
+  request came in. Two quick requests for the same repository run once.
+- Signed-out, needs-reauth or rate-limited owners skip it, as a full pass
+  does.
+- While it runs, the repository's sidebar row shows a small progress
+  indicator.
+- Notifications for new items follow the same rules as after a full pass.

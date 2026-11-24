@@ -188,7 +188,7 @@
 
 ---
 
-### Task 6: User docs
+### Task 6: User docs (run after Task 7)
 
 **Files:**
 - In `~/_dev/noix-docs`, on the branch `docs/radarix`:
@@ -196,6 +196,7 @@
   - `reference/settings.md` (the three new settings);
   - `guide/accounts.md` or `sign-in.md` (write access for fine-grained tokens);
   - `reference/troubleshooting.md` (the "can't assign" message).
+  - `guide/repositories.md` or `main-window.md`: "Refresh repository".
 
 - [ ] **Step 1:** Write the facts from the code, using the strings as they are shown.
 - [ ] **Step 2:** `npm run check && npm run build`, with 0 errors.
@@ -215,3 +216,34 @@
    - Mention assigning in the page copy only if it fits the voice.
    - Run the site's check and build, then merge into `main` and push.
 5. Deploying with Portainer is the owner's step. Tell them.
+
+---
+
+### Task 7: Refresh one repository
+
+**Files:**
+- Modify:
+  - `Packages/RadarixKit/Sources/RadarixKit/Sync/SyncEngine.swift` (expose a single-repo sync, reusing `syncRepo`);
+  - `Controller/AccountSession.swift`;
+  - `Controller/RadarixController.swift`.
+- Modify:
+  - `App/Main/SidebarLayout.swift`;
+  - `App/Main/GroupedListLayout.swift` (the repo context menus);
+  - `App/Main/MainWindow.swift` (`ItemActions.refreshRepo`);
+  - App strings.
+- Test: `RadarixControllerTests.swift` or `MultiAccountTests.swift`
+
+**Interfaces:**
+- Produces: `RadarixController.refresh(repo: RepoID) async` and `RadarixController.refreshingRepos: Set<RepoID>`, which is observable.
+- Produces: `AccountSession.syncRepo(_ ref: RepoRef, viewers: ViewerLogins) async -> SyncReport?`. It applies the journal of marks made meanwhile, like `syncItems` does, and saves.
+- String (verbatim): "Refresh repository".
+
+- [ ] **Step 1: Tests.**
+  - `refreshRepoSyncsOnlyThatRepo`: with two repos, only the one asked for gets an items call, and the other repo's state is unchanged.
+  - `refreshRepoUsesOwningAccount`: with two accounts, the owner's API is called.
+  - `refreshRepoWaitsForRunningPass`: a held full pass means the single refresh starts only after it ends, and runs once.
+  - `refreshRepoKeepsMarksMadeMeanwhile`: a markSeen during the refresh survives.
+  - `refreshRepoSkipsNeedsReauthOwner`.
+- [ ] **Step 2:** RED, implement, GREEN. The notification planning after the refresh must match a full pass. Reuse the same code path; do not duplicate it.
+- [ ] **Step 3:** Add the context menu item in both layouts and a `ProgressView` on the sidebar row while `refreshingRepos` contains the repo.
+- [ ] **Step 4:** Build, run the full suite, then commit: `feat: refresh a single repository from its context menu`.
