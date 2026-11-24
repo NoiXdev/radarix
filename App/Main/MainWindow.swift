@@ -62,7 +62,7 @@ struct MainWindow: View {
             .onOpenURL { url in
                 guard let link = DeepLink(url: url) else { return }
                 NSApp.activate()
-                model.navigation = link
+                model.receive(link)
             }
             .onAppear {
                 model.mainWindowAppeared()

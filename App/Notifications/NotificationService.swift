@@ -46,6 +46,13 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         authorizationDenied = await Self.isDenied()
     }
 
+    /// Removes Radarix's delivered and not yet delivered notifications, for a sign-out or a reset.
+    func removeAll() {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllDeliveredNotifications()
+        center.removeAllPendingNotificationRequests()
+    }
+
     func post(_ planned: [PlannedNotification]) {
         let center = UNUserNotificationCenter.current()
         for notification in planned {

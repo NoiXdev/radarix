@@ -42,7 +42,7 @@ struct AccountSettings: View {
         }
         .confirmationDialog("Reset all data?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Reset all data", role: .destructive) {
-                perform { try controller.resetAllData() }
+                perform { try model.resetAllData() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -62,7 +62,7 @@ struct AccountSettings: View {
         Section {
             HStack {
                 Button("Sign out") {
-                    perform { try controller.signOut() }
+                    perform { try model.signOut() }
                 }
                 Spacer()
                 Button("Reset all data…", role: .destructive) {

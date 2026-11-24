@@ -13,6 +13,7 @@ final class AppModel {
     /// Set by the app delegate before any scene appears.
     var launchedAtLogin = false
     /// A link the main window should show next; it sets this back to nil once handled.
+    /// Kept only while it can still be shown: never across a sign-out or a reset.
     var navigation: DeepLink?
 
     @ObservationIgnored private var started = false
@@ -46,6 +47,8 @@ final class AppModel {
         Task {
             await controller.restoreSession()
             sessionRestored = true
+            // A link that launched a signed-out Radarix must not fire after a later sign-in.
+            if controller.auth == .signedOut { navigation = nil }
             for key in pendingSeen { controller.markSeen(key) }
             pendingSeen = []
             controller.startScheduler()
@@ -96,10 +99,37 @@ final class AppModel {
         launchWindowClaimed = true
     }
 
+    /// A link a main window received, for `navigation`. While signed out after the launch it is
+    /// dropped: the window only comes to the front.
+    func receive(_ link: DeepLink) {
+        if sessionRestored, controller.auth == .signedOut { return }
+        navigation = link
+    }
+
     /// Shows `link` in the main window, opening one if none is open. Needs no `openWindow`:
     /// the system hands the link back to the main window group.
     func open(_ link: DeepLink) {
         NSWorkspace.shared.open(link.url)
+    }
+
+    // MARK: Session
+
+    /// Signs out, dropping a pending link and the delivered notifications.
+    func signOut() throws {
+        defer { if controller.auth == .signedOut { clearSession() } }
+        try controller.signOut()
+    }
+
+    /// Resets all data, dropping a pending link and the delivered notifications. A reset that
+    /// fails after the credentials were deleted has ended the session as well.
+    func resetAllData() throws {
+        defer { if controller.auth == .signedOut { clearSession() } }
+        try controller.resetAllData()
+    }
+
+    private func clearSession() {
+        navigation = nil
+        notifications.removeAll()
     }
 
     /// Where the user grants an organization access for the current credential.
