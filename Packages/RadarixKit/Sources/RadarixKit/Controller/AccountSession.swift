@@ -1,0 +1,327 @@
+import Foundation
+import Observation
+import os
+
+/// Whether GitHub still accepts an account's credential.
+public enum SessionAuth: Sendable, Equatable {
+    case ok, needsReauth
+}
+
+/// One signed-in GitHub account: its data, credential kind, sync state and marks.
+///
+/// A sync pass is split in two steps so a workspace can decide repo ownership in between:
+/// `resolve()` fetches the owners and their repo lists, `syncItems(owned:keep:viewers:)` syncs the
+/// items of the repos this account owns.
+@MainActor @Observable
+public final class AccountSession {
+    public let accountID: AccountID
+    public private(set) var account: AccountData
+    public var login: String { account.login }
+    public let credentialKind: CredentialKind
+    public private(set) var auth: SessionAuth = .ok
+    public private(set) var owners: [OwnerRef] = []
+    public private(set) var lastReport: SyncReport?
+    /// When the last sync that processed every watched repo finished.
+    public private(set) var lastSyncAt: Date?
+    /// Set when the last sync attempt hit a problem; cleared by a completed sync.
+    public private(set) var syncProblem: SyncProblem?
+    /// No sync before this time.
+    public private(set) var rateLimitedUntil: Date?
+    /// True from `resolve()` until the pass ends for this account.
+    public private(set) var isSyncing = false
+    /// Active owners without any repo list, from the last `resolve()` that fetched repo lists.
+    public private(set) var unknownOwners: Set<String> = []
+
+    /// Called after a watch change that affects what is synced.
+    @ObservationIgnored var onWatchChanged: (@MainActor () -> Void)?
+    /// Called after every account save.
+    @ObservationIgnored var onSaved: (@MainActor () -> Void)?
+    /// The report of a pass that `resolve()` ended (rejected sign-in, rate limit or cancellation
+    /// while fetching repo lists); nil when the last `resolve()` returned true or failed earlier.
+    @ObservationIgnored private(set) var stoppedReport: SyncReport?
+
+    private let api: GitHubAPI
+    private let store: FileStore
+    private let now: @Sendable () -> Date
+
+    /// Changes when the session ends; work started before is discarded.
+    @ObservationIgnored private var generation = 0
+    /// Cancels the API work running for this session.
+    @ObservationIgnored private var cancelRunning: (() -> Void)?
+    /// What `syncItems` needs from the last `resolve()` that returned true.
+    @ObservationIgnored private var pass: Pass?
+    /// Marks made while items sync, re-applied to the result.
+    @ObservationIgnored private var journal: [Mark] = []
+
+    private static let log = Logger(subsystem: "dev.noix.radarix", category: "session")
+
+    private struct Pass {
+        var resolution: Resolution
+        /// The owners call failed for lack of network; the pass runs on the known owners.
+        var offline: Bool
+    }
+
+    private enum Mark {
+        /// `version` is the `updatedAt` of the record the user marked.
+        case seen(ItemKey, version: Date)
+        case unseen(ItemKey)
+    }
+
+    public init(
+        account: AccountData, credential: Credential, api: GitHubAPI, store: FileStore,
+        now: @escaping @Sendable () -> Date
+    ) {
+        accountID = account.accountID
+        self.account = account
+        credentialKind = credential.kind
+        self.api = api
+        self.store = store
+        self.now = now
+    }
+
+    /// Cancels running work and discards its result. The session is not used afterwards.
+    public func end() {
+        generation += 1
+        cancelRunning?()
+        cancelRunning = nil
+        isSyncing = false
+        pass = nil
+        journal = []
+    }
+
+    // MARK: Sync
+
+    /// Fetches the owners and their repo lists and persists `account.available`. Returns false when
+    /// this account must not sync items in this pass: rejected sign-in, rate limit, no owners known,
+    /// a stop while fetching repo lists (recorded in `lastReport`), or the session ended.
+    public func resolve() async -> Bool {
+        stoppedReport = nil
+        pass = nil
+        journal = []
+        guard auth == .ok else { return false }
+        if let until = rateLimitedUntil, now() < until { return false }
+        isSyncing = true
+        let proceeds = await resolvePass()
+        if !proceeds { isSyncing = false }
+        return proceeds
+    }
+
+    private func resolvePass() async -> Bool {
+        let generation = self.generation
+        let fetchedOwners: [OwnerRef]
+        var offline = false
+        let result: Result<[OwnerRef], any Error> = await cancellable { [api] in
+            do { return .success(try await api.owners()) } catch { return .failure(error) }
+        }
+        switch result {
+        case .success(let owners):
+            fetchedOwners = owners
+        case .failure(let error):
+            guard generation == self.generation else { return false }
+            switch error as? GitHubError {
+            case .unauthorized:
+                auth = .needsReauth
+                // GitHub answered; the sign-in is the problem, shown by `auth`.
+                syncProblem = nil
+                return false
+            case .rateLimited(let resetAt):
+                rateLimitedUntil = resetAt
+                syncProblem = .rateLimited(until: resetAt)
+                return false
+            default:
+                if case .network = error as? GitHubError {
+                    offline = true
+                    syncProblem = .offline
+                }
+                // Keep the previous owners; without any, try again next time.
+                guard !owners.isEmpty else { return false }
+                fetchedOwners = owners
+            }
+        }
+        guard generation == self.generation else { return false }
+        owners = fetchedOwners
+
+        let snapshot = account
+        let resolution = await cancellable { [api, now] in
+            await SyncEngine(api: api, now: now).resolve(snapshot, owners: fetchedOwners)
+        }
+        guard generation == self.generation else { return false }
+        unknownOwners = resolution.unknownOwners
+
+        if let stop = resolution.stop {
+            // Nothing was synced yet: the account stays as it was.
+            var report = SyncReport()
+            report.record(stop)
+            report.rateLimit = await api.rateLimit()
+            guard generation == self.generation else { return false }
+            report.availableRepos = resolution.available
+            report.ownerIssues = resolution.ownerIssues
+            account.available = resolution.available
+            stoppedReport = report
+            finish(report, offline: offline)
+            return false
+        }
+
+        if account.available != resolution.available {
+            account.available = resolution.available
+            save()
+        }
+        pass = Pass(resolution: resolution, offline: offline)
+        return true
+    }
+
+    /// `RepoResolver.watched` for this account's watch config and repo lists.
+    public func watchedRepos() -> [RepoRef] {
+        RepoResolver.watched(config: account.watch, available: account.available)
+    }
+
+    /// Syncs the items of `owned` after a `resolve()` that returned true, merges what changed
+    /// meanwhile and saves. Returns nil when the session ended meanwhile.
+    public func syncItems(owned: [RepoRef], keep: Set<RepoID>, viewers: ViewerLogins) async -> SyncReport? {
+        let generation = self.generation
+        let pass = self.pass ?? Pass(resolution: Resolution(available: account.available), offline: false)
+        self.pass = nil
+        isSyncing = true
+        // Everything until now is in the snapshot.
+        let snapshot = account
+        journal = []
+        var (synced, report) = await cancellable { [api, now] in
+            await SyncEngine(api: api, now: now).sync(snapshot, owned: owned, keep: keep, viewers: viewers)
+        }
+        guard generation == self.generation else { return nil }
+        report.availableRepos = pass.resolution.available
+        report.ownerIssues = pass.resolution.ownerIssues
+
+        // Changes made during the sync win over the snapshot the engine worked on.
+        synced.watch = account.watch
+        synced.available = account.available
+        for mark in journal { Self.apply(mark, to: &synced) }
+        journal = []
+        account = synced
+        finish(report, offline: pass.offline)
+        return report
+    }
+
+    /// Records the result of a pass and saves the account.
+    private func finish(_ report: SyncReport, offline: Bool) {
+        isSyncing = false
+        lastReport = report
+        // An offline pass that fell back to known owners is complete for those owners only.
+        if report.isComplete, !offline { lastSyncAt = now() }
+        rateLimitedUntil = report.rateLimitedUntil
+        if let until = report.rateLimitedUntil {
+            syncProblem = .rateLimited(until: until)
+        } else if report.isComplete {
+            // The repos synced from the previous owners, but GitHub was not reachable for the owners list.
+            syncProblem = offline ? .offline : nil
+        }
+        if report.needsReauth {
+            auth = .needsReauth
+            // GitHub answered; the sign-in is the problem, shown by `auth`.
+            syncProblem = nil
+        }
+        save()
+    }
+
+    /// Runs `work` in its own task, which `end()` and a cancellation of the caller both cancel.
+    private func cancellable<T: Sendable>(_ work: @escaping @Sendable () async -> T) async -> T {
+        let task = Task(operation: work)
+        cancelRunning = { task.cancel() }
+        defer { cancelRunning = nil }
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    // MARK: Watch config
+
+    public func setOwnerMode(_ mode: OwnerMode, for owner: String) {
+        account.watch.owners[owner] = mode
+        save()
+        onWatchChanged?()
+    }
+
+    /// Does not call `onWatchChanged`: notifications do not change what is synced.
+    public func setNotifications(_ on: Bool, for repo: RepoID) {
+        if on {
+            account.watch.notificationsOff.remove(repo)
+        } else {
+            account.watch.notificationsOff.insert(repo)
+        }
+        save()
+    }
+
+    public func setShowArchived(_ on: Bool) {
+        account.watch.showArchived = on
+        save()
+        onWatchChanged?()
+    }
+
+    // MARK: Marks
+
+    public func markSeen(_ key: ItemKey) {
+        guard let record = record(for: key) else { return }
+        perform([.seen(key, version: record.item.updatedAt)])
+    }
+
+    public func markUnseen(_ key: ItemKey) {
+        guard record(for: key) != nil else { return }
+        perform([.unseen(key)])
+    }
+
+    public func markRepoSeen(_ repo: RepoID) {
+        perform(Self.seenMarks(for: account.repos[repo].map { [$0] } ?? []))
+    }
+
+    public func markAllSeen() {
+        perform(Self.seenMarks(for: Array(account.repos.values)))
+    }
+
+    private func record(for key: ItemKey) -> ItemRecord? {
+        account.repos[key.repo]?.records[key.number]
+    }
+
+    private func perform(_ marks: [Mark]) {
+        guard !marks.isEmpty else { return }
+        var updated = account
+        for mark in marks { Self.apply(mark, to: &updated) }
+        account = updated
+        if isSyncing { journal += marks }
+        save()
+    }
+
+    /// New and updated records (only listed records have that attention).
+    private static func seenMarks(for states: [RepoState]) -> [Mark] {
+        states.flatMap { state in
+            state.records.values
+                .filter { $0.attention != .seen }
+                .map { Mark.seen($0.item.key, version: $0.item.updatedAt) }
+        }
+    }
+
+    private static func apply(_ mark: Mark, to account: inout AccountData) {
+        switch mark {
+        case .seen(let key, let version):
+            // Seen at server time. A record that changed since the user marked it (a sync fetched a
+            // newer version) keeps what the sync found. Unknown keys (repo dropped) are ignored.
+            guard let record = account.repos[key.repo]?.records[key.number], record.item.updatedAt == version else { return }
+            account.repos[key.repo]?.records[key.number] = ItemStateEngine.markSeen(record, at: record.item.updatedAt)
+        case .unseen(let key):
+            guard let record = account.repos[key.repo]?.records[key.number] else { return }
+            account.repos[key.repo]?.records[key.number] = ItemStateEngine.markUnseen(record)
+        }
+    }
+
+    // MARK: Persistence
+
+    private func save() {
+        do {
+            try store.saveAccount(account)
+        } catch {
+            Self.log.error("Saving the account failed: \(error.localizedDescription, privacy: .public)")
+        }
+        onSaved?()
+    }
+}

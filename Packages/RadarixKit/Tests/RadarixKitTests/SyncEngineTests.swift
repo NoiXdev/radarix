@@ -51,7 +51,7 @@ private func run(
         report.rateLimit = await api.rateLimit()
     } else {
         let owned = RepoResolver.watched(config: input.watch, available: resolution.available)
-        let keep = Set(input.repos.values.filter { resolution.unknownOwners.contains($0.repo.owner) }.map(\.repo.id))
+        let keep = RepoResolver.stored(in: input, ownedBy: resolution.unknownOwners)
         (result, report) = await engine.sync(input, owned: owned, keep: keep, viewers: ViewerLogins(["me"]))
     }
     result.available = resolution.available

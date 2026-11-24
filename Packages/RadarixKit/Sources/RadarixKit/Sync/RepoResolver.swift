@@ -24,4 +24,10 @@ public enum RepoResolver {
         }
         return result.sorted { $0.fullName.localizedCaseInsensitiveCompare($1.fullName) == .orderedAscending }
     }
+
+    /// Ids of the stored repo states whose owner is in `owners`. A sync keeps these untouched
+    /// when their owner's repo list is unknown.
+    public static func stored(in account: AccountData, ownedBy owners: Set<String>) -> Set<RepoID> {
+        Set(account.repos.values.filter { owners.contains($0.repo.owner) }.map(\.repo.id))
+    }
 }
