@@ -18,8 +18,10 @@ for you what you have seen.
 - **Several accounts in one list.** Sign in with, for example, a private
   and a work account. A repository that more than one account can see
   shows once.
-- **Nothing is "seen" by itself.** Showing an item does not mark it. You
-  mark items, or whole repositories, as seen.
+- **Nothing is "seen" by itself.** Showing an item does not mark it. An
+  item is marked seen when you select or open it, in the list, the popover
+  or a notification, or when you mark it, or a whole repository, as seen
+  yourself.
 - **Menu bar, main window, notifications.** A menu bar icon with a
   popover for a quick look, a main window for the full list, and
   notifications for new activity.
