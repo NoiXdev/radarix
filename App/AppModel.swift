@@ -2,6 +2,9 @@ import AppKit
 import Observation
 import RadarixKit
 import WidgetKit
+#if DEBUG
+import os
+#endif
 
 /// Owns the controller for the app's lifetime and maps kit errors to user-facing text.
 @MainActor @Observable
@@ -10,14 +13,17 @@ final class AppModel {
     let notifications = NotificationService()
     /// Empty when this build has no OAuth App; the token sign-in still works.
     let oauthClientID: String
-    /// Set by the app delegate before any scene appears.
-    var launchedAtLogin = false
+    /// Set once per launch by the app delegate, through `setLaunchKind(atLogin:)`.
+    private(set) var launchedAtLogin = false
     /// A link the main window should show next; it sets this back to nil once handled.
     /// Kept only while it can still be shown: never across a sign-out or a reset.
     var navigation: DeepLink?
 
     @ObservationIgnored private var started = false
     @ObservationIgnored private var launchWindowClaimed = false
+    @ObservationIgnored private var launchKindKnown = false
+    /// `claimLaunchWindow()` calls waiting for `setLaunchKind(atLogin:)`.
+    @ObservationIgnored private var launchKindWaiters: [CheckedContinuation<Void, Never>] = []
     /// Set once `restoreSession` has returned; marks made before that are kept until then.
     @ObservationIgnored private var sessionRestored = false
     /// Item notifications clicked before the session was restored (a click that launched the app).
@@ -83,10 +89,28 @@ final class AppModel {
         }
     }
 
+    /// Records whether this launch was made at login. Only the first call of a launch counts:
+    /// the open-application event, or else the end of launching.
+    func setLaunchKind(atLogin: Bool) {
+        guard !launchKindKnown else { return }
+        launchedAtLogin = atLogin
+        launchKindKnown = true
+        #if DEBUG
+        Logger(subsystem: "dev.noix.radarix", category: "launch")
+            .notice("Launch kind known: launchedAtLogin = \(atLogin, privacy: .public)")
+        #endif
+        let waiters = launchKindWaiters
+        launchKindWaiters = []
+        for waiter in waiters { waiter.resume() }
+    }
+
     /// True at most once per launch, for a launch not made at login and only while no main window
     /// has appeared: the caller then opens the main window, which the window group itself
-    /// suppresses at launch.
-    func claimLaunchWindow() -> Bool {
+    /// suppresses at launch. Waits until the launch kind is known.
+    func claimLaunchWindow() async -> Bool {
+        if !launchKindKnown {
+            await withCheckedContinuation { launchKindWaiters.append($0) }
+        }
         guard !launchWindowClaimed else { return false }
         launchWindowClaimed = true
         return !launchedAtLogin

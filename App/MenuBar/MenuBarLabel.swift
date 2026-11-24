@@ -25,7 +25,7 @@ struct MenuBarLabel: View {
         // A window opened for a launch link appears first; the yield leaves it one more turn.
         .task {
             await Task.yield()
-            if model.claimLaunchWindow() { openWindow(id: "main") }
+            if await model.claimLaunchWindow() { openWindow(id: "main") }
         }
     }
 
