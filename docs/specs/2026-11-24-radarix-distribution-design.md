@@ -59,12 +59,14 @@ and launch post.
   `Config/Base.xcconfig`. The release sets the marketing version from the tag.
 - Signing: App Group `$(TeamIdentifierPrefix)dev.noix.radarix` is team-prefixed, so
   Developer ID signing needs no provisioning profile. The release build needs the team id
-  (for `TeamIdentifierPrefix`) and the Developer ID Application identity.
+  (for `TeamIdentifierPrefix`), fixed as `5V8ZCK434F` in the script as in macSCP, and the
+  Developer ID Application identity.
 - Shared org-level secrets, available to the repo once it is public (same names as
   macSCP): `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY`,
   `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `TAP_TOKEN`,
-  `DISCORD_WEBHOOK_RELEASE_NOTIFICATION`. New for Radarix: the OAuth client ID and the
-  team id, as repository or org **variables** (not secrets; a client ID is public).
+  `DISCORD_WEBHOOK_RELEASE_NOTIFICATION`. New for Radarix: only the OAuth client ID, as the
+  repository **variable** `RADARIX_OAUTH_CLIENT_ID` (not a secret; a client ID is public).
+  The org secrets reach the public repo without further setup (owner, 2026-11-24).
 - macSCP's CI lesson applies: the hosted runner's Xcode/Swift can be older than the local
   toolchain, and strict-concurrency diagnostics can differ. Workflows print
   `xcodebuild -version` and `swift --version`, and pick an Xcode the build accepts.
@@ -114,8 +116,8 @@ account's token: no gain, and it spends the rate limit the syncs need. **Owner p
 - `ci.yml`: on push to `main` and PRs; generate the project, `swift test` in the kit,
   unsigned Debug build of the app (widget embedded).
 - `release.yml`: jobs as in macSCP (changelog → build/sign/notarize → publish release →
-  announce + tap bump). The build job fails early if the OAuth client ID or team id
-  variable is empty. It checks out the tagged source. Pre-release tags (`-`) are marked
+  announce + tap bump). The build job fails early if the OAuth client ID variable is
+  empty. It checks out the tagged source. Pre-release tags (`-`) are marked
   as pre-releases. The DMG's SHA-256 goes to the tap bump.
 - `announce.yml`: the org's shared Discord action, callable and dispatchable, as macSCP.
 - `scripts/release`: generates the project with the version from the tag, archives
@@ -160,9 +162,9 @@ must pass. On noix.dev, `docs:` is set only after the docs are merged and deploy
 ## Owner steps (the builder cannot do them)
 
 1. Register the NoiXdev OAuth App with device flow enabled; provide the client ID.
-2. Create the public repo `NoiXdev/radarix` and push `main`; confirm the org secrets
-   above reach it.
-3. Set the repo/org variables for the OAuth client ID and the team id.
+2. ~~Create the public repo~~ (done by the builder, 2026-11-24); pushing `main` is a plan
+   task.
+3. Set the repo variable `RADARIX_OAUTH_CLIENT_ID`.
 4. Push `v1.0.0-rc.1`, install it and run the gate check (Decisions, 1); then push
    `v1.0.0`, and commit the first cask to the tap with the release's checksum (or let
    the builder prepare that commit).
