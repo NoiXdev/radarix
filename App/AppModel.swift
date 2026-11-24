@@ -175,7 +175,7 @@ final class AppModel {
     func resetAllData() throws {
         defer {
             if !controller.isSignedIn { clearSession() }
-            // A reset restores the default settings, so the check follows them, even after a partial failure.
+            // The check follows the settings as they are after the reset, whether it completed or not.
             updates?.setEnabled(controller.settings.checkForUpdates)
         }
         try controller.resetAllData()
