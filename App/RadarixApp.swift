@@ -17,6 +17,19 @@ struct RadarixApp: App {
         .handlesExternalEvents(matching: [DeepLink.scheme])
         .environment(model)
         .commands { MainCommands(controller: model.controller) }
+        // One window per item; opening an item that has one brings it to the front.
+        WindowGroup(id: "description", for: ItemKey.self) { $key in
+            if let key {
+                DescriptionWindow(key: key)
+            }
+        }
+        .defaultSize(width: 720, height: 640)
+        .defaultLaunchBehavior(.suppressed)
+        // A launch at login shows no window, so none comes back from the last session either.
+        .restorationBehavior(.disabled)
+        // Deep links belong to the main window.
+        .handlesExternalEvents(matching: [])
+        .environment(model)
         Settings {
             SettingsView()
         }

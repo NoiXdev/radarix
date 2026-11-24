@@ -781,6 +781,22 @@
         }
       }
     },
+    "Close" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schließen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
     "Closed" : {
       "localizations" : {
         "de" : {
@@ -809,6 +825,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy"
+          }
+        }
+      }
+    },
+    "Couldn't load the description." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Beschreibung konnte nicht geladen werden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load the description."
           }
         }
       }
@@ -1129,6 +1161,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Issues"
+          }
+        }
+      }
+    },
+    "Item not available" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eintrag nicht verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item not available"
           }
         }
       }
@@ -2237,6 +2285,22 @@
         }
       }
     },
+    "Show Description" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beschreibung anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Description"
+          }
+        }
+      }
+    },
     "Show archived repositories" : {
       "localizations" : {
         "de" : {
@@ -2249,6 +2313,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show archived repositories"
+          }
+        }
+      }
+    },
+    "Show description" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beschreibung anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show description"
           }
         }
       }
@@ -2649,6 +2729,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This removes your sign-in, your watched repositories and what you have seen from this Mac."
+          }
+        }
+      }
+    },
+    "Try again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut versuchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
           }
         }
       }

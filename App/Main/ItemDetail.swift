@@ -1,10 +1,11 @@
 import RadarixKit
 import SwiftUI
 
-/// Everything Radarix knows about one item, with a way to open it on GitHub.
+/// Everything Radarix knows about one item, with ways to read its description and open it on GitHub.
 struct ItemDetail: View {
     let entry: ItemEntry
     let onOpen: () -> Void
+    let onShowDescription: () -> Void
 
     private var item: Item { entry.record.item }
 
@@ -25,13 +26,10 @@ struct ItemDetail: View {
                     row("Updated") { RelativeTime(date: item.updatedAt) }
                 }
                 Divider()
-                if item.bodyExcerpt.isEmpty {
-                    Text("No description.").foregroundStyle(.secondary)
-                } else {
-                    Text(verbatim: item.bodyExcerpt)
-                        .textSelection(.enabled)
+                HStack {
+                    Button("Show description", action: onShowDescription)
+                    Button("Open on GitHub", action: onOpen)
                 }
-                Button("Open on GitHub", action: onOpen)
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,6 +113,6 @@ struct NoItemSelected: View {
 }
 
 #Preview("Detail") {
-    ItemDetail(entry: PreviewSamples.entries[1], onOpen: {})
+    ItemDetail(entry: PreviewSamples.entries[1], onOpen: {}, onShowDescription: {})
         .frame(width: 380, height: 460)
 }

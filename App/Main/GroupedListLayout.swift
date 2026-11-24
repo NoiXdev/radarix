@@ -23,7 +23,11 @@ struct GroupedListLayout<Header: View>: View {
         .inspector(isPresented: $showsInspector) {
             Group {
                 if let selectedEntry {
-                    ItemDetail(entry: selectedEntry) { actions.open(selectedEntry.record) }
+                    ItemDetail(
+                        entry: selectedEntry,
+                        onOpen: { actions.open(selectedEntry.record) },
+                        onShowDescription: { actions.showDescription(selectedEntry.id) }
+                    )
                 } else {
                     NoItemSelected()
                 }
@@ -90,6 +94,7 @@ struct RepoSectionList: View {
             }
         }
         .itemContextMenu(entries: visibleSections.flatMap(\.entries), actions: actions)
+        .showsDescriptionOnSpace(selection: selection, actions: actions)
         .overlay {
             if visibleSections.isEmpty { NoMatchingItems() }
         }

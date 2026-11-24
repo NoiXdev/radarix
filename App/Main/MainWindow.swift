@@ -32,6 +32,8 @@ struct ItemActions {
     var open: @MainActor (ItemRecord) -> Void = { _ in }
     var markRepoSeen: @MainActor (RepoID) -> Void = { _ in }
     var openRepo: @MainActor (RepoRef) -> Void = { _ in }
+    /// Opens the item's description window, or brings it to the front.
+    var showDescription: @MainActor (ItemKey) -> Void = { _ in }
 }
 
 /// The sidebar's choice: every watched repository, or one.
@@ -44,6 +46,7 @@ struct MainWindow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openURL) private var openURL
+    @Environment(\.openWindow) private var openWindow
 
     @State private var sidebarSelection: SidebarItem? = .all
     @State private var selection: ItemKey?
@@ -307,6 +310,7 @@ struct MainWindow: View {
     private var actions: ItemActions {
         let controller = controller
         let openURL = openURL
+        let openWindow = openWindow
         return ItemActions(
             markSeen: { controller.markSeen($0) },
             markUnseen: { controller.markUnseen($0) },
@@ -317,7 +321,8 @@ struct MainWindow: View {
             markRepoSeen: { controller.markRepoSeen($0) },
             openRepo: { repo in
                 if let url = URL(string: "https://github.com/\(repo.owner)/\(repo.name)") { openURL(url) }
-            }
+            },
+            showDescription: { openWindow(id: "description", value: $0) }
         )
     }
 }

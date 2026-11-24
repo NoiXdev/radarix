@@ -40,7 +40,11 @@ struct SidebarLayout<Header: View>: View {
                 }
         } detail: {
             if let selectedEntry {
-                ItemDetail(entry: selectedEntry) { actions.open(selectedEntry.record) }
+                ItemDetail(
+                    entry: selectedEntry,
+                    onOpen: { actions.open(selectedEntry.record) },
+                    onShowDescription: { actions.showDescription(selectedEntry.id) }
+                )
             } else {
                 NoItemSelected()
             }
@@ -139,6 +143,7 @@ struct SidebarLayout<Header: View>: View {
                 }
             }
             .itemContextMenu(entries: entries, actions: actions)
+            .showsDescriptionOnSpace(selection: selection, actions: actions)
             .overlay {
                 if entries.isEmpty { NoMatchingItems() }
             }

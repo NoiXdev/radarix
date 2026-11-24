@@ -216,11 +216,21 @@ extension View {
                     Button("Mark as seen") { actions.markSeen(key) }
                 }
                 Button("Open on GitHub") { actions.open(entry.record) }
+                Button("Show Description") { actions.showDescription(key) }
             }
         } primaryAction: { keys in
             if let key = keys.first, let entry = entries.first(where: { $0.id == key }) {
                 actions.open(entry.record)
             }
+        }
+    }
+
+    /// Space opens the selected item's description window, as Quick Look does in Finder.
+    func showsDescriptionOnSpace(selection: ItemKey?, actions: ItemActions) -> some View {
+        onKeyPress(.space) {
+            guard let selection else { return .ignored }
+            actions.showDescription(selection)
+            return .handled
         }
     }
 }
