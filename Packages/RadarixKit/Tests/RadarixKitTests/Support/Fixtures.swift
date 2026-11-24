@@ -47,3 +47,14 @@ func fixtureJSON(_ name: String) throws -> String {
     let url = try #require(Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
     return try String(contentsOf: url, encoding: .utf8)
 }
+
+extension RepoRef {
+    static func fixture(
+        id: Int64, owner: String = "o", name: String? = nil,
+        isPrivate: Bool = false, isArchived: Bool = false, isFork: Bool = false
+    ) -> RepoRef {
+        RepoRef(
+            id: RepoID(rawValue: id), owner: owner, name: name ?? "repo\(id)",
+            isPrivate: isPrivate, isArchived: isArchived, isFork: isFork)
+    }
+}
