@@ -24,6 +24,8 @@ struct RadarixApp: App {
             }
         }
         .defaultSize(width: 720, height: 640)
+        // File > New would open a window with a nil key.
+        .commandsRemoved()
         .defaultLaunchBehavior(.suppressed)
         // A launch at login shows no window, so none comes back from the last session either.
         .restorationBehavior(.disabled)
