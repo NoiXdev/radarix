@@ -1,0 +1,11 @@
+<!-- Radarix menu bar glyph master, direction C2. 16 x 16 pt, used as a template image:
+     single colour (#000), only the alpha matters. Strokes are 1.3 pt (ring) and 1.5 pt
+     (lines), no detail under 1 pt. As in the app icon, the line ends and the newest
+     node sit on the ring (radius 6.2). The faint ring is carried by alpha (opacity .5).
+     The centre is 8,7.75 so the horizontal line covers whole pixels at @2x; it also
+     balances the top and bottom margins. Shipped as MenuBarGlyph.imageset/menubar-glyph.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <circle cx="8" cy="7.75" r="6.2" fill="none" stroke="#000" stroke-width="1.3" opacity=".5"/>
+  <path d="M3.62 12.13 L8 7.75 L12.38 3.37 M8 7.75 L1.8 7.75" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12.38" cy="3.37" r="2.1" fill="#000"/>
+</svg>

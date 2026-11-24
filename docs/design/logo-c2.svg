@@ -1,17 +1,25 @@
-<!-- Radarix logo direction C2 (approved 2026-11-24). Reference sketch, not the final app icon. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="512" height="512">
+<!-- Radarix app icon master, direction C2 (approved 2026-11-24).
+     1024 x 1024 canvas on the macOS icon grid: an 824 px continuous-corner squircle
+     (corner radius 185.4) centred with a 100 px margin. Navy body, a faint cyan radar
+     ring, three cyan nodes connected from the centre, the newest node in amber.
+     All three outer nodes sit on the ring (radius 275 around 512,512).
+     The AppIcon PNGs are rendered from this file with rsvg-convert. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#1b3350"/>
       <stop offset="1" stop-color="#0b1524"/>
     </linearGradient>
   </defs>
-  <rect x="10" y="10" width="180" height="180" rx="42" fill="url(#bg)"/>
-  <circle cx="100" cy="100" r="60" fill="none" stroke="#00b8c8" stroke-width="9" opacity=".4"/>
-  <path d="M57.6 142.4 L100 100 L142.4 57.6" fill="none" stroke="#00b8c8" stroke-width="10" stroke-linecap="round" opacity=".9"/>
-  <path d="M100 100 L40 100" fill="none" stroke="#00b8c8" stroke-width="10" stroke-linecap="round" opacity=".9"/>
-  <circle cx="100" cy="100" r="11" fill="#00b8c8"/>
-  <circle cx="57.6" cy="142.4" r="13" fill="#0b1524" stroke="#00b8c8" stroke-width="9"/>
-  <circle cx="40" cy="100" r="13" fill="#0b1524" stroke="#00b8c8" stroke-width="9"/>
-  <circle cx="142.4" cy="57.6" r="19" fill="#f5a524"/>
+  <path fill="url(#body)" d="M383.41 100 L640.59 100 C722.19 100 763 100 799.79 112.14 L806.92 113.89 C854.88 131.34 892.66 169.12 910.11 217.08 L911.86 224.21 C924 261 924 301.81 924 383.41 L924 640.59 C924 722.19 924 763 911.86 799.79 L910.11 806.92 C892.66 854.88 854.88 892.66 806.92 910.11 L799.79 911.86 C763 924 722.19 924 640.59 924 L383.41 924 C301.81 924 261 924 224.21 911.86 L217.08 910.11 C169.12 892.66 131.34 854.88 113.89 806.92 L112.14 799.79 C100 763 100 722.19 100 640.59 L100 383.41 C100 301.81 100 261 112.14 224.21 L113.89 217.08 C131.34 169.12 169.12 131.34 217.08 113.89 L224.21 112.14 C261 100 301.81 100 383.41 100 Z"/>
+  <!-- radar ring -->
+  <circle cx="512" cy="512" r="275" fill="none" stroke="#00b8c8" stroke-width="44" opacity=".4"/>
+  <!-- connections from the centre -->
+  <path d="M317.55 706.45 L512 512 L706.45 317.55 M512 512 L237 512" fill="none" stroke="#00b8c8" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+  <circle cx="512" cy="512" r="54" fill="#00b8c8"/>
+  <!-- older nodes -->
+  <circle cx="317.55" cy="706.45" r="60" fill="#0b1524" stroke="#00b8c8" stroke-width="42"/>
+  <circle cx="237" cy="512" r="60" fill="#0b1524" stroke="#00b8c8" stroke-width="42"/>
+  <!-- newest node -->
+  <circle cx="706.45" cy="317.55" r="90" fill="#f5a524"/>
 </svg>
