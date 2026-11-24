@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import Synchronization
 import Testing
 @testable import RadarixKit
@@ -45,10 +46,13 @@ private final class Harness {
         return h
     }
 
+    /// Accounts whose credential fails to load, as when Keychain access is denied.
+    var deniedLoads: Set<AccountID> = []
+
     func makeController() -> RadarixController {
         let apis = apis, clock = clock
         return RadarixController(
-            store: store, credentials: credentials,
+            store: store, credentials: DenyingCredentialStore(credentials, denied: deniedLoads),
             makeAPI: { token in apis[token] ?? StubGitHubAPI() },
             oauthClientID: "client-id", now: { clock.now })
     }
@@ -75,6 +79,23 @@ private final class Harness {
     func cleanUp() {
         try? FileManager.default.removeItem(at: directory)
     }
+}
+
+/// Passes everything to `inner`, except that loading a denied account's credential throws.
+private final class DenyingCredentialStore: CredentialStore, Sendable {
+    let inner: InMemoryCredentialStore
+    let denied: Set<AccountID>
+    init(_ inner: InMemoryCredentialStore, denied: Set<AccountID>) {
+        self.inner = inner
+        self.denied = denied
+    }
+    func load(for account: AccountID) throws -> Credential? {
+        if denied.contains(account) { throw KeychainError(status: errSecAuthFailed) }
+        return try inner.load(for: account)
+    }
+    func save(_ credential: Credential, for account: AccountID) throws { try inner.save(credential, for: account) }
+    func delete(for account: AccountID) throws { try inner.delete(for: account) }
+    func deleteAll() throws { try inner.deleteAll() }
 }
 
 @MainActor
@@ -131,18 +152,92 @@ struct MultiAccountTests {
         #expect(controller.records(in: nil).map(\.item.key) == [key(1)])
     }
 
-    @Test func restoreSkipsAccountWithoutCredential() async throws {
+    @Test func restoreKeepsAccountWithoutCredentialNeedingSignIn() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [workOnly], states: [workOnly: [record(1, .new, repo: workOnly)]]),
+            account(second, available: []))
+        try h.credentials.delete(for: first)
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.sessions.map(\.accountID) == [first, second])
+        #expect(controller.settings.accountIDs == [first, second])
+        let restored = try #require(controller.session(for: first))
+        #expect(restored.auth == .needsReauth)
+        #expect(restored.credentialKind == nil)
+        #expect(controller.needsReauth.map(\.accountID) == [first])
+        #expect(controller.viewers.contains("me"))
+        // Its stored data shows; nothing is synced without a credential.
+        #expect(controller.records(in: nil).map(\.item.key) == [key(1, workOnly)])
+        #expect(await h.me.calls.isEmpty)
+        #expect(try h.store.loadSnapshot()?.reauthLogins == ["me"])
+
+        // Signing in again replaces it with a working session.
+        try await controller.addAccount(token: "t-me", kind: .oauth)
+        #expect(controller.session(for: first)?.auth == .ok)
+        #expect(controller.session(for: first)?.credentialKind == .oauth)
+        #expect(controller.settings.accountIDs == [first, second])
+        #expect(controller.needsReauth.isEmpty)
+    }
+
+    @Test func restoreKeepsAccountWhoseCredentialFailsToLoad() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }
         try h.seed(account(first, available: []), account(second, available: []))
+        h.deniedLoads = [first]
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.sessions.map(\.accountID) == [first, second])
+        #expect(controller.session(for: first)?.auth == .needsReauth)
+        #expect(controller.session(for: second)?.auth == .ok)
+
+        // Remove works without a loaded credential.
+        try controller.removeAccount(first)
+        #expect(controller.sessions.map(\.accountID) == [second])
+        #expect(controller.settings.accountIDs == [second])
+    }
+
+    @Test func accountWithoutCredentialKeepsSharedRepo() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [shared], states: [shared: [record(1, .new)]]),
+            account(second, available: []))
         try h.credentials.delete(for: first)
+        await h.work.scriptRepositories("org", .success(.fresh([shared])))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.ownership[shared.id] == first)
+        #expect(controller.owner(of: shared.id)?.accountID == first)
+        #expect(itemCalls(await h.work.calls, for: shared) == 0)
+        #expect(controller.session(for: second)?.account.repos[shared.id] == nil)
+        #expect(controller.records(in: shared.id).map(\.item.key) == [key(1)])
+    }
+
+    @Test func restoreSkipsCredentialOfAnotherAccountWithoutFile() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(second, available: [workOnly], states: [workOnly: [record(1, .new, repo: workOnly)]]))
+        var settings = try h.store.loadSettings()
+        settings.accountIDs = [first, second]
+        try h.store.saveSettings(settings)
+        // The first account has no file, and its credential signs in as the second account.
+        try h.credentials.save(Credential(token: "t-work", kind: .oauth), for: first)
         let controller = h.makeController()
 
         await controller.restoreSessions()
 
         #expect(controller.sessions.map(\.accountID) == [second])
         #expect(controller.settings.accountIDs == [first, second])
-        #expect(controller.session(for: first) == nil)
+        #expect(try h.store.loadAccount(first) == nil)
+        #expect(controller.records(in: nil).map(\.item.key) == [key(1, workOnly)])
     }
 
     @Test func addSecondAccountAppends() async throws {
@@ -486,4 +581,5 @@ struct MultiAccountTests {
         #expect(controller.sessions.map(\.accountID) == [first])
         #expect(!controller.viewers.contains("work"))
     }
+
 }

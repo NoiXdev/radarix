@@ -17,7 +17,8 @@ public final class AccountSession {
     public let accountID: AccountID
     public private(set) var account: AccountData
     public var login: String { account.login }
-    public let credentialKind: CredentialKind
+    /// How the account signed in; nil for a session restored without a credential.
+    public let credentialKind: CredentialKind?
     public private(set) var auth: SessionAuth = .ok
     public private(set) var owners: [OwnerRef] = []
     public private(set) var lastReport: SyncReport?
@@ -77,6 +78,18 @@ public final class AccountSession {
         self.account = account
         credentialKind = credential.kind
         self.api = api
+        self.store = store
+        self.now = now
+    }
+
+    /// A session for an account whose credential is missing, cannot be read or belongs to another
+    /// account: it shows the stored data, keeps its repos and needs a new sign-in. It never syncs.
+    public init(withoutCredential account: AccountData, store: FileStore, now: @escaping @Sendable () -> Date) {
+        accountID = account.accountID
+        self.account = account
+        credentialKind = nil
+        auth = .needsReauth
+        api = RejectingAPI()
         self.store = store
         self.now = now
     }
@@ -334,4 +347,18 @@ public final class AccountSession {
         }
         onSaved?()
     }
+}
+
+/// The API of a session without a credential: GitHub would reject every call.
+private struct RejectingAPI: GitHubAPI {
+    func viewer() async throws -> Viewer { throw GitHubError.unauthorized }
+    func owners() async throws -> [OwnerRef] { throw GitHubError.unauthorized }
+    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]> { throw GitHubError.unauthorized }
+    func items(in repo: RepoRef, query: IssueQuery) async throws -> Fetch<[Item]> { throw GitHubError.unauthorized }
+    func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]> { throw GitHubError.unauthorized }
+    func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool {
+        throw GitHubError.unauthorized
+    }
+    func rateLimit() async -> RateLimit? { nil }
+    func forgetConditionalState(for repo: RepoRef) async {}
 }

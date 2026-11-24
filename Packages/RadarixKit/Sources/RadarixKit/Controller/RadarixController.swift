@@ -23,7 +23,8 @@ public enum SyncProblem: Sendable, Equatable {
 @MainActor @Observable
 public final class RadarixController {
     public private(set) var settings: AppSettings
-    /// One per account in `settings.accountIDs` whose credential loaded, in that order.
+    /// One per account in `settings.accountIDs` that could be restored or was added, in that order.
+    /// An account restored without a usable credential has a session in needs-reauth.
     public private(set) var sessions: [AccountSession] = []
     /// Repo id to owning account, from the last sync pass.
     public private(set) var ownership: [RepoID: AccountID] = [:]
@@ -125,14 +126,29 @@ public final class RadarixController {
 
     // MARK: Accounts
 
-    /// Builds a session for every account whose credential loads, writes the snapshot, then syncs.
-    /// Stored data is shown even when offline. An account that cannot be restored stays in
-    /// `settings.accountIDs`.
+    /// Builds a session for every account in `settings.accountIDs`, writes the snapshot, then syncs.
+    /// Stored data is shown even when offline.
+    ///
+    /// An account whose credential is missing or cannot be read is restored from its account file
+    /// in needs-reauth: it keeps its place, its repos and its login as "me", and never syncs until
+    /// it signs in again. An account that has neither a usable credential nor a readable file stays
+    /// in `settings.accountIDs` without a session.
     public func restoreSessions() async {
         for id in settings.accountIDs where session(for: id) == nil {
-            guard let credential = try? credentials.load(for: id) else { continue }
+            let credential: Credential?
+            do {
+                credential = try credentials.load(for: id)
+            } catch {
+                Self.log.error("Loading the credential of account \(id.rawValue) failed: \(error.localizedDescription, privacy: .public)")
+                credential = nil
+            }
+            let stored = try? store.loadAccount(id)
+            guard let credential else {
+                if let stored { insert(configured(AccountSession(withoutCredential: stored, store: store, now: now))) }
+                continue
+            }
             let api = makeAPI(credential.token)
-            if let stored = try? store.loadAccount(id) {
+            if let stored {
                 insert(makeSession(account: stored, credential: credential, api: api))
                 continue
             }
@@ -140,6 +156,7 @@ public final class RadarixController {
             do {
                 let viewer = try await api.viewer()
                 guard viewer.id == id else {
+                    // Without a file there is nothing to show for it either.
                     Self.log.error("The credential of account \(id.rawValue) belongs to another account")
                     continue
                 }
@@ -228,7 +245,10 @@ public final class RadarixController {
     }
 
     private func makeSession(account: AccountData, credential: Credential, api: GitHubAPI) -> AccountSession {
-        let session = AccountSession(account: account, credential: credential, api: api, store: store, now: now)
+        configured(AccountSession(account: account, credential: credential, api: api, store: store, now: now))
+    }
+
+    private func configured(_ session: AccountSession) -> AccountSession {
         session.onSaved = { [weak self] in self?.accountSaved() }
         session.onWatchChanged = { [weak self] in self?.requestRefresh() }
         return session

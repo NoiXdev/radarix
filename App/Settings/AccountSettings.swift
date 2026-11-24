@@ -189,7 +189,10 @@ private struct AccountDetailsSection: View {
     var body: some View {
         Section {
             LabeledContent("Account") { Text(verbatim: session.login) }
-            LabeledContent("Signed in with") { Text(credentialKind) }
+            // A session restored without a credential does not know how it signed in.
+            if let credentialKind {
+                LabeledContent("Signed in with") { Text(credentialKind) }
+            }
             LabeledContent("Rate limit") { Text(rateLimit) }
             LabeledContent("Last sync") {
                 HStack(spacing: 6) {
@@ -231,10 +234,11 @@ private struct AccountDetailsSection: View {
         }
     }
 
-    private var credentialKind: String {
+    private var credentialKind: String? {
         switch session.credentialKind {
         case .oauth: String(localized: "GitHub sign-in")
         case .personalToken: String(localized: "Personal access token")
+        case nil: nil
         }
     }
 
