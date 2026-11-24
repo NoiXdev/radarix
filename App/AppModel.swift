@@ -6,6 +6,13 @@ import WidgetKit
 import os
 #endif
 
+/// An assign or unassign that failed, ready to show: the item as `owner/name #number`, and why.
+struct AssignFailure: Identifiable, Equatable {
+    let id = UUID()
+    let title: String
+    let message: String
+}
+
 /// Owns the controller for the app's lifetime and maps kit errors to user-facing text.
 @MainActor @Observable
 final class AppModel {
@@ -20,6 +27,9 @@ final class AppModel {
     /// A link the main window should show next; it sets this back to nil once handled.
     /// Kept only while it can still be shown: never across a sign-out or a reset.
     var navigation: DeepLink?
+    /// The last assign failure nobody else showed: from the context menu, or from an inline
+    /// button whose view was gone. The main window shows it as an alert and clears it.
+    var assignFailure: AssignFailure?
 
     @ObservationIgnored private var started = false
     @ObservationIgnored private var launchWindowClaimed = false
@@ -211,6 +221,12 @@ final class AppModel {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return "" }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.contains("$(") ? "" : trimmed
+    }
+
+    /// Records an assign failure for the main window's alert.
+    func reportAssignFailure(_ error: Error, key: ItemKey) {
+        let name = controller.repos[key.repo]?.repo.fullName ?? "?"
+        assignFailure = AssignFailure(title: "\(name) #\(key.number)", message: Self.message(for: error))
     }
 
     // MARK: Messages

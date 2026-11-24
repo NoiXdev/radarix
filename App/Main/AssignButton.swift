@@ -10,10 +10,18 @@ struct AssignButton: View {
 
     @Environment(AppModel.self) private var model
     @State private var errorMessage: String?
+    /// False once the view is gone; a late failure then goes to the app-wide alert.
+    @State private var isPresent = false
 
     private var controller: RadarixController { model.controller }
 
     var body: some View {
+        content
+            .onAppear { isPresent = true }
+            .onDisappear { isPresent = false }
+    }
+
+    @ViewBuilder private var content: some View {
         if let assigned = controller.isAssignedToOwner(key) {
             let isBusy = controller.assigningKeys.contains(key)
             VStack(alignment: .leading, spacing: 4) {
@@ -24,7 +32,11 @@ struct AssignButton: View {
                             do {
                                 try await controller.setAssigned(!assigned, key: key)
                             } catch {
-                                errorMessage = AppModel.message(for: error)
+                                if isPresent {
+                                    errorMessage = AppModel.message(for: error)
+                                } else {
+                                    model.reportAssignFailure(error, key: key)
+                                }
                             }
                         }
                     }
@@ -45,7 +57,7 @@ struct AssignButton: View {
 }
 
 /// The context menu's entry. A menu has no room for a progress indicator, so it only disables.
-/// There is no error surface in the main window, so a failure is logged and nothing is shown.
+/// A failure is logged and shown in the main window's alert.
 struct AssignMenuButton: View {
     let key: ItemKey
     let setAssigned: @MainActor (ItemKey, Bool) async throws -> Void
@@ -62,6 +74,7 @@ struct AssignMenuButton: View {
                         try await setAssigned(key, !assigned)
                     } catch {
                         Self.log.error("Assigning failed: \(String(describing: error), privacy: .public)")
+                        model.reportAssignFailure(error, key: key)
                     }
                 }
             }

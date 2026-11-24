@@ -78,6 +78,18 @@ struct MainWindow: View {
             }
             .onChange(of: model.navigation) { navigate() }
             .onChange(of: controller.isSignedIn) { navigate() }
+            .alert(
+                model.assignFailure?.title ?? "",
+                isPresented: Binding(
+                    get: { model.assignFailure != nil },
+                    set: { if !$0 { model.assignFailure = nil } }
+                ),
+                presenting: model.assignFailure
+            ) { _ in
+                Button("OK") { model.assignFailure = nil }
+            } message: { failure in
+                Text(verbatim: failure.message)
+            }
     }
 
     @ViewBuilder private var content: some View {
