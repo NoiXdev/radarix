@@ -125,7 +125,6 @@ public struct SyncEngine: Sendable {
         _ account: AccountData, owned: [RepoRef], keep: Set<RepoID>, viewers: ViewerLogins
     ) async -> (AccountData, SyncReport) {
         var result = account
-        var report = SyncReport()
         let ownedIDs = Set(owned.map(\.id))
         let retained: (RepoID) -> Bool = { ownedIDs.contains($0) || keep.contains($0) }
         for (id, state) in result.repos where !retained(id) {
@@ -133,19 +132,33 @@ public struct SyncEngine: Sendable {
             await api.forgetConditionalState(for: state.repo)
         }
         result.repos = result.repos.filter { retained($0.key) }
+        let report = await syncRepos(owned, viewers: viewers, into: &result)
+        return (result, report)
+    }
 
+    /// Syncs the items of `repo` alone, exactly as `sync(_:owned:keep:viewers:)` syncs each owned
+    /// repo. Every other stored repo state stays as it is. `availableRepos` and `ownerIssues` of
+    /// the report stay empty.
+    public func sync(_ account: AccountData, repo: RepoRef, viewers: ViewerLogins) async -> (AccountData, SyncReport) {
+        var result = account
+        let report = await syncRepos([repo], viewers: viewers, into: &result)
+        return (result, report)
+    }
+
+    /// Syncs `refs` in order until a stop, then reads the rate limit.
+    private func syncRepos(_ refs: [RepoRef], viewers: ViewerLogins, into account: inout AccountData) async -> SyncReport {
+        var report = SyncReport()
         do {
-            for ref in owned {
+            for ref in refs {
                 try Task.checkCancellation()
-                try await syncRepo(ref, viewers: viewers, into: &result, report: &report)
+                try await syncRepo(ref, viewers: viewers, into: &account, report: &report)
             }
         } catch {
             // Only stops (including cancellation) leave the loop.
             if let stop = SyncStop(error) { report.record(stop) }
         }
-
         report.rateLimit = await api.rateLimit()
-        return (result, report)
+        return report
     }
 
     // MARK: Per repo

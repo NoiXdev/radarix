@@ -14,6 +14,8 @@ struct RepoSection: Identifiable {
     let kindCounts: KindCounts
     let entries: [ItemEntry]
     let failure: SyncFailure?
+    /// A refresh of this repository alone is waiting or running.
+    var isRefreshing = false
     var id: RepoID { repo.id }
 }
 
@@ -32,6 +34,8 @@ struct ItemActions {
     var open: @MainActor (ItemRecord) -> Void = { _ in }
     var markRepoSeen: @MainActor (RepoID) -> Void = { _ in }
     var openRepo: @MainActor (RepoRef) -> Void = { _ in }
+    /// Syncs this repository alone.
+    var refreshRepo: @MainActor (RepoID) -> Void = { _ in }
     /// Opens the item's description window, or brings it to the front.
     var showDescription: @MainActor (ItemKey) -> Void = { _ in }
     /// Assigns or unassigns the owning account's login on GitHub.
@@ -309,7 +313,8 @@ struct MainWindow: View {
                         repo: repo,
                         kindCounts: controller.kindCounts(in: repo.id),
                         entries: byRepo[repo.id] ?? [],
-                        failure: session.lastReport?.repoFailures[repo.id]
+                        failure: session.lastReport?.repoFailures[repo.id],
+                        isRefreshing: controller.refreshingRepos.contains(repo.id)
                     )
                 }
             return AccountSection(login: session.login, repos: sections)
@@ -336,6 +341,7 @@ struct MainWindow: View {
             openRepo: { repo in
                 if let url = URL(string: "https://github.com/\(repo.owner)/\(repo.name)") { openURL(url) }
             },
+            refreshRepo: { id in Task { await controller.refresh(repo: id) } },
             showDescription: { openWindow(id: "description", value: $0) },
             setAssigned: { key, assigned in try await controller.setAssigned(assigned, key: key) }
         )

@@ -55,6 +55,8 @@ public final class AccountSession {
     @ObservationIgnored private var pass: Pass?
     /// Marks made while items sync, re-applied to the result.
     @ObservationIgnored private var journal: [Mark] = []
+    /// `syncRepo` is running. Unlike a pass it leaves `isSyncing` alone.
+    @ObservationIgnored private var isSyncingRepo = false
 
     private static let log = Logger(subsystem: "dev.noix.radarix", category: "session")
 
@@ -69,6 +71,12 @@ public final class AccountSession {
         case seen(ItemKey, version: Date)
         case unseen(ItemKey)
         case assignees(ItemKey, [String])
+
+        var repo: RepoID {
+            switch self {
+            case .seen(let key, _), .unseen(let key), .assignees(let key, _): key.repo
+            }
+        }
     }
 
     public init(
@@ -236,6 +244,60 @@ public final class AccountSession {
         return report
     }
 
+    /// Syncs the items of `ref` alone, outside a pass, with the engine code of a pass. Marks made
+    /// meanwhile win over the result, as in `syncItems`; every other repo state stays as it is.
+    /// Returns nil, without a request, when this account must not sync (rejected sign-in, a rate
+    /// limit that has not reset, a pass or another repo sync in progress), and when the session
+    /// ended meanwhile.
+    ///
+    /// Only this repo's entries of `lastReport` change, and `lastSyncAt` stays: it is the time of
+    /// the last sync of every watched repo.
+    public func syncRepo(_ ref: RepoRef, viewers: ViewerLogins) async -> SyncReport? {
+        guard auth == .ok, !hasEnded, !isSyncing, !isSyncingRepo, pass == nil else { return nil }
+        if let until = rateLimitedUntil, now() < until { return nil }
+        let generation = self.generation
+        isSyncingRepo = true
+        defer { isSyncingRepo = false }
+        // Everything until now is in the snapshot.
+        let snapshot = account
+        journal = []
+        let (synced, report) = await cancellable { [api, now] in
+            await SyncEngine(api: api, now: now).sync(snapshot, repo: ref, viewers: viewers)
+        }
+        guard generation == self.generation else { return nil }
+
+        // Only this repo's state comes from the sync; the marks made on it meanwhile win.
+        var merged = account
+        merged.repos[ref.id] = synced.repos[ref.id]
+        for mark in journal where mark.repo == ref.id { Self.apply(mark, to: &merged) }
+        journal = []
+        account = merged
+        finishRepoSync(report, of: ref.id)
+        return report
+    }
+
+    /// Records the result of a one-repo sync in `lastReport`: that repo's failure, the rate limit
+    /// and a stop. The other repos' failures, the repo lists and owner issues stay. Saves.
+    private func finishRepoSync(_ report: SyncReport, of repo: RepoID) {
+        var last = lastReport ?? SyncReport()
+        if lastReport == nil { last.availableRepos = account.available }
+        last.repoFailures[repo] = report.repoFailures[repo]
+        if let limit = report.rateLimit { last.rateLimit = limit }
+        if let until = report.rateLimitedUntil {
+            last.rateLimitedUntil = until
+            rateLimitedUntil = until
+            syncProblem = .rateLimited(until: until)
+        }
+        if report.needsReauth {
+            last.needsReauth = true
+            auth = .needsReauth
+            // GitHub answered; the sign-in is the problem, shown by `auth`.
+            syncProblem = nil
+        }
+        lastReport = last
+        save()
+    }
+
     /// Records the result of a pass and saves the account.
     private func finish(_ report: SyncReport, offline: Bool) {
         isSyncing = false
@@ -338,7 +400,7 @@ public final class AccountSession {
         var updated = account
         for mark in marks { Self.apply(mark, to: &updated) }
         account = updated
-        if isSyncing { journal += marks }
+        if isSyncing || isSyncingRepo { journal += marks }
         save()
     }
 

@@ -813,4 +813,196 @@ struct MultiAccountTests {
         #expect(itemCalls(await h.work.calls, for: shared) == 0)
         #expect(controller.session(for: second)?.lastSyncAt == localNow)
     }
+
+    // MARK: Refresh one repository
+
+    @Test func refreshRepoSyncsOnlyThatRepo() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(
+            first, available: [shared, workOnly],
+            states: [shared: [record(1, .seen)], workOnly: [record(2, .new, repo: workOnly)]]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        let session = try #require(controller.session(for: first))
+        let otherBefore = session.account.repos[workOnly.id]
+        let lastSyncAt = session.lastSyncAt
+        await h.me.resetCalls()
+        h.clock.now = localNow.addingTimeInterval(300)
+        await h.me.scriptItems(
+            shared, .success(.fresh([.fixture(repo: shared.id.rawValue, number: 5, createdAt: t2, updatedAt: t2)])))
+        let reports = Reports()
+        controller.onSyncReport = { account, report in reports.all.append((account.accountID, report)) }
+
+        await controller.refresh(repo: shared.id)
+
+        let calls = await h.me.calls
+        #expect(itemCalls(calls, for: shared) == 1)
+        #expect(itemCalls(calls, for: workOnly) == 0)
+        #expect(!calls.contains(.owners))
+        #expect(!calls.contains(.repositories(owner: "org")))
+        #expect(session.account.repos[workOnly.id] == otherBefore)
+        #expect(controller.records(in: shared.id).first { $0.item.key == key(5) }?.attention == .new)
+        #expect(try h.store.loadAccount(first)?.repos[shared.id]?.records[5]?.attention == .new)
+        // Notifications are planned from the same report hook as after a pass.
+        #expect(reports.of(first).flatMap(\.newItems).map(\.key) == [key(5)])
+        // Only a sync of every watched repo moves the sync time.
+        #expect(session.lastSyncAt == lastSyncAt)
+        #expect(controller.refreshingRepos.isEmpty)
+    }
+
+    @Test func refreshRepoUsesOwningAccount() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [shared], states: [shared: []]),
+            account(second, available: [shared, workOnly], states: [workOnly: []]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.me.resetCalls()
+        await h.work.resetCalls()
+
+        await controller.refresh(repo: workOnly.id)
+
+        #expect(itemCalls(await h.work.calls, for: workOnly) == 1)
+        #expect(await h.me.calls.isEmpty)
+
+        await controller.refresh(repo: shared.id)
+
+        #expect(itemCalls(await h.me.calls, for: shared) == 1)
+        #expect(itemCalls(await h.work.calls, for: shared) == 0)
+    }
+
+    @Test func refreshRepoWaitsForRunningPass() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared, workOnly], states: [shared: [], workOnly: []]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.me.resetCalls()
+        await h.me.holdItems(shared)
+        let pass = Task { await controller.refresh() }
+        await h.me.waitForHeldItems()
+
+        // Both requests come in while the pass syncs the repo's items.
+        let firstRequest = Task { await controller.refresh(repo: shared.id) }
+        let secondRequest = Task { await controller.refresh(repo: shared.id) }
+        await settle()
+        #expect(controller.refreshingRepos == [shared.id])
+        #expect(itemCalls(await h.me.calls, for: shared) == 1)
+
+        await h.me.releaseItems()
+        await pass.value
+        await firstRequest.value
+        await secondRequest.value
+
+        // The pass, then one refresh.
+        #expect(itemCalls(await h.me.calls, for: shared) == 2)
+        #expect(itemCalls(await h.me.calls, for: workOnly) == 1)
+        #expect(controller.refreshingRepos.isEmpty)
+    }
+
+    @Test func refreshRepoSkipsWhenWaitedPassSyncsIt() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared], states: [shared: []]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.me.resetCalls()
+        await h.me.holdRepositories("org")
+        let pass = Task { await controller.refresh() }
+        await h.me.waitForHeldRepositories()
+
+        // The pass has not synced any items yet.
+        let request = Task { await controller.refresh(repo: shared.id) }
+        await settle()
+        #expect(controller.refreshingRepos == [shared.id])
+
+        await h.me.releaseRepositories()
+        await pass.value
+        await request.value
+
+        #expect(itemCalls(await h.me.calls, for: shared) == 1)
+        #expect(controller.refreshingRepos.isEmpty)
+    }
+
+    @Test func passWaitsForRepoRefresh() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared], states: [shared: []]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.me.resetCalls()
+        await h.me.holdItems(shared)
+        let request = Task { await controller.refresh(repo: shared.id) }
+        await h.me.waitForHeldItems()
+
+        let pass = Task { await controller.refresh() }
+        await settle()
+        #expect(!(await h.me.calls.contains(.owners)))
+
+        await h.me.releaseItems()
+        await request.value
+        await pass.value
+
+        #expect(await h.me.calls.filter { $0 == .owners }.count == 1)
+        #expect(itemCalls(await h.me.calls, for: shared) == 2)
+    }
+
+    @Test func refreshRepoKeepsMarksMadeMeanwhile() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared], states: [shared: [record(1, .new)]]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.me.holdItems(shared)
+        let request = Task { await controller.refresh(repo: shared.id) }
+        await h.me.waitForHeldItems()
+
+        controller.markSeen(key(1))
+        await h.me.releaseItems()
+        await request.value
+
+        #expect(controller.records(in: shared.id).first?.attention == .seen)
+        #expect(try h.store.loadAccount(first)?.repos[shared.id]?.records[1]?.attention == .seen)
+    }
+
+    @Test func refreshRepoSkipsNeedsReauthOwner() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [shared], states: [shared: []]),
+            account(second, available: [shared, workOnly], states: [workOnly: []]))
+        await h.work.setOwners(.failure(.unauthorized))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        #expect(controller.session(for: second)?.auth == .needsReauth)
+        #expect(controller.ownership[workOnly.id] == second)
+        await h.work.resetCalls()
+
+        await controller.refresh(repo: workOnly.id)
+
+        #expect(await h.work.calls.isEmpty)
+        #expect(controller.refreshingRepos.isEmpty)
+    }
+
+    @Test func refreshRepoSkipsRateLimitedOwner() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared], states: [shared: []]))
+        await h.me.setOwners(.failure(.rateLimited(resetAt: localNow.addingTimeInterval(900))))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.me.resetCalls()
+
+        await controller.refresh(repo: shared.id)
+
+        #expect(await h.me.calls.isEmpty)
+    }
+}
+
+/// Lets the main actor's other tasks run until they wait.
+@MainActor
+private func settle() async {
+    for _ in 0..<100 { await Task.yield() }
 }

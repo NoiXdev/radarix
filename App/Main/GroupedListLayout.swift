@@ -88,8 +88,11 @@ struct RepoSectionList: View {
                     HStack {
                         Text(verbatim: "\(section.repo.owner) / \(section.repo.name)")
                         Spacer()
+                        if section.isRefreshing { RepoRefreshIndicator() }
                         KindBadges(counts: section.kindCounts)
                     }
+                    .contentShape(Rectangle())
+                    .contextMenu { RepoContextMenu(section: section, actions: actions) }
                 }
             }
         }

@@ -56,6 +56,14 @@ public final class RadarixController {
     @ObservationIgnored private var followUpRefresh = false
     /// `pendingRefresh` was started but has not begun its refresh yet.
     @ObservationIgnored private var refreshQueued = false
+    /// A `refresh(repo:)` is syncing its repo.
+    @ObservationIgnored private var repoRefreshRunning = false
+    /// Waiting for the running pass or repo refresh to end.
+    @ObservationIgnored private var idleWaiters: [CheckedContinuation<Void, Never>] = []
+    /// How many passes started their item phase.
+    @ObservationIgnored private var itemPhases = 0
+    /// Repo id to the last item phase that synced it completely.
+    @ObservationIgnored private var syncedInPhase: [RepoID: Int] = [:]
     @ObservationIgnored private var scheduler: Task<Void, Never>?
     @ObservationIgnored private var schedulerEnabled = false
     /// The snapshot last saved by this controller; nil before the first write and after a reset.
@@ -321,8 +329,10 @@ public final class RadarixController {
     // MARK: Sync
 
     /// Syncs every account once. Does nothing while syncing or when signed out; an account that
-    /// needs reauth or waits for a rate limit to reset skips the pass.
+    /// needs reauth or waits for a rate limit to reset skips the pass. A running `refresh(repo:)`
+    /// finishes first.
     public func refresh() async {
+        while repoRefreshRunning, !passRunning { await waitForIdle() }
         guard !passRunning, !sessions.isEmpty else { return }
         passRunning = true
         let completed = await runPass()
@@ -333,6 +343,47 @@ public final class RadarixController {
             followUpRefresh = false
             requestRefresh()
         }
+        resumeIdleWaiters()
+    }
+
+    /// Repos with a `refresh(repo:)` waiting or running.
+    public private(set) var refreshingRepos: Set<RepoID> = []
+
+    /// Syncs one repo with its owning session, through the engine code of a pass, and reports it
+    /// to `onSyncReport` like a pass. Every other repo's state stays as it is.
+    ///
+    /// It never runs alongside a pass: while one runs, it waits for it, then skips when that pass
+    /// synced the repo after this request came in. A request for a repo already in
+    /// `refreshingRepos` returns at once. A repo without an owner, and an owner that needs reauth
+    /// or waits for a rate limit to reset, skip it.
+    public func refresh(repo id: RepoID) async {
+        guard !sessions.isEmpty, refreshingRepos.insert(id).inserted else { return }
+        defer { refreshingRepos.remove(id) }
+        // A pass whose item phase starts from here on syncs the repo after this request.
+        let laterPhase = itemPhases + 1
+        while passRunning || repoRefreshRunning { await waitForIdle() }
+        if let phase = syncedInPhase[id], phase >= laterPhase { return }
+        guard let accountID = ownership[id], let session = session(for: accountID),
+            let repo = session.watchedRepos().first(where: { $0.id == id })
+        else { return }
+
+        repoRefreshRunning = true
+        let report = await session.syncRepo(repo, viewers: viewers)
+        repoRefreshRunning = false
+        writeSnapshot()
+        if let report, isCurrent(session) { onSyncReport?(session.account, report) }
+        resumeIdleWaiters()
+    }
+
+    private func waitForIdle() async {
+        await withCheckedContinuation { idleWaiters.append($0) }
+    }
+
+    /// Each waiter checks again what it waits for.
+    private func resumeIdleWaiters() {
+        let waiters = idleWaiters
+        idleWaiters = []
+        for waiter in waiters { waiter.resume() }
     }
 
     /// Repeats `refresh()` every `settings.refreshInterval` while signed in.
@@ -386,6 +437,8 @@ public final class RadarixController {
                 .filter { ownership[$0] == nil || ownership[$0] == id }
             return (session: session, owned: owned, keep: keep)
         }
+        itemPhases += 1
+        let phase = itemPhases
         // Each resolved session must run its item phase, also when it owns nothing: that drops
         // the states of repos another account owns and ends its pass.
         let results = await withTaskGroup(of: (Int, SyncReport?).self) { group in
@@ -400,7 +453,11 @@ public final class RadarixController {
         }
         var synced: [ObjectIdentifier: SyncReport] = [:]
         for (job, report) in zip(jobs, results) {
-            if let report { synced[ObjectIdentifier(job.session)] = report }
+            guard let report else { continue }
+            synced[ObjectIdentifier(job.session)] = report
+            // A stop leaves unknown which repos were synced.
+            guard report.isComplete else { continue }
+            for repo in job.owned where report.repoFailures[repo.id] == nil { syncedInPhase[repo.id] = phase }
         }
 
         var completed = true

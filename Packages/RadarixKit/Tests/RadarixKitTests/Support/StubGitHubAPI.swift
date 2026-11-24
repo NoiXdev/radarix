@@ -39,6 +39,9 @@ actor StubGitHubAPI: GitHubAPI {
     private var heldItems: RepoID?
     private var heldContinuation: CheckedContinuation<Void, Never>?
     private var holdWaiters: [CheckedContinuation<Void, Never>] = []
+    private var heldRepositories: String?
+    private var heldRepositoriesContinuation: CheckedContinuation<Void, Never>?
+    private var repositoriesWaiters: [CheckedContinuation<Void, Never>] = []
     private var heldAssign: Int?
     private var heldAssignContinuation: CheckedContinuation<Void, Never>?
     private var assignWaiters: [CheckedContinuation<Void, Never>] = []
@@ -105,6 +108,22 @@ actor StubGitHubAPI: GitHubAPI {
         heldContinuation = nil
     }
 
+    /// The next `repositories` call for this owner login suspends until `releaseRepositories()`.
+    func holdRepositories(_ owner: String) {
+        heldRepositories = owner
+    }
+
+    /// Returns once a held `repositories` call is suspended.
+    func waitForHeldRepositories() async {
+        guard heldRepositoriesContinuation == nil else { return }
+        await withCheckedContinuation { repositoriesWaiters.append($0) }
+    }
+
+    func releaseRepositories() {
+        heldRepositoriesContinuation?.resume()
+        heldRepositoriesContinuation = nil
+    }
+
     /// The next `setAssigned` call for this item number suspends until `releaseAssign()`.
     func holdAssign(_ number: Int) {
         heldAssign = number
@@ -143,6 +162,14 @@ actor StubGitHubAPI: GitHubAPI {
 
     func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]> {
         calls.append(.repositories(owner: owner.login))
+        if heldRepositories == owner.login {
+            heldRepositories = nil
+            await withCheckedContinuation { continuation in
+                heldRepositoriesContinuation = continuation
+                repositoriesWaiters.forEach { $0.resume() }
+                repositoriesWaiters = []
+            }
+        }
         return try (Self.pop(&repoLists, owner.login) ?? .success(.notModified)).get()
     }
 

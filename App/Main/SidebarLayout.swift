@@ -98,10 +98,7 @@ struct SidebarLayout<Header: View>: View {
         ForEach(sections) { section in
             RepoSidebarRow(section: section)
                 .tag(SidebarItem.repo(section.id))
-                .contextMenu {
-                    Button("Mark repository as seen") { actions.markRepoSeen(section.id) }
-                    Button("Open on GitHub") { actions.openRepo(section.repo) }
-                }
+                .contextMenu { RepoContextMenu(section: section, actions: actions) }
         }
     }
 
@@ -175,8 +172,31 @@ private struct RepoSidebarRow: View {
                     .accessibilityLabel(AppModel.message(for: failure))
             }
             Spacer()
+            if section.isRefreshing { RepoRefreshIndicator() }
             KindBadges(counts: section.kindCounts)
         }
+    }
+}
+
+/// The context menu of a repository, in the sidebar and on a section header.
+struct RepoContextMenu: View {
+    let section: RepoSection
+    let actions: ItemActions
+
+    var body: some View {
+        Button("Mark repository as seen") { actions.markRepoSeen(section.id) }
+        Button("Refresh repository") { actions.refreshRepo(section.id) }
+            .disabled(section.isRefreshing)
+        Button("Open on GitHub") { actions.openRepo(section.repo) }
+    }
+}
+
+/// Shown while a repository is refreshed alone.
+struct RepoRefreshIndicator: View {
+    var body: some View {
+        ProgressView()
+            .controlSize(.small)
+            .help("Syncing…")
     }
 }
 
