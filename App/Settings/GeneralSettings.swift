@@ -33,6 +33,10 @@ struct GeneralSettings: View {
                     Text("Sidebar").tag(MainLayout.sidebar)
                     Text("Single list").tag(MainLayout.grouped)
                 }
+                Picker("Show description", selection: setting(\.descriptionPlacement)) {
+                    Text("In a window").tag(DescriptionPlacement.window)
+                    Text("In the sidebar").tag(DescriptionPlacement.sidebar)
+                }
                 Picker("Refresh every", selection: setting(\.refreshInterval)) {
                     ForEach(AppSettings.refreshIntervals, id: \.self) { interval in
                         Text("\(Int(interval / 60)) minutes").tag(interval)

@@ -7,6 +7,10 @@ struct ItemDetail: View {
     let onOpen: () -> Void
     let onShowDescription: () -> Void
 
+    @Environment(AppModel.self) private var model
+
+    private var showsInline: Bool { model.controller.settings.descriptionPlacement == .sidebar }
+
     private var item: Item { entry.record.item }
 
     var body: some View {
@@ -27,11 +31,20 @@ struct ItemDetail: View {
                 }
                 Divider()
                 HStack {
-                    Button("Show description", action: onShowDescription)
+                    Button(showsInline ? "Open in window" : "Show description", action: onShowDescription)
                     Button("Open on GitHub", action: onOpen)
                 }
                 // A failure belongs to its item: another selection starts clean.
                 AssignButton(key: item.key).id(item.key)
+                if showsInline {
+                    Divider()
+                    // A fixed height: the inspector already scrolls, and a web view in a scroll
+                    // view has no height of its own. The web view scrolls long text itself.
+                    // `.id` gives each selection a fresh view, so no older description shows.
+                    DescriptionContent(key: item.key)
+                        .id(item.key)
+                        .frame(height: 360)
+                }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)

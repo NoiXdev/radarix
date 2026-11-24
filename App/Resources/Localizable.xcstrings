@@ -1133,6 +1133,38 @@
         }
       }
     },
+    "In a window" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In einem Fenster"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In a window"
+          }
+        }
+      }
+    },
+    "In the sidebar" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In der Seitenleiste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the sidebar"
+          }
+        }
+      }
+    },
     "Inspector" : {
       "localizations" : {
         "de" : {
@@ -1769,6 +1801,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open GitHub"
+          }
+        }
+      }
+    },
+    "Open in window" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Fenster öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in window"
           }
         }
       }
