@@ -1,0 +1,90 @@
+import Foundation
+import Security
+
+public enum CredentialKind: String, Codable, Sendable { case oauth, personalToken }
+
+/// A GitHub token. Deliberately not `CustomStringConvertible`, so it is never printed by accident.
+public struct Credential: Codable, Sendable, Equatable {
+    public let token: String
+    public let kind: CredentialKind
+
+    public init(token: String, kind: CredentialKind) {
+        self.token = token
+        self.kind = kind
+    }
+}
+
+public protocol CredentialStore: Sendable {
+    func load(for account: AccountID) throws -> Credential?
+    func save(_ credential: Credential, for account: AccountID) throws
+    func delete(for account: AccountID) throws
+}
+
+public struct KeychainError: Error, Equatable {
+    public let status: OSStatus
+    public init(status: OSStatus) { self.status = status }
+}
+
+public struct KeychainCredentialStore: CredentialStore {
+    private let service: String
+
+    public init(service: String = "dev.noix.radarix.credential") {
+        self.service = service
+    }
+
+    private func baseQuery(for account: AccountID) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: String(account.rawValue),
+        ]
+    }
+
+    public func load(for account: AccountID) throws -> Credential? {
+        var query = baseQuery(for: account)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess, let data = result as? Data else { throw KeychainError(status: status) }
+        return try JSONDecoder().decode(Credential.self, from: data)
+    }
+
+    public func save(_ credential: Credential, for account: AccountID) throws {
+        let data = try JSONEncoder().encode(credential)
+        try delete(for: account)
+        var query = baseQuery(for: account)
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else { throw KeychainError(status: status) }
+    }
+
+    public func delete(for account: AccountID) throws {
+        let status = SecItemDelete(baseQuery(for: account) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainError(status: status) }
+    }
+}
+
+public final class InMemoryCredentialStore: CredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [AccountID: Credential] = [:]
+
+    public init() {}
+
+    public func load(for account: AccountID) throws -> Credential? {
+        lock.lock(); defer { lock.unlock() }
+        return storage[account]
+    }
+
+    public func save(_ credential: Credential, for account: AccountID) throws {
+        lock.lock(); defer { lock.unlock() }
+        storage[account] = credential
+    }
+
+    public func delete(for account: AccountID) throws {
+        lock.lock(); defer { lock.unlock() }
+        storage[account] = nil
+    }
+}
