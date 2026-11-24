@@ -39,8 +39,8 @@ It is a personal tool first, published like the other NoiXdev Mac apps
 - Acting on items inside the app (commenting, assigning, merging, closing).
   Radarix shows and links; GitHub is where work happens.
 - GitHub Enterprise Server, Gitea, GitLab. github.com only.
-- More than one GitHub account at a time. The data model should not make a
-  second account impossible later.
+- More than one GitHub account at a time in this plan. It is designed
+  separately in `2026-11-24-radarix-multi-account-design.md`.
 - Mac App Store distribution. iOS.
 - An in-app auto-updater (see Distribution).
 
@@ -272,6 +272,14 @@ list and a tile board, and chose sidebar plus grouped list, switchable.
   it is public. (Decided by the owner.)
 - Release: Developer ID signed, notarized, stapled DMG on GitHub Releases,
   then a cask bump in `NoiXdev/homebrew-tap` (`brew install --cask radarix`).
+- **Update check (owner request, 2026-11-24; Plan 3, once the repo and its
+  releases exist):** on launch and then daily, Radarix asks GitHub for the
+  latest release of `NoiXdev/radarix`. A newer version shows "Version X is
+  available" in Settings and the menu bar popover, with a link to the
+  release page and the `brew upgrade --cask radarix` hint. Nothing is
+  downloaded or installed (the auto-updater non-goal stands). A switch in
+  Settings → General turns the check off (default on). Proposed by the
+  designer, not yet confirmed in detail by the owner.
 
 **Owner steps the plan must include (the builder cannot do them):**
 

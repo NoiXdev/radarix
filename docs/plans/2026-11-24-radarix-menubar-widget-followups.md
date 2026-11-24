@@ -2,12 +2,6 @@
 
 Plan 2 (`2026-11-24-radarix-menubar-widget.md`) is merged into `main`. This file lists what the task reviews and the final whole-branch review deferred. Items fixed before the merge are left out. The Plan 1 list (`2026-11-24-radarix-core-followups.md`) still applies. Its "Do first" and "Before OAuth ships" sections are done. The restricted-org hint is a footnote link on every OAuth organization.
 
-## Open decision (owner)
-
-- **Unsigned builds cannot persist anything.** macOS denies an ad-hoc signed app access to the group container `~/Library/Group Containers/dev.noix.radarix`, so settings, the account file and the widget snapshot fail to save. This has been true since Plan 1. Two options:
-  - team signing via `Config/Local.xcconfig` (needed for the widget anyway);
-  - a `FileStore` fallback to `~/Library/Application Support/Radarix` when the group directory is not writable. The app would work, but the widget would stay empty.
-
 ## Do next
 
 - **Move `MainNavigation` into the kit and test it.** It is the only automated cover for "never silent seen" on deep links. Test unknown item, closed-and-seen item, unwatched repo, and the grouped vs sidebar layouts.
@@ -16,6 +10,7 @@ Plan 2 (`2026-11-24-radarix-menubar-widget.md`) is merged into `main`. This file
 
 ## Widget
 
+- Unsigned builds cannot share the group container with the widget, so the widget stays empty until the app is team-signed (`Config/Local.xcconfig`). The app itself persists through the `FileStore` fallback (5244e8c).
 - `CountTile` in accented or desaturated rendering (desktop not focused). Check white-on-blue and ink-on-amber, and use `widgetRenderingMode` if they wash out. White on `#2F7CF6` is about 4.1:1.
 - The duplicated "Nothing new." `Text` in `SmallOverview` and `NothingNew`.
 - With a sync interval over 1 h, a running app can still show the stale note after 2 h.
@@ -57,6 +52,20 @@ Plan 2 (`2026-11-24-radarix-menubar-widget.md`) is merged into `main`. This file
 - Tests: owners-401 clearing `syncProblem`; the raw JSON `schemaVersion`; individual `WatchConfig`/`Item` defaults.
 - `RadarixController.swift` is past 420 lines. An optional `+Sync` / `+Snapshot` extension split.
 
+## Several accounts (Plan 3a)
+
+- A credential that fails to load at launch drops that account from repo ownership for that launch. Another account may take over its shared repos with a fresh baseline.
+- A launch deep link is handled once the first account is restored. A link to a repo of a later account that is still restoring lands on "All".
+- `controller.repos` is rebuilt several times per render (negligible today).
+- Test gaps:
+  - case-insensitive author match;
+  - multi-login `GitHubClient`/`SyncEngine` activity;
+  - `resolveStopsOnReauth` does not assert that the loop stops;
+  - `addAccount` mid-pass;
+  - restore with a viewer-id mismatch;
+  - a two-account snapshot `syncedAt` carry;
+  - the duplicated `TestClock` helper.
+
 ## Manual checks still open (owner, with team signing)
 
 1. Sign in with a token, set NoiXdev to All, relaunch: the data is restored.
@@ -69,3 +78,15 @@ Plan 2 (`2026-11-24-radarix-menubar-widget.md`) is merged into `main`. This file
 5. With Radarix not running, click the widget and a notification: exactly one window opens.
 6. Turn on open at login, log out and in: no window, menu bar only. A Dock click then opens the window.
 7. Console: no WidgetKit throttling messages during a normal day.
+
+Several accounts (Plan 3a):
+
+8. Add a second account by device flow and by token. Each time, the right account must be signed in on github.com.
+9. With two accounts, check:
+   - the sidebar sections;
+   - the menu bar popover;
+   - the Accounts tab, including Sign in again and Remove;
+   - the Repositories tab per-account sections, "Watched via", and the global search in both modes, including the no-match line;
+   - that a repo shared by both accounts shows and notifies once;
+   - that removing one account clears only its notifications.
+10. The widget reauth line, for one and for two accounts.
