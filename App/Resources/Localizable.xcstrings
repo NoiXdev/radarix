@@ -357,6 +357,38 @@
         }
       }
     },
+    "Accounts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts"
+          }
+        }
+      }
+    },
+    "Add account…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konto hinzufügen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add account…"
+          }
+        }
+      }
+    },
     "Advanced" : {
       "localizations" : {
         "de" : {
@@ -1013,6 +1045,22 @@
         }
       }
     },
+    "Make sure the right account is signed in on github.com." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Achte darauf, dass auf github.com das richtige Konto angemeldet ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make sure the right account is signed in on github.com."
+          }
+        }
+      }
+    },
     "Mark all as seen" : {
       "localizations" : {
         "de" : {
@@ -1233,6 +1281,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No items"
+          }
+        }
+      }
+    },
+    "No matching repositories" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine passenden Repositories"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matching repositories"
           }
         }
       }
@@ -1789,6 +1853,22 @@
         }
       }
     },
+    "Remove" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
+    },
     "Repositories" : {
       "localizations" : {
         "de" : {
@@ -2105,22 +2185,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign in with GitHub"
-          }
-        }
-      }
-    },
-    "Sign out" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abmelden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out"
           }
         }
       }
@@ -2473,6 +2537,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting for you to confirm on GitHub…"
+          }
+        }
+      }
+    },
+    "Watched via %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beobachtet über %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watched via %@"
           }
         }
       }

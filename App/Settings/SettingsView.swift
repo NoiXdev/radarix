@@ -3,7 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     var body: some View {
         TabView {
-            Tab("Account", systemImage: "person.crop.circle") {
+            Tab("Accounts", systemImage: "person.crop.circle") {
                 AccountSettings()
             }
             Tab("Repositories", systemImage: "folder") {

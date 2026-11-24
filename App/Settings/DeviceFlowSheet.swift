@@ -2,9 +2,12 @@ import AppKit
 import RadarixKit
 import SwiftUI
 
-/// Runs the OAuth device flow. Closes once signed in; closing it earlier cancels the flow.
+/// Runs the OAuth device flow. Closes once `completeDeviceFlow` returns, that is once the account
+/// is added and has synced; closing it before GitHub accepted the sign-in cancels the flow.
 struct DeviceFlowSheet: View {
     let controller: RadarixController
+    /// Called when the account is added, right before the sheet closes.
+    var onSignedIn: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -12,6 +15,10 @@ struct DeviceFlowSheet: View {
     @State private var errorMessage: String?
     /// Not owned by the sheet's lifetime, so the initial sync after sign-in outlives the sheet.
     @State private var flow: Task<Void, Never>?
+    /// The sessions when the flow started. A session not among them is the one this flow added,
+    /// also when it replaced the session of the same account.
+    @State private var sessionsAtStart: [AccountSession]?
+    @State private var completed = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -27,7 +34,11 @@ struct DeviceFlowSheet: View {
                         .keyboardShortcut(.defaultAction)
                 }
                 if errorMessage == nil {
-                    progress("Waiting for you to confirm on GitHub…")
+                    if accepted {
+                        progress("Syncing…")
+                    } else {
+                        progress("Waiting for you to confirm on GitHub…")
+                    }
                 }
             } else if errorMessage == nil {
                 progress("Requesting a code…")
@@ -44,22 +55,21 @@ struct DeviceFlowSheet: View {
         .frame(width: 380)
         .onAppear {
             guard flow == nil else { return }
+            sessionsAtStart = controller.sessions
             flow = Task { await run() }
         }
-        // `completeDeviceFlow` goes on with the first sync after signing in; that is not a wait for the user.
-        .onChange(of: isSignedIn) { _, signedIn in
-            if signedIn { dismiss() }
-        }
         .onDisappear {
-            // Closed before sign-in finished: stop polling GitHub.
-            if !isSignedIn { flow?.cancel() }
+            // Closed before GitHub accepted the sign-in: stop polling GitHub. Once it did, the
+            // account is added and its first sync must not be cut short.
+            if !completed, !accepted { flow?.cancel() }
         }
     }
 
-    /// The first account's sign-in is accepted, which is what this sheet is opened for until the
-    /// Accounts tab adds accounts.
-    private var isSignedIn: Bool {
-        controller.sessions.first?.auth == .ok
+    /// GitHub accepted the sign-in and the account is added; `completeDeviceFlow` goes on with
+    /// its first sync.
+    private var accepted: Bool {
+        guard let sessionsAtStart else { return false }
+        return controller.sessions.contains { session in !sessionsAtStart.contains { $0 === session } }
     }
 
     private func progress(_ text: LocalizedStringKey) -> some View {
@@ -74,6 +84,9 @@ struct DeviceFlowSheet: View {
             let code = try await controller.startDeviceFlow()
             self.code = code
             try await controller.completeDeviceFlow(code)
+            completed = true
+            onSignedIn()
+            dismiss()
         } catch {
             // Closing the sheet is not an error, whatever form the cancellation takes.
             guard !Task.isCancelled, !(error is CancellationError) else { return }

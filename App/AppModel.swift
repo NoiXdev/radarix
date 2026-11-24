@@ -139,12 +139,19 @@ final class AppModel {
 
     // MARK: Session
 
-    /// Removes the first account; once none is left, drops a pending link and the delivered
-    /// notifications.
-    func signOut() throws {
-        defer { if !controller.isSignedIn { clearSession() } }
-        guard let session = controller.sessions.first else { return }
-        try controller.removeAccount(session.accountID)
+    /// Removes the account `id`; its data stays on this Mac. The notifications and a pending link
+    /// of the repos it owned go with it, and once no account is left, every pending link and
+    /// notification.
+    func removeAccount(_ id: AccountID) throws {
+        let owned = Set(controller.ownership.filter { $0.value == id }.keys)
+        defer {
+            if !controller.isSignedIn {
+                clearSession()
+            } else if controller.session(for: id) == nil {
+                clear(repos: owned)
+            }
+        }
+        try controller.removeAccount(id)
     }
 
     /// Resets all data, dropping a pending link and the delivered notifications. A reset that
@@ -157,6 +164,19 @@ final class AppModel {
     private func clearSession() {
         navigation = nil
         notifications.removeAll()
+    }
+
+    /// Drops the notifications of `repos` and a pending link into one of them.
+    private func clear(repos: Set<RepoID>) {
+        switch navigation {
+        case .item(let key) where repos.contains(key.repo):
+            navigation = nil
+        case .repo(let id) where repos.contains(id):
+            navigation = nil
+        default:
+            break
+        }
+        notifications.remove(forRepos: repos)
     }
 
     /// Where the user grants an organization access for the credential of `session`.

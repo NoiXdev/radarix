@@ -1,9 +1,12 @@
 import RadarixKit
 import SwiftUI
 
+/// The Accounts tab: every signed-in account with its state, adding and removing accounts, and
+/// the reset. Signed out, it is the sign-in itself.
 struct AccountSettings: View {
     @Environment(AppModel.self) private var model
     @State private var showingDeviceFlow = false
+    @State private var showingAddAccount = false
     @State private var confirmingReset = false
     @State private var errorMessage: String?
 
@@ -11,23 +14,24 @@ struct AccountSettings: View {
 
     var body: some View {
         Form {
-            // Shows the first account only until this tab lists every account.
-            if let session = controller.sessions.first {
-                if session.auth == .needsReauth {
-                    Section {
-                        Label(
-                            "GitHub no longer accepts the sign-in for \(session.login). Sign in again to continue syncing.",
-                            systemImage: "exclamationmark.triangle.fill"
-                        )
-                        .foregroundStyle(.orange)
-                    }
-                    SignInSection(title: "Sign in again", showingDeviceFlow: $showingDeviceFlow)
-                }
-                AccountInfoSection(session: session)
-                accountActions
-            } else {
+            if controller.sessions.isEmpty {
                 SignInSection(title: "Sign in with GitHub", showingDeviceFlow: $showingDeviceFlow)
-                resetSection
+            } else {
+                ForEach(controller.sessions, id: \.accountID) { session in
+                    AccountDetailsSection(
+                        session: session,
+                        signInAgain: { showingAddAccount = true },
+                        remove: { perform { try model.removeAccount(session.accountID) } }
+                    )
+                }
+                Section {
+                    Button("Add account…") { showingAddAccount = true }
+                }
+            }
+            Section {
+                Button("Reset all data…", role: .destructive) {
+                    confirmingReset = true
+                }
             }
             if let errorMessage {
                 Section {
@@ -39,6 +43,9 @@ struct AccountSettings: View {
         .sheet(isPresented: $showingDeviceFlow) {
             DeviceFlowSheet(controller: controller)
         }
+        .sheet(isPresented: $showingAddAccount) {
+            AddAccountSheet()
+        }
         .confirmationDialog("Reset all data?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Reset all data", role: .destructive) {
                 perform { try model.resetAllData() }
@@ -46,28 +53,6 @@ struct AccountSettings: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes your sign-in, your watched repositories and what you have seen from this Mac.")
-        }
-    }
-
-    private var resetSection: some View {
-        Section {
-            Button("Reset all data…", role: .destructive) {
-                confirmingReset = true
-            }
-        }
-    }
-
-    private var accountActions: some View {
-        Section {
-            HStack {
-                Button("Sign out") {
-                    perform { try model.signOut() }
-                }
-                Spacer()
-                Button("Reset all data…", role: .destructive) {
-                    confirmingReset = true
-                }
-            }
         }
     }
 
@@ -81,10 +66,50 @@ struct AccountSettings: View {
     }
 }
 
+/// Today's sign-in in a sheet, for another account or a new sign-in of one in the list.
+/// Closes once the account is added, which includes its first sync.
+private struct AddAccountSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingDeviceFlow = false
+    /// The device flow added the account; this sheet closes once that sheet has.
+    @State private var signedIn = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                SignInSection(
+                    title: "Sign in with GitHub",
+                    showingDeviceFlow: $showingDeviceFlow,
+                    note: "Make sure the right account is signed in on github.com.",
+                    onSignedIn: { dismiss() }
+                )
+            }
+            .formStyle(.grouped)
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding([.horizontal, .bottom], 20)
+        }
+        .frame(width: 460, height: 470)
+        .sheet(isPresented: $showingDeviceFlow, onDismiss: {
+            if signedIn { dismiss() }
+        }) {
+            DeviceFlowSheet(controller: model.controller, onSignedIn: { signedIn = true })
+        }
+    }
+}
+
 /// "Sign in with GitHub" plus the personal access token under "Advanced".
 private struct SignInSection: View {
     let title: LocalizedStringKey
     @Binding var showingDeviceFlow: Bool
+    /// A line under the sign-in button.
+    var note: LocalizedStringKey?
+    /// Called once the token's account is added.
+    var onSignedIn: () -> Void = {}
 
     @Environment(AppModel.self) private var model
     @State private var token = ""
@@ -97,6 +122,11 @@ private struct SignInSection: View {
                 .disabled(!model.isDeviceFlowAvailable || isSigningIn)
             if !model.isDeviceFlowAvailable {
                 Text("Sign-in with GitHub is not set up in this build. Use a personal access token under Advanced.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            if let note {
+                Text(note)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -140,16 +170,21 @@ private struct SignInSection: View {
             do {
                 try await model.controller.addAccount(token: value, kind: .personalToken)
                 token = ""
+                isSigningIn = false
+                onSignedIn()
             } catch {
                 errorMessage = AppModel.message(for: error)
+                isSigningIn = false
             }
-            isSigningIn = false
         }
     }
 }
 
-private struct AccountInfoSection: View {
+/// One account: who it is, how it signed in, whether it syncs, and its actions.
+private struct AccountDetailsSection: View {
     let session: AccountSession
+    let signInAgain: () -> Void
+    let remove: () -> Void
 
     var body: some View {
         Section {
@@ -164,9 +199,23 @@ private struct AccountInfoSection: View {
                     Text(lastSync)
                 }
             }
-            if let problem = syncProblem {
+            if session.auth == .needsReauth {
+                Label(
+                    "GitHub no longer accepts the sign-in for \(session.login). Sign in again to continue syncing.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(.orange)
+            } else if let problem = syncProblem {
                 Text(problem)
                     .foregroundStyle(.secondary)
+            }
+            HStack {
+                if session.auth == .needsReauth {
+                    Button("Sign in again", action: signInAgain)
+                }
+                Spacer()
+                // No confirmation: the account's data stays, so adding it again resumes it.
+                Button("Remove", action: remove)
             }
         }
     }

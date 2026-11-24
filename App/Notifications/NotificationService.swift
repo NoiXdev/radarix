@@ -53,6 +53,13 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         center.removeAllPendingNotificationRequests()
     }
 
+    /// Removes the delivered and not yet delivered notifications of `repos`, for a removed account.
+    func remove(forRepos repos: Set<RepoID>) {
+        guard !repos.isEmpty else { return }
+        let threads = Set(repos.map(Self.thread(of:)))
+        Task { await Self.remove(threads: threads) }
+    }
+
     /// A non-nil `accountLogin` names the account the notifications belong to, ahead of the subtitle.
     func post(_ planned: [PlannedNotification], accountLogin: String?) {
         let center = UNUserNotificationCenter.current()
@@ -72,7 +79,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             content.title = repo.fullName
             content.subtitle = Self.subtitle(Self.subtitle(kind: item.kind, attention: attention), accountLogin: accountLogin)
             content.body = item.title
-            content.threadIdentifier = "repo-\(repo.id.rawValue)"
+            content.threadIdentifier = Self.thread(of: repo.id)
             content.userInfo = [
                 Key.url: item.url.absoluteString,
                 Key.repo: item.key.repo.rawValue,
@@ -85,10 +92,15 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             if updatedCount > 0 { parts.append(String(localized: "\(updatedCount) updated items")) }
             content.subtitle = Self.subtitle("", accountLogin: accountLogin)
             content.body = parts.joined(separator: " · ")
-            content.threadIdentifier = "repo-\(repo.id.rawValue)"
+            content.threadIdentifier = Self.thread(of: repo.id)
             content.userInfo = [Key.link: DeepLink.repo(repo.id).url.absoluteString]
         }
         return content
+    }
+
+    /// Groups a repo's notifications; every notification Radarix posts belongs to one repo's thread.
+    private nonisolated static func thread(of repo: RepoID) -> String {
+        "repo-\(repo.rawValue)"
     }
 
     /// `"<login> · <subtitle>"`, the login alone for an empty subtitle, the subtitle alone without a login.
@@ -110,6 +122,18 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
     private nonisolated static func requestAuthorization() async -> Bool {
         (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
+    }
+
+    private nonisolated static func remove(threads: Set<String>) async {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+            .filter { threads.contains($0.request.content.threadIdentifier) }
+            .map(\.request.identifier)
+        center.removeDeliveredNotifications(withIdentifiers: delivered)
+        let pending = await center.pendingNotificationRequests()
+            .filter { threads.contains($0.content.threadIdentifier) }
+            .map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: pending)
     }
 
     private nonisolated static func isDenied() async -> Bool {
