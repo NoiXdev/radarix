@@ -19,11 +19,17 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
         public let isDraft: Bool
         /// `Actor.botDisplayName`, nil for humans.
         public let botName: String?
+        /// Facts the widget filters need. They are resolved when the snapshot is made, because the
+        /// widget does not know who the viewers are.
+        public let isUnassigned: Bool
+        public let isAssignedToViewer: Bool
+        public let isReviewRequestedFromViewer: Bool
         public var id: ItemKey { key }
 
         public init(
             key: ItemKey, kind: ItemKind, title: String, attention: Attention, updatedAt: Date,
-            isDraft: Bool, botName: String?
+            isDraft: Bool, botName: String?, isUnassigned: Bool = false, isAssignedToViewer: Bool = false,
+            isReviewRequestedFromViewer: Bool = false
         ) {
             self.key = key
             self.kind = kind
@@ -32,13 +38,39 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
             self.updatedAt = updatedAt
             self.isDraft = isDraft
             self.botName = botName
+            self.isUnassigned = isUnassigned
+            self.isAssignedToViewer = isAssignedToViewer
+            self.isReviewRequestedFromViewer = isReviewRequestedFromViewer
         }
 
-        init(_ record: ItemRecord) {
+        init(_ record: ItemRecord, viewers: ViewerLogins) {
             let item = record.item
+            let isViewer = { (login: String) in viewers.contains(login) }
             self.init(
                 key: item.key, kind: item.kind, title: item.title, attention: record.attention,
-                updatedAt: item.updatedAt, isDraft: item.isDraft, botName: item.author.botDisplayName)
+                updatedAt: item.updatedAt, isDraft: item.isDraft, botName: item.author.botDisplayName,
+                isUnassigned: item.assignees.isEmpty, isAssignedToViewer: item.assignees.contains(where: isViewer),
+                isReviewRequestedFromViewer: item.requestedReviewers.contains(where: isViewer))
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case key, kind, title, attention, updatedAt, isDraft, botName
+            case isUnassigned, isAssignedToViewer, isReviewRequestedFromViewer
+        }
+
+        /// Tolerant: a 1.0.0 file has no flags, so they read as false.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            key = try c.decode(ItemKey.self, forKey: .key)
+            kind = try c.decode(ItemKind.self, forKey: .kind)
+            title = try c.decode(String.self, forKey: .title)
+            attention = try c.decode(Attention.self, forKey: .attention)
+            updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+            isDraft = try c.decode(Bool.self, forKey: .isDraft)
+            botName = try c.decodeIfPresent(String.self, forKey: .botName)
+            isUnassigned = try c.decodeIfPresent(Bool.self, forKey: .isUnassigned) ?? false
+            isAssignedToViewer = try c.decodeIfPresent(Bool.self, forKey: .isAssignedToViewer) ?? false
+            isReviewRequestedFromViewer = try c.decodeIfPresent(Bool.self, forKey: .isReviewRequestedFromViewer) ?? false
         }
     }
 
@@ -62,19 +94,33 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
         }
 
         var total: Int { newCount + updatedCount }
+
+        /// More new or updated items exist than `items` holds.
+        public var isTruncated: Bool { newCount + updatedCount > items.count }
     }
 
     public struct Summary: Sendable, Equatable {
+        init(newCount: Int, updatedCount: Int, repos: [RepoEntry], items: [ItemEntry], isLowerBound: Bool = false) {
+            self.newCount = newCount
+            self.updatedCount = updatedCount
+            self.repos = repos
+            self.items = items
+            self.isLowerBound = isLowerBound
+        }
+
         public let newCount: Int
         public let updatedCount: Int
         /// Total descending, then `fullName`.
         public let repos: [RepoEntry]
         /// Every item of `repos`, `updatedAt` descending, then key.
         public let items: [ItemEntry]
+        /// A filter is active and a chosen repo holds more items than the snapshot kept, so the
+        /// counts may be too low.
+        public let isLowerBound: Bool
         public var busiestRepo: RepoEntry? { repos.first(where: { $0.newCount + $0.updatedCount > 0 }) }
     }
 
-    public static let itemsPerRepo = 6
+    public static let itemsPerRepo = 100
     /// The widget calls its data stale this long after `syncedAt`.
     public static let staleAfter: TimeInterval = 2 * 60 * 60
 
@@ -131,7 +177,8 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
     /// only in `.hidden` mode. Every given repo gets an entry, also one with nothing to show.
     /// `.signedOut` without logins, `.needsReauth` when every login needs it, else `.ok`.
     public static func make(
-        repos states: [RepoState], logins: [String], reauthLogins: [String], settings: AppSettings, syncedAt: Date?
+        repos states: [RepoState], logins: [String], reauthLogins: [String], settings: AppSettings, viewers: ViewerLogins,
+        syncedAt: Date?
     ) -> WidgetSnapshot {
         let status: Status = if logins.isEmpty {
             .signedOut
@@ -150,7 +197,7 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
                 id: state.repo.id, owner: state.repo.owner, name: state.repo.name,
                 newCount: shown.count(where: { $0.attention == .new }),
                 updatedCount: shown.count(where: { $0.attention == .updated }),
-                items: newest.prefix(itemsPerRepo).map(ItemEntry.init))
+                items: newest.prefix(itemsPerRepo).map { ItemEntry($0, viewers: viewers) })
         }
         return WidgetSnapshot(
             status: status, logins: logins, reauthLogins: reauthLogins, syncedAt: syncedAt, repos: sorted(repos))
@@ -158,17 +205,43 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
 
     /// An unknown repo or owner gives an empty summary; the widget picks its own fallback.
     public func summary(for scope: WidgetScope) -> Summary {
+        summary(for: scope, filter: FilterSet())
+    }
+
+    /// With no filter the stored counts are used. Otherwise counts and items come from the stored
+    /// items that match, and `isLowerBound` says when a chosen repo kept fewer items than it has.
+    /// Both attention flags off count as both on.
+    public func summary(for scope: WidgetScope, filter: FilterSet) -> Summary {
+        var filter = filter
+        if !filter.new, !filter.updated { filter.new = true; filter.updated = true }
         let chosen = switch scope {
         case .all: repos
         case .owner(let login): repos.filter { $0.owner.caseInsensitiveCompare(login) == .orderedSame }
         case .repo(let id): repos.filter { $0.id == id }
         }
+        guard filter != FilterSet() else { return Self.summary(of: chosen, isLowerBound: false) }
+        let matching = chosen.map { repo in
+            let items = repo.items.filter { item in
+                filter.matches(
+                    attention: item.attention, kind: item.kind, isUnassigned: item.isUnassigned,
+                    isAssignedToViewer: item.isAssignedToViewer,
+                    isReviewRequestedFromViewer: item.isReviewRequestedFromViewer)
+            }
+            return RepoEntry(
+                id: repo.id, owner: repo.owner, name: repo.name,
+                newCount: items.count(where: { $0.attention == .new }),
+                updatedCount: items.count(where: { $0.attention == .updated }), items: items)
+        }
+        return Self.summary(of: matching, isLowerBound: chosen.contains(where: \.isTruncated))
+    }
+
+    private static func summary(of chosen: [RepoEntry], isLowerBound: Bool) -> Summary {
         let items = chosen.flatMap(\.items)
-            .sorted { Self.newer($0.updatedAt, $0.key, than: $1.updatedAt, $1.key) }
+            .sorted { newer($0.updatedAt, $0.key, than: $1.updatedAt, $1.key) }
         return Summary(
             newCount: chosen.reduce(0) { $0 + $1.newCount },
             updatedCount: chosen.reduce(0) { $0 + $1.updatedCount },
-            repos: Self.sorted(chosen), items: items)
+            repos: sorted(chosen), items: items, isLowerBound: isLowerBound)
     }
 
     /// Distinct owners of `repos`, sorted case-insensitively.

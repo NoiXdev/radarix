@@ -508,7 +508,7 @@ public final class RadarixController {
         let logins = sessions.map(\.login)
         let snapshot = WidgetSnapshot.make(
             repos: Array(repos.values), logins: logins, reauthLogins: needsReauth.map(\.login), settings: settings,
-            syncedAt: lastSyncAt ?? carriedSyncedAt(for: logins))
+            viewers: viewers, syncedAt: lastSyncAt ?? carriedSyncedAt(for: logins))
         guard snapshot != writtenSnapshot else { return }
         do {
             try store.saveSnapshot(snapshot)

@@ -29,7 +29,8 @@ private func settings(_ bots: BotDisplayMode) -> AppSettings {
 
 private func snapshot(_ repos: [(RepoRef, [ItemRecord])], bots: BotDisplayMode = .badge) -> WidgetSnapshot {
     WidgetSnapshot.make(
-        repos: Array(account(repos).repos.values), logins: ["me"], reauthLogins: [], settings: settings(bots), syncedAt: t2)
+        repos: Array(account(repos).repos.values), logins: ["me"], reauthLogins: [], settings: settings(bots), viewers: ViewerLogins(["me"]),
+        syncedAt: t2)
 }
 
 struct WidgetSnapshotTests {
@@ -50,16 +51,19 @@ struct WidgetSnapshotTests {
         #expect(s.syncedAt == t2)
     }
 
-    @Test func keepsNewestSixPerRepo() throws {
+    @Test func keepsNewestHundredPerRepo() throws {
         let repo = RepoRef.fixture(id: 1)
-        // Items 1...8, item n updated n minutes after t0; items 9 and 10 tie with item 8.
-        var records = (1...8).map { rec($0, .new, updatedAt: t0.addingTimeInterval(Double($0) * 60)) }
-        records += [9, 10].map { rec($0, .updated, updatedAt: t0.addingTimeInterval(8 * 60)) }
+        // Items 1...102, item n updated n minutes after t0; items 103 and 104 tie with item 102.
+        var records = (1...102).map { rec($0, .new, updatedAt: t0.addingTimeInterval(Double($0) * 60)) }
+        records += [103, 104].map { rec($0, .updated, updatedAt: t0.addingTimeInterval(102 * 60)) }
         let entry = try #require(snapshot([(repo, records)]).repos.first)
-        #expect(WidgetSnapshot.itemsPerRepo == 6)
-        #expect(entry.newCount == 8)
+        #expect(WidgetSnapshot.itemsPerRepo == 100)
+        #expect(entry.newCount == 102)
         #expect(entry.updatedCount == 2)
-        #expect(entry.items.map(\.key.number) == [8, 9, 10, 7, 6, 5])
+        #expect(entry.items.count == 100)
+        #expect(entry.isTruncated)
+        #expect(Array(entry.items.map(\.key.number).prefix(5)) == [102, 103, 104, 101, 100])
+        #expect(entry.items.last?.key.number == 5)
     }
 
     @Test func itemEntryCarriesTheItemFields() throws {
@@ -70,7 +74,7 @@ struct WidgetSnapshotTests {
         let entry = try #require(snapshot([(repo, [pull])]).repos.first?.items.first)
         #expect(entry == WidgetSnapshot.ItemEntry(
             key: ItemKey(repo: repo.id, number: 1), kind: .pullRequest, title: "Bump deps",
-            attention: .updated, updatedAt: t2, isDraft: true, botName: "Renovate"))
+            attention: .updated, updatedAt: t2, isDraft: true, botName: "Renovate", isUnassigned: true))
         #expect(entry.id == entry.key)
     }
 
@@ -154,7 +158,7 @@ struct WidgetSnapshotTests {
 
     @Test func statusNeedsReauthOnlyWhenAllNeedIt() {
         func status(_ logins: [String], _ reauth: [String]) -> WidgetSnapshot.Status {
-            WidgetSnapshot.make(repos: [], logins: logins, reauthLogins: reauth, settings: AppSettings(), syncedAt: nil).status
+            WidgetSnapshot.make(repos: [], logins: logins, reauthLogins: reauth, settings: AppSettings(), viewers: ViewerLogins([]), syncedAt: nil).status
         }
         #expect(status(["a", "b"], ["a"]) == .ok)
         #expect(status(["a", "b"], ["a", "b"]) == .needsReauth)
@@ -180,7 +184,7 @@ struct WidgetSnapshotTests {
         let two = account([(RepoRef.fixture(id: 2, owner: "org", name: "b"), [rec(1, .new, repo: 2)])])
         let s = WidgetSnapshot.make(
             repos: Array(one.repos.values) + Array(two.repos.values), logins: ["me", "work"], reauthLogins: [],
-            settings: AppSettings(), syncedAt: t2)
+            settings: AppSettings(), viewers: ViewerLogins([]), syncedAt: t2)
         #expect(s.summary(for: .owner("org")).repos.count == 2)
         #expect(s.summary(for: .owner("org")).newCount == 2)
     }
@@ -201,7 +205,88 @@ struct WidgetSnapshotTests {
             "repos.items", "repos.items.key", "repos.items.key.repo", "repos.items.key.repo.rawValue",
             "repos.items.key.number", "repos.items.kind", "repos.items.title", "repos.items.attention",
             "repos.items.updatedAt", "repos.items.isDraft", "repos.items.botName",
+            "repos.items.isUnassigned", "repos.items.isAssignedToViewer", "repos.items.isReviewRequestedFromViewer",
         ])
+    }
+
+    @Test func snapshotFlagsAssignmentForViewers() throws {
+        let repo = RepoRef.fixture(id: 1)
+        func record(_ number: Int, assignees: [String] = [], reviewers: [String] = []) -> ItemRecord {
+            ItemRecord(
+                item: .fixture(number: number, assignees: assignees, requestedReviewers: reviewers, updatedAt: t1),
+                attention: .new, seenAt: nil, commentsAtSeen: 0)
+        }
+        let s = snapshot([(repo, [
+            record(1, assignees: ["Me"]), record(2), record(3, assignees: ["bob"], reviewers: ["ME"]),
+        ])])
+        let items = try #require(s.repos.first).items
+        func entry(_ n: Int) throws -> WidgetSnapshot.ItemEntry { try #require(items.first { $0.key.number == n }) }
+        let mine = try entry(1), none = try entry(2), review = try entry(3)
+        #expect(mine.isAssignedToViewer && !mine.isUnassigned && !mine.isReviewRequestedFromViewer)
+        #expect(none.isUnassigned && !none.isAssignedToViewer && !none.isReviewRequestedFromViewer)
+        #expect(review.isReviewRequestedFromViewer && !review.isAssignedToViewer && !review.isUnassigned)
+    }
+
+    @Test func oneZeroSnapshotLoads() throws {
+        let json = Data("""
+        {"status":"ok","logins":["me"],"reauthLogins":[],"syncedAt":"2026-01-01T00:00:00Z","repos":[
+        {"id":{"rawValue":1},"owner":"o","name":"r","newCount":1,"updatedCount":0,"items":[
+        {"key":{"repo":{"rawValue":1},"number":7},"kind":"issue","title":"T","attention":"new",
+        "updatedAt":"2026-01-01T00:00:00Z","isDraft":false}]}]}
+        """.utf8)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let item = try #require(decoder.decode(WidgetSnapshot.self, from: json).repos.first?.items.first)
+        #expect(item.key.number == 7)
+        #expect(item.botName == nil)
+        #expect(!item.isUnassigned && !item.isAssignedToViewer && !item.isReviewRequestedFromViewer)
+    }
+
+    @Test func filteredSummaryCountsOnlyMatches() throws {
+        let repo = RepoRef.fixture(id: 1)
+        func record(_ number: Int, _ kind: ItemKind) -> ItemRecord {
+            ItemRecord(item: .fixture(number: number, kind: kind, updatedAt: t1), attention: .new, seenAt: nil, commentsAtSeen: 0)
+        }
+        let s = snapshot([(repo, [
+            record(1, .pullRequest), record(2, .pullRequest), record(3, .pullRequest), record(4, .issue), record(5, .issue),
+        ])])
+        var filter = FilterSet()
+        filter.pullRequests = true
+        let summary = s.summary(for: .all, filter: filter)
+        #expect(summary.newCount == 3)
+        #expect(summary.updatedCount == 0)
+        #expect(summary.items.allSatisfy { $0.kind == .pullRequest })
+        #expect(summary.items.count == 3)
+        #expect(summary.repos.first?.items.count == 3)
+        #expect(!summary.isLowerBound)
+        #expect(s.summary(for: .all).newCount == 5)
+    }
+
+    @Test func bothAttentionOffMeansBoth() {
+        let repo = RepoRef.fixture(id: 1)
+        let s = snapshot([(repo, [rec(1, .new), rec(2, .updated), rec(3, .updated)])])
+        var filter = FilterSet()
+        filter.new = false
+        filter.updated = false
+        let off = s.summary(for: .all, filter: filter)
+        #expect(off == s.summary(for: .all, filter: FilterSet()))
+        #expect(off.newCount == 1 && off.updatedCount == 2)
+    }
+
+    @Test func truncatedRepoMakesFilteredCountsALowerBound() throws {
+        let repo = RepoRef.fixture(id: 1)
+        let s = snapshot([(repo, (1...101).map { rec($0, .new) })])
+        #expect(s.repos.first?.isTruncated == true)
+        let plain = s.summary(for: .all)
+        #expect(plain.newCount == 101)
+        #expect(!plain.isLowerBound)
+        var filter = FilterSet()
+        filter.pullRequests = true
+        filter.issues = true
+        let filtered = s.summary(for: .all, filter: filter)
+        #expect(filtered.isLowerBound)
+        #expect(filtered.newCount == 100)
+        #expect(filtered.repos.first?.isTruncated == false)
     }
 
     @Test func snapshotMatchesControllerCounts() {
