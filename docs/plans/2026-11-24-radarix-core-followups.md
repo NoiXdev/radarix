@@ -1,6 +1,6 @@
 # Radarix core: follow-ups for Plan 2
 
-Plan 1 (`2026-11-24-radarix-core.md`) is merged into `master`. This file lists what the task reviews and the final whole-branch review deferred. Items fixed before the merge are left out.
+Plan 1 (`2026-11-24-radarix-core.md`) is merged into `main`. This file lists what the task reviews and the final whole-branch review deferred. Items fixed before the merge are left out.
 
 ## Do first in Plan 2
 
