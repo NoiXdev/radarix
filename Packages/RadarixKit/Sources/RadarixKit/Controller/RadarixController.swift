@@ -139,7 +139,14 @@ public final class RadarixController {
     /// Deletes the credential and every file, the widget snapshot included.
     public func resetAllData() throws {
         try credentials.deleteAll()
-        try store.resetAll()
+        do {
+            try store.resetAll()
+        } catch {
+            // Without a credential the session cannot go on, whatever files are left.
+            end()
+            writeSnapshot()
+            throw error
+        }
         end()
         settings = AppSettings()
         writtenSnapshot = nil

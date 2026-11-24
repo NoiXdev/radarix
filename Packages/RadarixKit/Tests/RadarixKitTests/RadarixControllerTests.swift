@@ -813,6 +813,33 @@ struct RadarixControllerTests {
         #expect(snapshot.syncedAt == nil)
     }
 
+    @Test func failedResetStillEndsSession() async throws {
+        let parent = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let directory = parent.appending(path: "data", directoryHint: .isDirectory)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: parent.path)
+            try? FileManager.default.removeItem(at: parent)
+        }
+        let credentials = InMemoryCredentialStore()
+        let api = StubGitHubAPI()
+        await api.setOwners(.success([user]))
+        let controller = RadarixController(
+            store: FileStore(directory: directory), credentials: credentials, makeAPI: { _ in api },
+            oauthClientID: "client-id", now: { localNow })
+        try await controller.signIn(token: "t", kind: .oauth)
+        #expect(controller.auth == .signedIn(login: "me"))
+        // The data directory cannot be removed from a read-only parent.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: parent.path)
+
+        #expect(throws: (any Error).self) { try controller.resetAllData() }
+
+        // The credential is gone, so the session is too.
+        #expect(try credentials.load(for: me) == nil)
+        #expect(controller.auth == .signedOut)
+        #expect(controller.account == nil)
+        #expect(controller.credentialKind == nil)
+    }
+
     @Test func signInWhileOfflineWritesSignedInSnapshot() async throws {
         let h = Harness()
         defer { h.cleanUp() }
