@@ -81,7 +81,8 @@ private struct OwnerSection: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                if controller.credentialKind == .oauth, owner.kind == .organization {
+                if controller.credentialKind == .oauth, owner.kind == .organization,
+                   controller.lastReport?.ownerIssues[owner.login] == nil {
                     Link("Missing repositories? Grant access on GitHub", destination: model.grantAccessURL)
                         .font(.footnote)
                 }
