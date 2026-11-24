@@ -415,6 +415,35 @@ struct RadarixControllerTests {
         #expect(try h.store.loadAccount(me)?.repos[repoA.id]?.records[1]?.attention == .updated)
     }
 
+    @Test func lastSyncAtOnlyAfterCompletedSync() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .seen, updatedAt: t1)]]))
+        let resetAt = localNow.addingTimeInterval(900)
+        await h.api.scriptRepositories("o", .failure(.rateLimited(resetAt: resetAt)))
+        let controller = h.makeController()
+
+        // Stopped by a rate limit.
+        await controller.restoreSession()
+        #expect(controller.lastReport?.rateLimitedUntil == resetAt)
+        #expect(controller.lastSyncAt == nil)
+
+        // Cancelled: the activity probe for item 1 cancels the sync's task.
+        h.clock.now = resetAt
+        await h.api.scriptRepositories("o", .success(.fresh([repoA])))
+        await h.api.scriptItems(repoA, .success(.fresh([.fixture(number: 1, createdAt: t0, updatedAt: t2)])))
+        await h.api.cancelTaskOnActivity(1)
+        // Its own task, so cancelling it leaves the test's task alone.
+        await Task { await controller.refresh() }.value
+        #expect(controller.lastReport?.wasCancelled == true)
+        #expect(controller.lastSyncAt == nil)
+
+        // Completed.
+        await controller.refresh()
+        #expect(controller.lastReport?.wasCancelled == false)
+        #expect(controller.lastSyncAt == resetAt)
+    }
+
     @Test func ownerModeChangeTriggersSync() async throws {
         let h = Harness()
         defer { h.cleanUp() }

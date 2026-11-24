@@ -16,6 +16,7 @@ public final class RadarixController {
     public private(set) var availableRepos: [String: [RepoRef]] = [:]
     public private(set) var owners: [OwnerRef] = []
     public private(set) var lastReport: SyncReport?
+    /// When the last sync that processed every watched repo finished.
     public private(set) var lastSyncAt: Date?
     public private(set) var isSyncing = false
     /// Called after every sync that completed for the current session.
@@ -231,7 +232,7 @@ public final class RadarixController {
         account = merged
         availableRepos = report.availableRepos
         lastReport = report
-        lastSyncAt = now()
+        if report.isComplete { lastSyncAt = now() }
         rateLimitedUntil = report.rateLimitedUntil
         if report.needsReauth { auth = .needsReauth(login: merged.login) }
         saveAccount()

@@ -13,11 +13,16 @@ public struct SyncReport: Sendable, Equatable {
     public var ownerIssues: [String: OwnerAccessIssue] = [:]
     public var needsReauth = false
     public var rateLimitedUntil: Date?
+    /// The sync stopped early because its task was cancelled.
+    public var wasCancelled = false
     public var rateLimit: RateLimit?
     /// Repo lists of every owner not in `.off` mode, keyed by owner login.
     public var availableRepos: [String: [RepoRef]] = [:]
 
     public init() {}
+
+    /// Every watched repo was processed: no cancellation, rate limit or rejected sign-in stopped the sync.
+    public var isComplete: Bool { !wasCancelled && !needsReauth && rateLimitedUntil == nil }
 }
 
 /// One sync pass over an account's watched repos. Stateless: everything it needs comes in,
@@ -79,7 +84,8 @@ public struct SyncEngine: Sendable {
             switch Stop(error) {
             case .reauth: report.needsReauth = true
             case .rateLimited(let resetAt): report.rateLimitedUntil = resetAt
-            case .cancelled, nil: break
+            case .cancelled: report.wasCancelled = true
+            case nil: break
             }
         }
 

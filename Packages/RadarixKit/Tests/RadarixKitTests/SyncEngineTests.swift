@@ -412,6 +412,7 @@ struct SyncEngineTests {
         #expect(report.updatedItems.isEmpty && report.newItems.isEmpty)
         #expect(report.repoFailures.isEmpty)
         #expect(!report.needsReauth && report.rateLimitedUntil == nil)
+        #expect(report.wasCancelled && !report.isComplete)
         #expect(result.repos == start.repos)
         #expect(await api.forgotten == [repoA.id])
         #expect(await itemQueries(api, repo: repoB).isEmpty)
@@ -429,6 +430,7 @@ struct SyncEngineTests {
 
         #expect(result.repos == start.repos)
         #expect(report.repoFailures.isEmpty)
+        #expect(report.wasCancelled)
         #expect(await api.calls == [.repositories(owner: "o")])
     }
 
