@@ -174,9 +174,14 @@ private struct OwnerSection: View {
         }
     }
 
-    /// The login of another account that syncs `repo`; this account's tick then has no effect.
+    /// The login of an earlier account that syncs `repo`; this account's tick then has no effect.
+    /// Under the owner, and under an account earlier than the owner, the account's own tick shows:
+    /// it would take the repo over.
     private func watchedVia(_ repo: RepoRef) -> String? {
         guard let id = controller.ownership[repo.id], id != session.accountID else { return nil }
+        let order = controller.settings.accountIDs
+        guard let ownerRank = order.firstIndex(of: id), let rank = order.firstIndex(of: session.accountID),
+              ownerRank < rank else { return nil }
         return controller.session(for: id)?.login
     }
 

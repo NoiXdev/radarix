@@ -262,12 +262,12 @@ struct MainWindow: View {
     }
 
     /// One section per account in account order, each with the watched repos it owns ordered like
-    /// its owners list, then by name. Accounts that own no watched repo are left out.
+    /// its owners list, then by name. An account that owns no watched repo has an empty section.
     private func accountSections(_ repos: [RepoID: RepoState], entries: [ItemEntry]) -> [AccountSection] {
         let byRepo = Dictionary(grouping: entries, by: \.repo.id)
         let byOwner = Dictionary(grouping: repos.values.map(\.repo)) { controller.owner(of: $0.id)?.accountID }
-        return controller.sessions.compactMap { session in
-            guard let owned = byOwner[session.accountID], !owned.isEmpty else { return nil }
+        return controller.sessions.map { session in
+            let owned = byOwner[session.accountID] ?? []
             let ownerOrder = Dictionary(
                 session.owners.enumerated().map { ($1.login, $0) }, uniquingKeysWith: { first, _ in first }
             )

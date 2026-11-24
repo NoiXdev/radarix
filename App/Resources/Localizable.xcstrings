@@ -1789,6 +1789,46 @@
         }
       }
     },
+    "Radarix, %lld new or updated, sign in again" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld neu oder aktualisiert, erneut anmelden"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld neu oder aktualisiert, erneut anmelden"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld new or updated, sign in again"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld new or updated, sign in again"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Radarix, sign in again" : {
       "localizations" : {
         "de" : {

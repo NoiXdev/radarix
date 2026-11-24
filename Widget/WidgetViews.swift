@@ -44,12 +44,15 @@ struct OverviewWidgetView: View {
 // MARK: Sizes
 
 /// The new and updated counts and the busiest repository. A tap opens that repository.
-/// Stale data, or none synced yet, shows that note instead of the repository, and a tap opens Radarix.
+/// Stale data, none synced yet, or an account to sign in again shows that note instead of the
+/// repository, and a tap opens Radarix.
 struct SmallOverview: View {
     let summary: WidgetSnapshot.Summary
     let freshness: Freshness?
 
-    private var busiest: WidgetSnapshot.RepoEntry? { notesFreshness ? nil : summary.busiestRepo }
+    private var busiest: WidgetSnapshot.RepoEntry? { showsNote ? nil : summary.busiestRepo }
+
+    private var showsNote: Bool { notesFreshness || freshness?.needsSignIn == true }
 
     private var notesFreshness: Bool {
         switch freshness {
@@ -64,7 +67,7 @@ struct SmallOverview: View {
                 .accessibilityLabel(Text("\(summary.newCount) new items"))
             CountTile(count: summary.updatedCount, label: "updated", fill: .attentionUpdated, ink: .attentionUpdatedInk)
                 .accessibilityLabel(Text("\(summary.updatedCount) updated items"))
-            if let freshness, notesFreshness || freshness.needsSignIn {
+            if let freshness, showsNote {
                 FreshnessNote(freshness: freshness)
                     .font(.caption2)
                     .lineLimit(3)

@@ -4,6 +4,7 @@ import SwiftUI
 /// Three columns: "All" and the watched repositories by account and owner, the filtered items, the
 /// selected item. With one account the sidebar has no account headers.
 struct SidebarLayout<Header: View>: View {
+    /// One per account, also for an account that owns no watched repo.
     let accountSections: [AccountSection]
     /// The filtered entries of every repository, in list order.
     let allEntries: [ItemEntry]
@@ -43,9 +44,16 @@ struct SidebarLayout<Header: View>: View {
             }
             .tag(SidebarItem.all)
             if accountSections.count > 1 {
-                // One section per account; its owners become plain subheadings.
+                // One section per account, like the login prefixes of banners and notifications;
+                // its owners become plain subheadings.
                 ForEach(accountSections) { account in
                     Section {
+                        if account.repos.isEmpty {
+                            Text("No repositories watched")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .selectionDisabled()
+                        }
                         ForEach(Self.owners(of: account.repos), id: \.self) { owner in
                             Text(verbatim: owner)
                                 .font(.caption)
