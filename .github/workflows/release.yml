@@ -18,6 +18,15 @@ jobs:
     name: Generate changelog
     runs-on: ubuntu-latest
     steps:
+      - name: Require the OAuth client ID
+        # First on purpose: this job commits to main and creates the draft
+        # release. A missing secret must fail before either side effect.
+        # scripts/release keeps its own check as the last line of defence.
+        env:
+          CLIENT_ID: ${{ secrets.RADARIX_OAUTH_CLIENT_ID }}
+        run: |
+          [ -n "$CLIENT_ID" ] || { echo "::error::repository secret RADARIX_OAUTH_CLIENT_ID is empty" >&2; exit 1; }
+
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           # Full history + tags are required for conventional-changelog.
@@ -38,8 +47,11 @@ jobs:
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
+          # --skip-unstable: a pre-release tag (v1.0.0-rc.1) is not a section
+          # boundary, so the final release's section holds every commit since
+          # the last final tag.
           printf '{"name":"radarix","version":"%s"}\n' "${TAG#v}" > package.json
-          npx -y conventional-changelog-cli@5 -p conventionalcommits -i CHANGELOG.md -s -r 0
+          npx -y conventional-changelog-cli@5 -p conventionalcommits -i CHANGELOG.md -s -r 0 --skip-unstable
           rm -f package.json
           # conventional-changelog can prepend a blank line; drop any leading
           # blank lines so the file always starts at the first version heading.
@@ -50,6 +62,9 @@ jobs:
         run: awk '/^#+ \[?v?[0-9]+\.[0-9]+/{c++} c==1' CHANGELOG.md > RELEASE_NOTES.md
 
       - name: Commit CHANGELOG back to main
+        # Pre-releases keep main free of changelog commits; their notes are
+        # still extracted above for the pre-release body.
+        if: ${{ !contains(github.event.inputs.tag || github.ref_name, '-') }}
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
@@ -79,6 +94,9 @@ jobs:
   build:
     name: Build, sign & notarize (macOS)
     needs: changelog
+    # Notarization waits on Apple with no timeout of its own; without this a
+    # stuck submission burns the six-hour default.
+    timeout-minutes: 60
     outputs:
       # The cask's checksum, read off the DMG this job just notarized rather
       # than recomputed later from a download — the tap verifies it again on
@@ -156,7 +174,7 @@ jobs:
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
           RADARIX_BUILD: ${{ github.run_number }}
-          RADARIX_OAUTH_CLIENT_ID: ${{ vars.RADARIX_OAUTH_CLIENT_ID }}
+          RADARIX_OAUTH_CLIENT_ID: ${{ secrets.RADARIX_OAUTH_CLIENT_ID }}
         run: |
           RADARIX_VERSION="${TAG#v}" scripts/release
 
