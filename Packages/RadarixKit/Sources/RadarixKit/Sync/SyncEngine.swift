@@ -71,16 +71,16 @@ public struct SyncEngine: Sendable {
             result.repos = result.repos.filter { keep($0.value) }
 
             for ref in watched {
+                try Task.checkCancellation()
                 try await syncRepo(ref, into: &result, report: &report)
             }
-        } catch let stop as Stop {
-            switch stop {
+        } catch {
+            // Only stops (including cancellation) leave the loops.
+            switch Stop(error) {
             case .reauth: report.needsReauth = true
             case .rateLimited(let resetAt): report.rateLimitedUntil = resetAt
-            case .cancelled: break
+            case .cancelled, nil: break
             }
-        } catch {
-            // `Stop` is the only error that leaves the loops.
         }
 
         report.availableRepos = available
@@ -175,7 +175,8 @@ public struct SyncEngine: Sendable {
                 do {
                     otherActivity = try await api.hasOtherActivity(on: item, in: state.repo, since: seenAt, viewer: viewer)
                 } catch {
-                    if let stop = Stop(error) {
+                    // A cancelled request may surface as any error; it must not turn into "updated".
+                    if let stop = Task.isCancelled ? .cancelled : Stop(error) {
                         // This repo's work is discarded, but the items response already set its ETag:
                         // forget it, or the next identical request answers 304 and these changes are lost.
                         await api.forgetConditionalState(for: state.repo)

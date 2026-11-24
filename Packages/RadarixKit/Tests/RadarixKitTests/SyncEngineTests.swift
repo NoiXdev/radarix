@@ -389,11 +389,47 @@ struct SyncEngineTests {
         #expect(result.repos == start.repos)
         #expect(await api.forgotten == [repoA.id])
 
-        // A stop on the items request itself discards nothing and forgets nothing.
+        // A stop on the items request itself discards nothing, and the client commits an ETag only after
+        // a complete fetch, so a failed items request leaves no new ETag behind: nothing to forget.
         let itemsAPI = StubGitHubAPI()
         await itemsAPI.scriptItems(repoA, .failure(.rateLimited(resetAt: t2)))
         _ = await run(itemsAPI, start)
         #expect(await itemsAPI.forgotten.isEmpty)
+    }
+
+    @Test func cancelledProbeStopsSyncWithoutUpdates() async {
+        let api = StubGitHubAPI()
+        let item = Item.fixture(number: 1, updatedAt: t0)
+        var moved = item
+        moved.updatedAt = t1
+        await api.scriptItems(repoA, .success(.fresh([moved])))
+        await api.cancelTaskOnActivity(1)
+        let start = account(repos: [baselined(repoA, [seen(item)]), baselined(repoB)])
+
+        // Its own task, so cancelling it leaves the test's task alone.
+        let (result, report) = await Task { await run(api, start) }.value
+
+        #expect(report.updatedItems.isEmpty && report.newItems.isEmpty)
+        #expect(report.repoFailures.isEmpty)
+        #expect(!report.needsReauth && report.rateLimitedUntil == nil)
+        #expect(result.repos == start.repos)
+        #expect(await api.forgotten == [repoA.id])
+        #expect(await itemQueries(api, repo: repoB).isEmpty)
+    }
+
+    @Test func cancelledTaskSyncsNoRepos() async {
+        let api = StubGitHubAPI()
+        let start = account(repos: [baselined(repoA), baselined(repoB)])
+
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return await run(api, start)
+        }
+        let (result, report) = await task.value
+
+        #expect(result.repos == start.repos)
+        #expect(report.repoFailures.isEmpty)
+        #expect(await api.calls == [.repositories(owner: "o")])
     }
 
     @Test func networkErrorKeepsPreviousItems() async {

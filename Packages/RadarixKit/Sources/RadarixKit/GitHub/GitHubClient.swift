@@ -33,7 +33,9 @@ public actor GitHubClient {
         let url = try makeURL(path, query: query)
         let (data, response) = try await perform(url, conditional: true)
         guard let data, response.statusCode != 304 else { return .notModified }
-        return .fresh(try decode(T.self, from: data))
+        let value = try decode(T.self, from: data)
+        rememberETag(of: response, for: url)
+        return .fresh(value)
     }
 
     // MARK: Paged requests
@@ -65,11 +67,14 @@ public actor GitHubClient {
     }
 
     /// Returns nil when the (conditional) first page answered 304.
+    /// The first page's ETag is committed only once every page is fetched and decoded,
+    /// so a failed fetch can never be answered with 304 next time.
     private func collectPagesOrNil<T: Decodable>(from first: URL, conditional: Bool) async throws -> [T]? {
         var result: [T] = []
         var next: URL? = first
-        var isFirst = true
+        var firstResponse: HTTPURLResponse?
         while let url = next {
+            let isFirst = firstResponse == nil
             let (data, response) = try await perform(url, conditional: conditional && isFirst)
             guard let data, response.statusCode != 304 else {
                 if conditional && isFirst { return nil }
@@ -77,9 +82,15 @@ public actor GitHubClient {
             }
             result += try decode([T].self, from: data)
             next = nextLink(in: response)
-            isFirst = false
+            if isFirst { firstResponse = response }
         }
+        if conditional, let firstResponse { rememberETag(of: firstResponse, for: first) }
         return result
+    }
+
+    private func rememberETag(of response: HTTPURLResponse, for url: URL) {
+        guard response.statusCode == 200, let etag = response.value(forHTTPHeaderField: "ETag") else { return }
+        etags[url.absoluteString] = etag
     }
 
     // MARK: Conditional state
@@ -113,7 +124,7 @@ public actor GitHubClient {
     }
 
     /// Sends one request. Returns nil data on 304 (only possible when `conditional`).
-    /// Stores the ETag only from a 200 to a conditional request. Throws mapped errors for non-2xx.
+    /// Never stores an ETag: callers commit it once the whole fetch succeeded. Throws mapped errors for non-2xx.
     private func perform(_ url: URL, conditional: Bool) async throws -> (Data?, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -129,6 +140,8 @@ public actor GitHubClient {
         let response: HTTPURLResponse
         do {
             (data, response) = try await transport.send(request)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
         } catch let error as URLError {
             throw GitHubError.network(error.localizedDescription)
         } catch is CancellationError {
@@ -141,9 +154,6 @@ public actor GitHubClient {
 
         switch response.statusCode {
         case 200..<300:
-            if conditional, response.statusCode == 200, let etag = response.value(forHTTPHeaderField: "ETag") {
-                etags[key] = etag
-            }
             return (data, response)
         case 304:
             return (nil, response)

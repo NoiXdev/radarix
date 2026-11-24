@@ -27,6 +27,7 @@ actor StubGitHubAPI: GitHubAPI {
     private var pullResults: [RepoID: [Scripted<[Int: PullDetails]>]] = [:]
     private var activityResults: [Int: [Result<Bool, GitHubError>]] = [:]
     private var currentRateLimit: RateLimit?
+    private var cancellingProbes: Set<Int> = []
 
     func scriptRepositories(_ owner: String, _ results: Scripted<[RepoRef]>...) {
         repoLists[owner, default: []] += results
@@ -42,6 +43,12 @@ actor StubGitHubAPI: GitHubAPI {
 
     func scriptActivity(_ number: Int, _ results: Result<Bool, GitHubError>...) {
         activityResults[number, default: []] += results
+    }
+
+    /// The probe for this item number cancels the calling task, then fails like a cancelled
+    /// request that surfaced as a plain network error.
+    func cancelTaskOnActivity(_ number: Int) {
+        cancellingProbes.insert(number)
     }
 
     func setRateLimit(_ limit: RateLimit?) {
@@ -81,6 +88,10 @@ actor StubGitHubAPI: GitHubAPI {
 
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewer: String) async throws -> Bool {
         calls.append(.activity(number: item.key.number, since: since, viewer: viewer))
+        if cancellingProbes.contains(item.key.number) {
+            withUnsafeCurrentTask { $0?.cancel() }
+            throw GitHubError.network("cancelled")
+        }
         return try (Self.pop(&activityResults, item.key.number) ?? .success(false)).get()
     }
 

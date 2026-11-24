@@ -202,6 +202,54 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         #expect(sent[2].value(forHTTPHeaderField: "If-None-Match") == "\"p1\"")
     }
 
+    @Test func failedLaterPageStoresNoETag() async throws {
+        for status in [500, 429] {
+            let stub = StubTransport()
+            let page1 = "\(base)/items?per_page=100"
+            let page2 = "\(base)/items?per_page=100&page=2"
+            await stub.enqueue(page1, status: 200, headers: ["ETag": "\"p1\"", "Link": "<\(page2)>; rel=\"next\""], body: #"[{"id":1}]"#)
+            await stub.enqueue(page2, status: status)
+            await stub.enqueue(page1, status: 200, body: #"[{"id":1}]"#)
+            let client = makeClient(stub)
+
+            await #expect(throws: GitHubError.self) {
+                let _: Fetch<[Thing]> = try await client.getAllPagesConditional("/items", query: [])
+            }
+            let _: Fetch<[Thing]> = try await client.getAllPagesConditional("/items", query: [])
+            #expect(await stub.sent[2].value(forHTTPHeaderField: "If-None-Match") == nil, "status \(status)")
+        }
+    }
+
+    @Test func undecodableResponseStoresNoETag() async throws {
+        let stub = StubTransport()
+        await stub.enqueue("\(base)/t", status: 200, headers: ["ETag": "\"bad\""], body: "not json")
+        await stub.enqueue("\(base)/t", status: 200, body: #"{"id":1}"#)
+        await stub.enqueue("\(base)/items?per_page=100", status: 200, headers: ["ETag": "\"bad\""], body: "not json")
+        await stub.enqueue("\(base)/items?per_page=100", status: 200, body: "[]")
+        let client = makeClient(stub)
+
+        await #expect(throws: GitHubError.self) {
+            let _: Fetch<Thing> = try await client.getConditional("/t", query: [])
+        }
+        let _: Fetch<Thing> = try await client.getConditional("/t", query: [])
+        await #expect(throws: GitHubError.self) {
+            let _: Fetch<[Thing]> = try await client.getAllPagesConditional("/items", query: [])
+        }
+        let _: Fetch<[Thing]> = try await client.getAllPagesConditional("/items", query: [])
+
+        let sent = await stub.sent
+        #expect(sent[1].value(forHTTPHeaderField: "If-None-Match") == nil)
+        #expect(sent[3].value(forHTTPHeaderField: "If-None-Match") == nil)
+    }
+
+    @Test func cancelledRequestThrowsCancellationError() async throws {
+        let stub = StubTransport()
+        await stub.enqueue("\(base)/t", failure: URLError(.cancelled))
+        await #expect(throws: CancellationError.self) {
+            let _: Thing = try await makeClient(stub).get("/t", query: [])
+        }
+    }
+
     @Test func nonConditionalPagedFirstPageNeverSendsIfNoneMatch() async throws {
         let stub = StubTransport()
         let page1 = "\(base)/items?per_page=100"
