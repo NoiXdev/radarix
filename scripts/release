@@ -65,11 +65,16 @@ CLIENT_ID="$RADARIX_OAUTH_CLIENT_ID"
 # local tag — never a hardcoded default that silently mislabels a build.
 VERSION="${RADARIX_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)}"
 [ -n "$VERSION" ] || { echo "error: no RADARIX_VERSION and no tag to derive it from" >&2; exit 1; }
-# X.Y or X.Y.Z, optionally with a pre-release suffix (1.0.0-rc.1). Anything
-# else (a stray "v", "release-1") would end up in CFBundleShortVersionString
-# and in the DMG name the cask points at.
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.]+)?$ ]] || {
-    echo "error: version '$VERSION' is not X.Y[.Z][-suffix]" >&2; exit 1; }
+# X.Y.Z, optionally with a pre-release suffix (1.0.0-rc.1), as the release
+# tags are vX.Y.Z[-suffix]. Anything else (a stray "v", "1.2", "release-1")
+# would end up in the bundle version and in the DMG name the cask points at.
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || {
+    echo "error: version '$VERSION' is not X.Y.Z[-suffix]" >&2; exit 1; }
+# The bundle gets the numeric part only: CFBundleShortVersionString is
+# documented as plain X.Y.Z, and the app's own version parsing (the update
+# check) rejects suffixes. So 1.0.0-rc.1 ships as bundle version 1.0.0,
+# while the DMG name, the notary uploads and the log keep the full version.
+BUNDLE_VERSION="${VERSION%%-*}"
 
 # Build number: CI passes the workflow run number, which only ever grows.
 # The local fallback, the commit count, is deterministic per commit — but a
@@ -137,7 +142,7 @@ if [ "$UNSIGNED" = 0 ]; then
     fi
 fi
 
-echo "Radarix $VERSION ($BUILD)$([ "$UNSIGNED" = 1 ] && echo ' — UNSIGNED layout check')"
+echo "Radarix $VERSION (bundle $BUNDLE_VERSION, build $BUILD)$([ "$UNSIGNED" = 1 ] && echo ' — UNSIGNED layout check')"
 rm -rf "$ARCHIVE" "$EXPORT" "$APP" "$DERIVED" "$STAGING" "$DMG"
 mkdir -p dist
 
@@ -153,7 +158,7 @@ xcodegen generate --quiet
 # is NO in Release already; it is spelled out so a Local.xcconfig cannot
 # turn it back on.
 BUILD_SETTINGS=(
-    MARKETING_VERSION="$VERSION"
+    MARKETING_VERSION="$BUNDLE_VERSION"
     CURRENT_PROJECT_VERSION="$BUILD"
     RADARIX_OAUTH_CLIENT_ID="$CLIENT_ID"
     ENABLE_HARDENED_RUNTIME=YES
@@ -221,13 +226,13 @@ WIDGET="$APP/Contents/PlugIns/RadarixWidget.appex"
 [ -d "$WIDGET" ] || fail "widget extension missing: $WIDGET"
 
 INFO="$APP/Contents/Info.plist"
-[ "$(plist CFBundleShortVersionString "$INFO")" = "$VERSION" ] || fail "app CFBundleShortVersionString is not $VERSION"
+[ "$(plist CFBundleShortVersionString "$INFO")" = "$BUNDLE_VERSION" ] || fail "app CFBundleShortVersionString is not $BUNDLE_VERSION"
 [ "$(plist CFBundleVersion "$INFO")" = "$BUILD" ] || fail "app CFBundleVersion is not $BUILD"
 [ "$(plist GitHubOAuthClientID "$INFO")" = "$CLIENT_ID" ] || fail "app GitHubOAuthClientID is not the given client ID"
 # The widget must carry the same version: macOS refuses to load an
 # extension whose version differs from its host app's.
-[ "$(plist CFBundleShortVersionString "$WIDGET/Contents/Info.plist")" = "$VERSION" ] \
-    || fail "widget CFBundleShortVersionString is not $VERSION"
+[ "$(plist CFBundleShortVersionString "$WIDGET/Contents/Info.plist")" = "$BUNDLE_VERSION" ] \
+    || fail "widget CFBundleShortVersionString is not $BUNDLE_VERSION"
 
 for bundle in "$APP" "$WIDGET"; do
     exe="$bundle/Contents/MacOS/$(plist CFBundleExecutable "$bundle/Contents/Info.plist")"
