@@ -39,7 +39,7 @@
   - Team: `5V8ZCK434F`, with a Developer ID Application certificate from the org secrets.
   - App group: `$(TeamIdentifierPrefix)dev.noix.radarix`.
 - **Org secrets**, with the same names as macSCP: `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `TAP_TOKEN`, `DISCORD_WEBHOOK_RELEASE_NOTIFICATION`.
-- **Repo variable:** `RADARIX_OAUTH_CLIENT_ID` only (owner, 2026-11-24). The team `5V8ZCK434F` is fixed in `scripts/release` and `Config/ExportOptions.plist`, as macSCP fixes it; the org secrets reach the public repo on their own.
+- **Repo secret:** `RADARIX_OAUTH_CLIENT_ID` only (owner, 2026-11-24). The team `5V8ZCK434F` is fixed in `scripts/release` and `Config/ExportOptions.plist`, as macSCP fixes it; the org secrets reach the public repo on their own.
 - **Pre-release tags** contain `-`. They publish a GitHub pre-release and skip the tap bump and the announcement.
 
 ## Review Focus
@@ -307,6 +307,9 @@ Add to `SchemaEvolutionTests.swift`: `checkForUpdatesDefaultsOn`. It decodes `pl
   - If it fails, a fix task resumes the Task 4 implementer, typically for the Xcode version.
   - Fixes are new commits. Never force-push.
 - [ ] **Step 4:** Set the repo homepage with `gh repo edit NoiXdev/radarix --homepage https://noix.dev/en/projects/radarix`, and add topics: `macos`, `github`, `menu-bar`, `pull-requests`, `issues`.
+- [ ] **Step 5:** Turn on private vulnerability reporting, because `SECURITY.md` and the issue chooser send reporters there: `gh api -X PUT repos/NoiXdev/radarix/private-vulnerability-reporting`.
+  - Verify with `gh api repos/NoiXdev/radarix/private-vulnerability-reporting`. Expected: `{"enabled":true}`.
+  - Record the same gap for macSCP (also `enabled: false`) as a follow-up.
 
 ---
 
@@ -396,9 +399,9 @@ Add to `SchemaEvolutionTests.swift`: `checkForUpdatesDefaultsOn`. It decodes `pl
 
 ### Task 10: Release (owner gate, then controller)
 
-This task needs the owner's steps from the spec: the OAuth app is registered and `RADARIX_OAUTH_CLIENT_ID` is set as a repo variable. The org secrets reach the public repo on their own.
+This task needs the owner's steps from the spec: the OAuth app is registered and `RADARIX_OAUTH_CLIENT_ID` is set as a repo secret. The org secrets reach the public repo on their own.
 
-- [ ] **Step 1 (controller):** Push the tag with `git tag v1.0.0-rc.1 && git push origin v1.0.0-rc.1`, then watch `release.yml`.
+- [ ] **Step 1 (controller):** Push the tag with `git pull --ff-only && git tag v1.0.0-rc.1 && git push origin v1.0.0-rc.1`, then watch `release.yml`.
   - Expected: a green run, and a GitHub pre-release with `Radarix-1.0.0-rc.1.dmg`.
   - Tap and announce are skipped.
   - Do not run a fix wave on red without reading the logs. Signing or profile errors are the spec's stop point.
@@ -411,7 +414,7 @@ This task needs the owner's steps from the spec: the OAuth app is registered and
 
   If the widget is empty or the app cannot reach its group, stop. Next comes the provisioning-profile contingency from the spec, with the owner.
 - [ ] **Step 3 (controller):** Measure the real paths for the cask's `zap` on the installed rc with `ls ~/Library/Group\ Containers ~/Library/Preferences | grep -i radarix`, and fix Task 7's branch.
-- [ ] **Step 4 (controller):** Push the tag with `git tag v1.0.0 && git push origin v1.0.0`, then watch the run.
+- [ ] **Step 4 (controller):** Push the tag with `git pull --ff-only && git tag v1.0.0 && git push origin v1.0.0`, then watch the run.
   - Expected: green and published.
   - The announcement is posted.
   - The tap job prints the "add the first cask by hand" notice.

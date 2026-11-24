@@ -65,7 +65,7 @@ and launch post.
   macSCP): `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_API_KEY`,
   `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `TAP_TOKEN`,
   `DISCORD_WEBHOOK_RELEASE_NOTIFICATION`. New for Radarix: only the OAuth client ID, as the
-  repository **variable** `RADARIX_OAUTH_CLIENT_ID` (not a secret; a client ID is public).
+  repository **secret** `RADARIX_OAUTH_CLIENT_ID`. A client ID is public, but the release job reads it as a secret, like the other release inputs.
   The org secrets reach the public repo without further setup (owner, 2026-11-24).
 - macSCP's CI lesson applies: the hosted runner's Xcode/Swift can be older than the local
   toolchain, and strict-concurrency diagnostics can differ. Workflows print
@@ -116,8 +116,8 @@ account's token: no gain, and it spends the rate limit the syncs need. **Owner p
 - `ci.yml`: on push to `main` and PRs; generate the project, `swift test` in the kit,
   unsigned Debug build of the app (widget embedded).
 - `release.yml`: jobs as in macSCP (changelog → build/sign/notarize → publish release →
-  announce + tap bump). The build job fails early if the OAuth client ID variable is
-  empty. It checks out the tagged source. Pre-release tags (`-`) are marked
+  announce + tap bump). The build job fails early if the OAuth client ID secret is
+  empty, and the changelog job checks it first so nothing is committed or drafted without it. It checks out the tagged source. Pre-release tags (`-`) are marked
   as pre-releases. The DMG's SHA-256 goes to the tap bump.
 - `announce.yml`: the org's shared Discord action, callable and dispatchable, as macSCP.
 - `scripts/release`: generates the project with the version from the tag, archives
@@ -164,7 +164,7 @@ must pass. On noix.dev, `docs:` is set only after the docs are merged and deploy
 1. Register the NoiXdev OAuth App with device flow enabled; provide the client ID.
 2. ~~Create the public repo~~ (done by the builder, 2026-11-24); pushing `main` is a plan
    task.
-3. Set the repo variable `RADARIX_OAUTH_CLIENT_ID`.
+3. Set the repo secret `RADARIX_OAUTH_CLIENT_ID`.
 4. Push `v1.0.0-rc.1`, install it and run the gate check (Decisions, 1); then push
    `v1.0.0`, and commit the first cask to the tap with the release's checksum (or let
    the builder prepare that commit).
