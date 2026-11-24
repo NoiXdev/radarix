@@ -504,6 +504,42 @@ struct RadarixControllerTests {
         #expect(controller.lastSyncAt == resetAt)
     }
 
+    @Test func offlineFallbackSyncKeepsLastSyncAt() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .seen)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        #expect(controller.lastSyncAt == localNow)
+
+        // Owners are known; the owners call fails, the engine still completes on the known owners.
+        let later = localNow.addingTimeInterval(300)
+        h.clock.now = later
+        await h.api.setOwners(.failure(.network("offline")))
+        await controller.refresh()
+        #expect(controller.lastReport?.isComplete == true)
+        #expect(controller.syncProblem == .offline)
+        #expect(controller.lastSyncAt == localNow)
+    }
+
+    @Test func needsReauthClearsOfflineProblem() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .seen)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+
+        await h.api.setOwners(.failure(.network("offline")))
+        await controller.refresh()
+        #expect(controller.syncProblem == .offline)
+
+        // Owners fall back to the known list, then the engine meets a 401.
+        await h.api.scriptRepositories("o", .failure(.unauthorized))
+        await controller.refresh()
+        #expect(controller.auth == .needsReauth(login: "me"))
+        #expect(controller.syncProblem == nil)
+    }
+
     @Test func ownerModeChangeTriggersSync() async throws {
         let h = Harness()
         defer { h.cleanUp() }

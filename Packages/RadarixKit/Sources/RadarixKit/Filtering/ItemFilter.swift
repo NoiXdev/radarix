@@ -16,6 +16,10 @@ public enum BotScope: Sendable { case humans, bots, all }
 
 public struct AttentionCounts: Sendable, Equatable {
     public var new = 0, updated = 0
+    public init(new: Int = 0, updated: Int = 0) {
+        self.new = new
+        self.updated = updated
+    }
     public var total: Int { new + updated }
 }
 

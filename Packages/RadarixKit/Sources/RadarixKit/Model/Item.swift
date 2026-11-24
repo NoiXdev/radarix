@@ -79,4 +79,27 @@ public struct Item: Sendable, Codable, Hashable, Identifiable {
         self.updatedAt = updatedAt
         self.bodyExcerpt = bodyExcerpt
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case key, kind, title, url, author, status, isDraft, labels, assignees, requestedReviewers
+        case commentCount, createdAt, updatedAt, bodyExcerpt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(ItemKey.self, forKey: .key)
+        kind = try c.decode(ItemKind.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        url = try c.decode(URL.self, forKey: .url)
+        author = try c.decode(Actor.self, forKey: .author)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        status = try c.decodeIfPresent(ItemStatus.self, forKey: .status) ?? .open
+        isDraft = try c.decodeIfPresent(Bool.self, forKey: .isDraft) ?? false
+        labels = try c.decodeIfPresent([Label].self, forKey: .labels) ?? []
+        assignees = try c.decodeIfPresent([String].self, forKey: .assignees) ?? []
+        requestedReviewers = try c.decodeIfPresent([String].self, forKey: .requestedReviewers) ?? []
+        commentCount = try c.decodeIfPresent(Int.self, forKey: .commentCount) ?? 0
+        bodyExcerpt = try c.decodeIfPresent(String.self, forKey: .bodyExcerpt) ?? ""
+    }
 }

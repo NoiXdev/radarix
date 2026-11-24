@@ -251,7 +251,8 @@ public final class RadarixController {
         account = merged
         availableRepos = report.availableRepos
         lastReport = report
-        if report.isComplete { lastSyncAt = now() }
+        // An offline pass that fell back to known owners is complete for those owners only.
+        if report.isComplete, !offline { lastSyncAt = now() }
         rateLimitedUntil = report.rateLimitedUntil
         if let until = report.rateLimitedUntil {
             syncProblem = .rateLimited(until: until)
@@ -259,7 +260,11 @@ public final class RadarixController {
             // The repos synced from the previous owners, but GitHub was not reachable for the owners list.
             syncProblem = offline ? .offline : nil
         }
-        if report.needsReauth { auth = .needsReauth(login: merged.login) }
+        if report.needsReauth {
+            auth = .needsReauth(login: merged.login)
+            // GitHub answered; the sign-in is the problem, shown by `auth`.
+            syncProblem = nil
+        }
         saveAccount()
         onSyncReport?(report)
         return true

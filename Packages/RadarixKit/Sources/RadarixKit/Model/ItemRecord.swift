@@ -17,5 +17,15 @@ public struct ItemRecord: Sendable, Codable, Hashable {
         self.commentsAtSeen = commentsAtSeen
     }
 
+    private enum CodingKeys: String, CodingKey { case item, attention, seenAt, commentsAtSeen }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        item = try c.decode(Item.self, forKey: .item)
+        attention = try c.decode(Attention.self, forKey: .attention)
+        seenAt = try c.decodeIfPresent(Date.self, forKey: .seenAt)
+        commentsAtSeen = try c.decodeIfPresent(Int.self, forKey: .commentsAtSeen) ?? 0
+    }
+
     public var newComments: Int { max(0, item.commentCount - commentsAtSeen) }
 }
