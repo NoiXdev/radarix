@@ -32,6 +32,8 @@ public protocol GitHubAPI: Sendable {
     func items(in repo: RepoRef, query: IssueQuery) async throws -> Fetch<[Item]>
     func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]>
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool
+    /// The item's description rendered to HTML by GitHub; nil when it has none. Never conditional.
+    func renderedBody(number: Int, in repo: RepoRef) async throws -> String?
     func rateLimit() async -> RateLimit?
     /// Forget cached conditional-request state (ETags) for everything under this repo.
     func forgetConditionalState(for repo: RepoRef) async
@@ -123,6 +125,15 @@ extension GitHubClient: GitHubAPI {
         return ActivityProbe.hasOtherActivity(
             in: entries, since: since, viewers: viewers,
             itemAuthorIsViewer: viewers.contains(item.author.login))
+    }
+
+    public func renderedBody(number: Int, in repo: RepoRef) async throws -> String? {
+        struct Rendered: Decodable { let bodyHtml: String? }
+        let rendered: Rendered = try await get(
+            "/repos/\(repo.owner)/\(repo.name)/issues/\(number)", query: [],
+            accept: "application/vnd.github.html+json")
+        guard let html = rendered.bodyHtml, !html.isEmpty else { return nil }
+        return html
     }
 
     public func rateLimit() async -> RateLimit? { latestRateLimit }

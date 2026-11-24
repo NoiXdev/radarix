@@ -270,6 +270,11 @@ public final class AccountSession {
 
     // MARK: Watch config
 
+    /// The item's description rendered to HTML. Does not touch the sync state.
+    public func renderedBody(number: Int, in repo: RepoRef) async throws -> String? {
+        try await api.renderedBody(number: number, in: repo)
+    }
+
     public func setOwnerMode(_ mode: OwnerMode, for owner: String) {
         account.watch.owners[owner] = mode
         save()
@@ -369,6 +374,7 @@ private struct RejectingAPI: GitHubAPI {
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool {
         throw GitHubError.unauthorized
     }
+    func renderedBody(number: Int, in repo: RepoRef) async throws -> String? { throw GitHubError.unauthorized }
     func rateLimit() async -> RateLimit? { nil }
     func forgetConditionalState(for repo: RepoRef) async {}
 }

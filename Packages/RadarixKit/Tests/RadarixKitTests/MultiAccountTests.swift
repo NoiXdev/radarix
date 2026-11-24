@@ -152,6 +152,35 @@ struct MultiAccountTests {
         #expect(controller.records(in: nil).map(\.item.key) == [key(1)])
     }
 
+    @Test func renderedDescriptionUsesOwningAccount() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [], states: [:]),
+            account(second, available: [workOnly], states: [workOnly: [record(3, .new, repo: workOnly)]]))
+        await h.work.scriptRenderedBody(3, .success("<p>Work</p>"))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        let html = try await controller.renderedDescription(of: key(3, workOnly))
+
+        #expect(html == "<p>Work</p>")
+        #expect(await h.work.calls.contains(.renderedBody(number: 3, repo: workOnly.id)))
+        #expect(await h.me.calls.allSatisfy { if case .renderedBody = $0 { false } else { true } })
+    }
+
+    @Test func renderedDescriptionWithoutOwnerThrows() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: []))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        await #expect(throws: DescriptionError.self) {
+            try await controller.renderedDescription(of: key(1, workOnly))
+        }
+    }
+
     @Test func restoreKeepsAccountWithoutCredentialNeedingSignIn() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }

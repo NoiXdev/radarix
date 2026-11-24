@@ -22,9 +22,11 @@ public actor GitHubClient {
 
     // MARK: Single requests
 
-    public func get<T: Decodable>(_ path: String, query: [URLQueryItem]) async throws -> T {
+    public func get<T: Decodable>(
+        _ path: String, query: [URLQueryItem], accept: String = "application/vnd.github+json"
+    ) async throws -> T {
         let url = try makeURL(path, query: query)
-        let (data, response) = try await perform(url, conditional: false)
+        let (data, response) = try await perform(url, conditional: false, accept: accept)
         guard let data else { throw GitHubError.http(response.statusCode) }
         return try decode(T.self, from: data)
     }
@@ -125,11 +127,11 @@ public actor GitHubClient {
 
     /// Sends one request. Returns nil data on 304 (only possible when `conditional`).
     /// Never stores an ETag: callers commit it once the whole fetch succeeded. Throws mapped errors for non-2xx.
-    private func perform(_ url: URL, conditional: Bool) async throws -> (Data?, HTTPURLResponse) {
+    private func perform(_ url: URL, conditional: Bool, accept: String = "application/vnd.github+json") async throws -> (Data?, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         let key = url.absoluteString
         if conditional, let etag = etags[key] {

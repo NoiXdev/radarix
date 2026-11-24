@@ -195,3 +195,31 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         #expect(await client.rateLimit()?.remaining == 4990)
     }
 }
+
+@Suite struct RenderedBodyTests {
+    private let url = "https://api.github.com/repos/octo/hello-world/issues/7"
+
+    @Test func renderedBodyRequestsHTML() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 200, body: #"{"body_html":"<p>Hi</p>"}"#)
+        let html = try await makeClient(stub).renderedBody(number: 7, in: repo)
+        #expect(html == "<p>Hi</p>")
+        let request = try #require(await stub.sent.first)
+        #expect(request.url?.path == "/repos/octo/hello-world/issues/7")
+        #expect(request.value(forHTTPHeaderField: "Accept") == "application/vnd.github.html+json")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(request.value(forHTTPHeaderField: "If-None-Match") == nil)
+    }
+
+    @Test func renderedBodyNullIsNil() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 200, body: #"{"body_html":null}"#)
+        #expect(try await makeClient(stub).renderedBody(number: 7, in: repo) == nil)
+    }
+
+    @Test func renderedBodyEmptyIsNil() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 200, body: #"{"body_html":""}"#)
+        #expect(try await makeClient(stub).renderedBody(number: 7, in: repo) == nil)
+    }
+}

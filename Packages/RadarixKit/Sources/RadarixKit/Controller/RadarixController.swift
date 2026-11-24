@@ -20,6 +20,8 @@ public enum SyncProblem: Sendable, Equatable {
 /// Every repo is synced by one account, its owner: the earliest account in `settings.accountIDs`
 /// whose watch configuration includes it, computed from each account's persisted repo lists so an
 /// unhealthy account keeps its repos.
+public enum DescriptionError: Error { case noOwner }
+
 @MainActor @Observable
 public final class RadarixController {
     public private(set) var settings: AppSettings
@@ -470,6 +472,15 @@ public final class RadarixController {
     }
 
     // MARK: Queries
+
+    /// The item's description as HTML, fetched with the owning account's credential.
+    /// Throws `DescriptionError.noOwner` when no session owns the repo or it has no state.
+    public func renderedDescription(of key: ItemKey) async throws -> String? {
+        guard let session = owner(of: key.repo), let repo = repos[key.repo]?.repo else {
+            throw DescriptionError.noOwner
+        }
+        return try await session.renderedBody(number: key.number, in: repo)
+    }
 
     /// Records of one repo, or of every watched repo for nil, each repo from its owner.
     /// Unfiltered and unsorted.
