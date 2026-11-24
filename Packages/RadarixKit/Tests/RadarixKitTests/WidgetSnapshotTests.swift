@@ -273,6 +273,17 @@ struct WidgetSnapshotTests {
         #expect(off.newCount == 1 && off.updatedCount == 2)
     }
 
+    @Test func bothAttentionOffKeepsStoredCountsOnTruncatedRepo() {
+        let repo = RepoRef.fixture(id: 1)
+        let s = snapshot([(repo, (1...101).map { rec($0, .new) })])
+        var filter = FilterSet()
+        filter.new = false
+        filter.updated = false
+        let summary = s.summary(for: .all, filter: filter)
+        #expect(summary.newCount == 101)
+        #expect(!summary.isLowerBound)
+    }
+
     @Test func truncatedRepoMakesFilteredCountsALowerBound() throws {
         let repo = RepoRef.fixture(id: 1)
         let s = snapshot([(repo, (1...101).map { rec($0, .new) })])
