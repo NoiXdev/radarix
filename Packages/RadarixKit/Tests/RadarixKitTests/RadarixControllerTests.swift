@@ -755,14 +755,18 @@ struct RadarixControllerTests {
         #expect(written.value == 0)
         #expect(try h.store.loadSnapshot()?.syncedAt == localNow.addingTimeInterval(600))
 
-        // Once the time the widget last got is 30 minutes old, one sync reloads it.
         h.clock.now = localNow.addingTimeInterval(1_800)
         await controller.refresh()
-        #expect(written.value == 1)
-        h.clock.now = localNow.addingTimeInterval(2_100)
+        #expect(written.value == 0)
+
+        // Once the time the widget last got is an hour old, one sync reloads it.
+        h.clock.now = localNow.addingTimeInterval(3_600)
         await controller.refresh()
         #expect(written.value == 1)
-        #expect(try h.store.loadSnapshot()?.syncedAt == localNow.addingTimeInterval(2_100))
+        h.clock.now = localNow.addingTimeInterval(3_900)
+        await controller.refresh()
+        #expect(written.value == 1)
+        #expect(try h.store.loadSnapshot()?.syncedAt == localNow.addingTimeInterval(3_900))
     }
 
     @Test func contentChangeReloads() async throws {
