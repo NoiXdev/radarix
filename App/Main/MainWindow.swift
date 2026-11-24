@@ -232,7 +232,7 @@ struct MainWindow: View {
         var records = ItemFilter.visible(
             controller.records(in: nil),
             filter: filter.wrappedValue,
-            viewer: controller.account?.login ?? "",
+            viewers: ViewerLogins([controller.account?.login ?? ""]),
             scope: scope
         )
         if let pinned, !records.contains(where: { $0.item.key == pinned }),

@@ -272,7 +272,8 @@ public final class RadarixController {
         followUpRefresh = false
 
         let engine = SyncEngine(api: api, now: now)
-        let (synced, report) = await engine.sync(snapshot, owners: fetchedOwners, previousAvailable: availableRepos)
+        let (synced, report) = await engine.sync(snapshot, owners: fetchedOwners, previousAvailable: availableRepos,
+            viewers: ViewerLogins([snapshot.login]))
         guard session == self.session, let current = account else { return false }
 
         // Changes made during the sync win over the snapshot the engine worked on.

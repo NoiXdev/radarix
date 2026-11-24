@@ -25,9 +25,9 @@ public struct AttentionCounts: Sendable, Equatable {
 
 public enum ItemFilter {
     /// Listed records matching the filter and bot scope, newest `updatedAt` first.
-    public static func visible(_ records: [ItemRecord], filter: FilterSet, viewer: String, scope: BotScope) -> [ItemRecord] {
+    public static func visible(_ records: [ItemRecord], filter: FilterSet, viewers: ViewerLogins, scope: BotScope) -> [ItemRecord] {
         records
-            .filter { ItemStateEngine.isListed($0) && matches($0, filter, viewer: viewer) && inScope($0, scope) }
+            .filter { ItemStateEngine.isListed($0) && matches($0, filter, viewers: viewers) && inScope($0, scope) }
             .sorted { a, b in
                 if a.item.updatedAt != b.item.updatedAt { return a.item.updatedAt > b.item.updatedAt }
                 if a.item.key.repo != b.item.key.repo { return a.item.key.repo.rawValue < b.item.key.repo.rawValue }
@@ -57,13 +57,13 @@ public enum ItemFilter {
         return counts
     }
 
-    private static func matches(_ record: ItemRecord, _ filter: FilterSet, viewer: String) -> Bool {
+    private static func matches(_ record: ItemRecord, _ filter: FilterSet, viewers: ViewerLogins) -> Bool {
         let item = record.item
         let attention = (!filter.new && !filter.updated)
             || (filter.new && record.attention == .new)
             || (filter.updated && record.attention == .updated)
 
-        let isViewer = { (login: String) in login.caseInsensitiveCompare(viewer) == .orderedSame }
+        let isViewer = { (login: String) in viewers.contains(login) }
         let anyAssignment = filter.unassigned || filter.assignedToMe || filter.reviewRequested
         let assignment = !anyAssignment
             || (filter.unassigned && item.assignees.isEmpty)

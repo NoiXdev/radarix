@@ -30,7 +30,7 @@ struct MenuBarPopover: View {
         let records = ItemFilter.visible(
             controller.records(in: nil),
             filter: FilterSet(),
-            viewer: account.login,
+            viewers: ViewerLogins([account.login]),
             scope: controller.settings.botDisplay == .hidden ? .humans : .all
         )
         return records.prefix(Self.itemLimit).compactMap { record in

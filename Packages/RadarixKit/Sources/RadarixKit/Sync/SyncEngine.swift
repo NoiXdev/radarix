@@ -42,7 +42,7 @@ public struct SyncEngine: Sendable {
     /// `previousAvailable` is the `availableRepos` of the previous report; it answers a repo list
     /// that is `.notModified` or could not be fetched.
     public func sync(
-        _ account: AccountData, owners: [OwnerRef], previousAvailable: [String: [RepoRef]]
+        _ account: AccountData, owners: [OwnerRef], previousAvailable: [String: [RepoRef]], viewers: ViewerLogins
     ) async -> (AccountData, SyncReport) {
         var result = account
         var report = SyncReport()
@@ -77,7 +77,7 @@ public struct SyncEngine: Sendable {
 
             for ref in watched {
                 try Task.checkCancellation()
-                try await syncRepo(ref, into: &result, report: &report)
+                try await syncRepo(ref, viewers: viewers, into: &result, report: &report)
             }
         } catch {
             // Only stops (including cancellation) leave the loops.
@@ -102,7 +102,7 @@ public struct SyncEngine: Sendable {
         var updated: [Int] = []
     }
 
-    private func syncRepo(_ ref: RepoRef, into account: inout AccountData, report: inout SyncReport) async throws {
+    private func syncRepo(_ ref: RepoRef, viewers: ViewerLogins, into account: inout AccountData, report: inout SyncReport) async throws {
         var state = account.repos[ref.id] ?? RepoState(repo: ref)
         state.repo = ref
         var changes = Changes()
@@ -113,7 +113,7 @@ public struct SyncEngine: Sendable {
             if updated.baselineAt == nil {
                 try await baseline(&updated)
             } else {
-                try await fetchChanges(&updated, viewer: account.login, changes: &found)
+                try await fetchChanges(&updated, viewers: viewers, changes: &found)
             }
             updated.lastFailure = nil
             state = updated
@@ -159,7 +159,7 @@ public struct SyncEngine: Sendable {
         state.highWaterMark = newest
     }
 
-    private func fetchChanges(_ state: inout RepoState, viewer: String, changes: inout Changes) async throws {
+    private func fetchChanges(_ state: inout RepoState, viewers: ViewerLogins, changes: inout Changes) async throws {
         guard let baselineAt = state.baselineAt else { return }
         // Exactly the stored mark, so the URL (and its ETag) stays the same until something changes.
         let since = state.highWaterMark ?? baselineAt.addingTimeInterval(-Self.overlap)
@@ -179,7 +179,7 @@ public struct SyncEngine: Sendable {
             var otherActivity: Bool?
             if ItemStateEngine.needsActivityCheck(previous: previous, fetched: item), let seenAt = previous?.seenAt {
                 do {
-                    otherActivity = try await api.hasOtherActivity(on: item, in: state.repo, since: seenAt, viewer: viewer)
+                    otherActivity = try await api.hasOtherActivity(on: item, in: state.repo, since: seenAt, viewers: viewers)
                 } catch {
                     // A cancelled request may surface as any error; it must not turn into "updated".
                     if let stop = Task.isCancelled ? .cancelled : Stop(error) {
@@ -192,7 +192,7 @@ public struct SyncEngine: Sendable {
                 }
             }
 
-            var record = ItemStateEngine.apply(fetched: item, previous: previous, viewer: viewer, otherActivity: otherActivity)
+            var record = ItemStateEngine.apply(fetched: item, previous: previous, viewers: viewers, otherActivity: otherActivity)
             if let stored {
                 // The issues endpoint carries no PR details; keep the last known ones.
                 record.item.isDraft = stored.item.isDraft

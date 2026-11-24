@@ -17,10 +17,10 @@ public enum ItemStateEngine {
     }
 
     public static func apply(
-        fetched: Item, previous: ItemRecord?, viewer: String, otherActivity: Bool?
+        fetched: Item, previous: ItemRecord?, viewers: ViewerLogins, otherActivity: Bool?
     ) -> ItemRecord {
         guard var record = previous else {
-            if fetched.author.login == viewer {
+            if viewers.contains(fetched.author.login) {
                 return ItemRecord(item: fetched, attention: .seen, seenAt: fetched.updatedAt, commentsAtSeen: fetched.commentCount)
             }
             return ItemRecord(item: fetched, attention: .new, seenAt: nil, commentsAtSeen: 0)

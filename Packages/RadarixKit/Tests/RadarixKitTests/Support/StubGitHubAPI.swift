@@ -16,7 +16,7 @@ actor StubGitHubAPI: GitHubAPI {
         case repositories(owner: String)
         case items(repo: RepoID, query: IssueQuery)
         case pullDetails(repo: RepoID)
-        case activity(number: Int, since: Date, viewer: String)
+        case activity(number: Int, since: Date, viewers: ViewerLogins)
     }
 
     typealias Scripted<T: Sendable> = Result<Fetch<T>, GitHubError>
@@ -126,8 +126,8 @@ actor StubGitHubAPI: GitHubAPI {
         return try (Self.pop(&pullResults, repo.id) ?? .success(.notModified)).get()
     }
 
-    func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewer: String) async throws -> Bool {
-        calls.append(.activity(number: item.key.number, since: since, viewer: viewer))
+    func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool {
+        calls.append(.activity(number: item.key.number, since: since, viewers: viewers))
         if cancellingProbes.contains(item.key.number) {
             withUnsafeCurrentTask { $0?.cancel() }
             throw GitHubError.network("cancelled")

@@ -19,7 +19,7 @@ private func numbers(_ records: [ItemRecord]) -> [Int] { records.map(\.item.key.
 private func visible(_ records: [ItemRecord], _ change: (inout FilterSet) -> Void = { _ in }, scope: BotScope = .all) -> [Int] {
     var filter = FilterSet()
     change(&filter)
-    return numbers(ItemFilter.visible(records, filter: filter, viewer: "me", scope: scope))
+    return numbers(ItemFilter.visible(records, filter: filter, viewers: ViewerLogins(["me"]), scope: scope))
 }
 
 struct ItemFilterTests {
@@ -44,6 +44,14 @@ struct ItemFilterTests {
         #expect(visible(records) { $0.assignedToMe = true } == [2])
         #expect(visible(records) { $0.reviewRequested = true } == [4])
         #expect(Set(visible(records) { $0.unassigned = true; $0.assignedToMe = true }) == [1, 2])
+    }
+
+    @Test func assignedToMeMatchesAnyAccount() {
+        let records = [record(1, .new, assignees: ["work"])]
+        var filter = FilterSet()
+        filter.assignedToMe = true
+        #expect(numbers(ItemFilter.visible(records, filter: filter, viewers: ViewerLogins(["me", "work"]), scope: .all)) == [1])
+        #expect(numbers(ItemFilter.visible(records, filter: filter, viewers: ViewerLogins(["me"]), scope: .all)).isEmpty)
     }
 
     @Test func kindsAndAttentionAreAndedAcrossGroups() {
@@ -74,7 +82,7 @@ struct ItemFilterTests {
             record(4, .new, repo: 1, updatedAt: t1),
             record(3, .new, repo: 1, updatedAt: t1),
         ]
-        let sorted = ItemFilter.visible(records, filter: FilterSet(), viewer: "me", scope: .all)
+        let sorted = ItemFilter.visible(records, filter: FilterSet(), viewers: ViewerLogins(["me"]), scope: .all)
         #expect(sorted.map(\.item.key) == [
             ItemKey(repo: RepoID(rawValue: 1), number: 2),
             ItemKey(repo: RepoID(rawValue: 1), number: 3),

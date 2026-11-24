@@ -35,7 +35,7 @@ private func run(
 ) async -> (AccountData, SyncReport) {
     let engine = SyncEngine(api: api, now: { localNow })
     let previous = previous ?? ["o": account.repos.values.map(\.repo).filter { $0.owner == "o" }]
-    return await engine.sync(account, owners: owners, previousAvailable: previous)
+    return await engine.sync(account, owners: owners, previousAvailable: previous, viewers: ViewerLogins(["me"]))
 }
 
 private func itemQueries(_ api: StubGitHubAPI, repo: RepoRef) async -> [IssueQuery] {
@@ -179,7 +179,7 @@ struct SyncEngineTests {
         #expect(records?[2]?.attention == .seen)
         #expect(records?[2]?.seenAt == t1)
         let probes = await api.calls.filter { if case .activity = $0 { true } else { false } }
-        #expect(probes == [.activity(number: 1, since: t0, viewer: "me"), .activity(number: 2, since: t0, viewer: "me")])
+        #expect(probes == [.activity(number: 1, since: t0, viewers: ViewerLogins(["me"])), .activity(number: 2, since: t0, viewers: ViewerLogins(["me"]))])
     }
 
     @Test func probeErrorTreatsItemAsUpdated() async {
@@ -214,7 +214,7 @@ struct SyncEngineTests {
         #expect(record?.attention == .updated)
         #expect(record?.commentsAtSeen == 0)
         #expect(record?.seenAt == t1)
-        #expect(await api.calls.contains(.activity(number: 9, since: t1, viewer: "me")))
+        #expect(await api.calls.contains(.activity(number: 9, since: t1, viewers: ViewerLogins(["me"]))))
     }
 
     // MARK: Pull details
@@ -368,7 +368,7 @@ struct SyncEngineTests {
 
         #expect(report.rateLimitedUntil == t2)
         #expect(report.rateLimit == limit)
-        #expect(await api.calls.last == .activity(number: 1, since: t0, viewer: "me"))
+        #expect(await api.calls.last == .activity(number: 1, since: t0, viewers: ViewerLogins(["me"])))
         #expect(await itemQueries(api, repo: repoB).isEmpty)
         #expect(result.repos == start.repos)
         #expect(report.newItems.isEmpty && report.updatedItems.isEmpty)

@@ -31,7 +31,7 @@ public protocol GitHubAPI: Sendable {
     func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]>
     func items(in repo: RepoRef, query: IssueQuery) async throws -> Fetch<[Item]>
     func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]>
-    func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewer: String) async throws -> Bool
+    func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool
     func rateLimit() async -> RateLimit?
     /// Forget cached conditional-request state (ETags) for everything under this repo.
     func forgetConditionalState(for repo: RepoRef) async
@@ -117,12 +117,12 @@ extension GitHubClient: GitHubAPI {
         }
     }
 
-    public func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewer: String) async throws -> Bool {
+    public func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool {
         let entries: [TimelineEntryDTO] = try await getLastPage(
             "/repos/\(repo.owner)/\(repo.name)/issues/\(item.key.number)/timeline", query: [])
         return ActivityProbe.hasOtherActivity(
-            in: entries, since: since, viewer: viewer,
-            itemAuthorIsViewer: item.author.login.caseInsensitiveCompare(viewer) == .orderedSame)
+            in: entries, since: since, viewers: viewers,
+            itemAuthorIsViewer: viewers.contains(item.author.login))
     }
 
     public func rateLimit() async -> RateLimit? { latestRateLimit }

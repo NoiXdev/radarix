@@ -24,7 +24,7 @@ private func item(author: String) -> Item { .fixture(number: 7, author: author) 
           {"event":"unknown_event","something":{"odd":[1]}}
         ]
         """)
-        let result = try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo")
+        let result = try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"]))
         #expect(result == false)
     }
 
@@ -33,13 +33,23 @@ private func item(author: String) -> Item { .fixture(number: 7, author: author) 
         await stub.enqueue(timelineURL, status: 200, body: """
         [{"event":"commented","actor":{"login":"zed"},"created_at":"2026-11-24T08:30:00Z"}]
         """)
-        #expect(try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo"))
+        #expect(try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"])))
 
         let stub2 = StubTransport()
         await stub2.enqueue(timelineURL, status: 200, body: """
         [{"event":"reviewed","user":{"login":"bob"},"submitted_at":"2026-11-24T09:30:00Z"}]
         """)
-        #expect(try await makeClient(stub2).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo"))
+        #expect(try await makeClient(stub2).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"])))
+    }
+
+    @Test func otherAccountActivityIsNotOther() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(timelineURL, status: 200, body: """
+        [{"event":"commented","actor":{"login":"work"},"created_at":"2026-11-24T09:00:00Z"}]
+        """)
+        let result = try await makeClient(stub).hasOtherActivity(
+            on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["me", "work"]))
+        #expect(result == false)
     }
 
     @Test func entryExactlyAtSinceIsIgnored() async throws {
@@ -47,7 +57,7 @@ private func item(author: String) -> Item { .fixture(number: 7, author: author) 
         await stub.enqueue(timelineURL, status: 200, body: """
         [{"event":"commented","actor":{"login":"zed"},"created_at":"2026-11-24T08:00:00Z"}]
         """)
-        #expect(try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo") == false)
+        #expect(try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"])) == false)
     }
 
     @Test func committedEventsAreOwnWhenViewerAuthoredTheItem() async throws {
@@ -56,17 +66,17 @@ private func item(author: String) -> Item { .fixture(number: 7, author: author) 
         """
         let own = StubTransport()
         await own.enqueue(timelineURL, status: 200, body: body)
-        #expect(try await makeClient(own).hasOtherActivity(on: item(author: "octo"), in: repo, since: since, viewer: "octo") == false)
+        #expect(try await makeClient(own).hasOtherActivity(on: item(author: "octo"), in: repo, since: since, viewers: ViewerLogins(["octo"])) == false)
 
         let foreign = StubTransport()
         await foreign.enqueue(timelineURL, status: 200, body: body)
-        #expect(try await makeClient(foreign).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo"))
+        #expect(try await makeClient(foreign).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"])))
     }
 
     @Test func fixtureTimelineHasOtherActivity() async throws {
         let stub = StubTransport()
         await stub.enqueue(timelineURL, status: 200, body: try fixtureJSON("timeline"))
-        #expect(try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo"))
+        #expect(try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"])))
     }
 
     @Test func otherActivityReadsLastPage() async throws {
@@ -81,7 +91,7 @@ private func item(author: String) -> Item { .fixture(number: 7, author: author) 
         [{"event":"commented","actor":{"login":"octo"},"created_at":"2026-11-24T09:00:00Z"}]
         """)
         // Page 1 would say true; only the last page (viewer's own comment) counts.
-        let result = try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewer: "octo")
+        let result = try await makeClient(stub).hasOtherActivity(on: item(author: "alice"), in: repo, since: since, viewers: ViewerLogins(["octo"]))
         #expect(result == false)
         #expect(await stub.sent.count == 2)
         #expect(await stub.sent[1].url?.absoluteString == page3)

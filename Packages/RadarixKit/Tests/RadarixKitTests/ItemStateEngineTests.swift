@@ -24,23 +24,29 @@ private func record(
 }
 
 @Test func unknownItemByOtherIsNew() {
-    #expect(ItemStateEngine.apply(fetched: .fixture(author: "alice"), previous: nil, viewer: "me", otherActivity: nil).attention == .new)
+    #expect(ItemStateEngine.apply(fetched: .fixture(author: "alice"), previous: nil, viewers: ViewerLogins(["me"]), otherActivity: nil).attention == .new)
 }
 
 @Test func unknownItemByViewerIsSeen() {
-    #expect(ItemStateEngine.apply(fetched: .fixture(author: "me"), previous: nil, viewer: "me", otherActivity: nil).attention == .seen)
+    #expect(ItemStateEngine.apply(fetched: .fixture(author: "me"), previous: nil, viewers: ViewerLogins(["me"]), otherActivity: nil).attention == .seen)
+}
+
+@Test func otherAccountLoginCountsAsViewer() {
+    let result = ItemStateEngine.apply(
+        fetched: .fixture(author: "work"), previous: nil, viewers: ViewerLogins(["me", "work"]), otherActivity: nil)
+    #expect(result.attention == .seen)
 }
 
 @Test func newStaysNewWhenItChanges() {
     let result = ItemStateEngine.apply(
-        fetched: .fixture(updatedAt: t1), previous: record(.new, seenAt: nil), viewer: "me", otherActivity: true)
+        fetched: .fixture(updatedAt: t1), previous: record(.new, seenAt: nil), viewers: ViewerLogins(["me"]), otherActivity: true)
     #expect(result.attention == .new)
     #expect(result.item.updatedAt == t1)
 }
 
 @Test func seenBecomesUpdatedOnOtherActivity() {
     let result = ItemStateEngine.apply(
-        fetched: .fixture(commentCount: 2, updatedAt: t1), previous: record(.seen), viewer: "me", otherActivity: true)
+        fetched: .fixture(commentCount: 2, updatedAt: t1), previous: record(.seen), viewers: ViewerLogins(["me"]), otherActivity: true)
     #expect(result.attention == .updated)
     #expect(result.seenAt == t0)
     #expect(result.commentsAtSeen == 0)
@@ -49,7 +55,7 @@ private func record(
 
 @Test func seenStaysSeenOnOwnActivity() {
     let result = ItemStateEngine.apply(
-        fetched: .fixture(updatedAt: t1), previous: record(.seen), viewer: "me", otherActivity: false)
+        fetched: .fixture(updatedAt: t1), previous: record(.seen), viewers: ViewerLogins(["me"]), otherActivity: false)
     #expect(result.attention == .seen)
     #expect(result.seenAt == t1)
 }
@@ -58,13 +64,13 @@ private func record(
     let fetched = Item.fixture(updatedAt: t1)
     let previous = record(.seen)
     #expect(ItemStateEngine.needsActivityCheck(previous: previous, fetched: fetched))
-    let result = ItemStateEngine.apply(fetched: fetched, previous: previous, viewer: "me", otherActivity: nil)
+    let result = ItemStateEngine.apply(fetched: fetched, previous: previous, viewers: ViewerLogins(["me"]), otherActivity: nil)
     #expect(result.attention == .updated)
 }
 
 @Test func unchangedItemKeepsAttention() {
     let result = ItemStateEngine.apply(
-        fetched: .fixture(title: "Renamed", updatedAt: t0), previous: record(.seen), viewer: "me", otherActivity: nil)
+        fetched: .fixture(title: "Renamed", updatedAt: t0), previous: record(.seen), viewers: ViewerLogins(["me"]), otherActivity: nil)
     #expect(result.attention == .seen)
     #expect(result.item.title == "Renamed")
 }
