@@ -14,13 +14,14 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var notifyBots = false
     public var notifyUpdated = false
     public var openAtLogin = false
+    public var checkForUpdates = true
     /// Signed-in accounts, oldest first. The order decides repo ownership and sidebar order.
     public var accountIDs: [AccountID] = []
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, accountIDs
+        case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, checkForUpdates, accountIDs
         /// Schema 1 and 2 only; decoded into `accountIDs`, never written.
         case lastAccountID
     }
@@ -35,6 +36,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         notifyBots = try c.decodeIfPresent(Bool.self, forKey: .notifyBots) ?? defaults.notifyBots
         notifyUpdated = try c.decodeIfPresent(Bool.self, forKey: .notifyUpdated) ?? defaults.notifyUpdated
         openAtLogin = try c.decodeIfPresent(Bool.self, forKey: .openAtLogin) ?? defaults.openAtLogin
+        checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? defaults.checkForUpdates
         if let ids = try c.decodeIfPresent([AccountID].self, forKey: .accountIDs) {
             accountIDs = ids
         } else if let legacy = try c.decodeIfPresent(AccountID.self, forKey: .lastAccountID) {
@@ -51,6 +53,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         try c.encode(notifyBots, forKey: .notifyBots)
         try c.encode(notifyUpdated, forKey: .notifyUpdated)
         try c.encode(openAtLogin, forKey: .openAtLogin)
+        try c.encode(checkForUpdates, forKey: .checkForUpdates)
         try c.encode(accountIDs, forKey: .accountIDs)
     }
 }

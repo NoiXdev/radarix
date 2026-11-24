@@ -52,6 +52,15 @@ struct SchemaEvolutionTests {
         #expect(account.schemaVersion == 1)
     }
 
+    @Test func checkForUpdatesDefaultsOn() throws {
+        #expect(try decode(AppSettings.self, fixtureJSON("plan2-settings")).checkForUpdates)
+        #expect(try decode(AppSettings.self, #"{"schemaVersion":3,"layout":"grouped"}"#).checkForUpdates)
+        var off = AppSettings()
+        off.checkForUpdates = false
+        let data = try JSONEncoder().encode(off)
+        #expect(try JSONDecoder().decode(AppSettings.self, from: data).checkForUpdates == false)
+    }
+
     @Test func v2SettingsMapLastAccountToAccountList() throws {
         let settings = try decode(AppSettings.self, fixtureJSON("plan2-settings"))
         var expected = AppSettings()
