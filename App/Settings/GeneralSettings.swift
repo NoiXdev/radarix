@@ -45,14 +45,27 @@ struct GeneralSettings: View {
                 }
                 Toggle("Notify about bot items", isOn: setting(\.notifyBots))
                 Toggle("Notify about updated items", isOn: setting(\.notifyUpdated))
+                if model.notifications.authorizationDenied {
+                    HStack {
+                        Text("Notifications are turned off for Radarix in System Settings.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Notifications") { NSWorkspace.shared.open(Self.notificationSettingsURL) }
+                    }
+                }
             }
         }
         .formStyle(.grouped)
         .onAppear(perform: readLoginItem)
+        .task { await model.notifications.refreshAuthorizationStatus() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             readLoginItem()
+            Task { await model.notifications.refreshAuthorizationStatus() }
         }
     }
+
+    private static let notificationSettingsURL =
+        URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!
 
     private func setOpenAtLogin(_ enabled: Bool) {
         do {

@@ -89,6 +89,46 @@
         }
       }
     },
+    "%lld new items" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld neuer Eintrag"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld neue Einträge"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld new · %lld updated" : {
       "localizations" : {
         "de" : {
@@ -241,6 +281,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld updated"
+          }
+        }
+      }
+    },
+    "%lld updated items" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld aktualisierter Eintrag"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld aktualisierte Einträge"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld updated item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld updated items"
+                }
+              }
+            }
           }
         }
       }
@@ -1029,6 +1109,38 @@
         }
       }
     },
+    "New issue" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neues Issue"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New issue"
+          }
+        }
+      }
+    },
+    "New pull request" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuer Pull Request"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New pull request"
+          }
+        }
+      }
+    },
     "New repositories are watched automatically. Forks are not included. Uncheck a repository to exclude it." : {
       "localizations" : {
         "de" : {
@@ -1237,6 +1349,22 @@
         }
       }
     },
+    "Notifications are turned off for Radarix in System Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitteilungen für Radarix sind in den Systemeinstellungen ausgeschaltet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are turned off for Radarix in System Settings."
+          }
+        }
+      }
+    },
     "Notify about bot items" : {
       "localizations" : {
         "de" : {
@@ -1345,6 +1473,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Login Items"
+          }
+        }
+      }
+    },
+    "Open Notifications" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitteilungen öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Notifications"
           }
         }
       }
@@ -2249,6 +2393,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updated"
+          }
+        }
+      }
+    },
+    "Updated issue" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisiertes Issue"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated issue"
+          }
+        }
+      }
+    },
+    "Updated pull request" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisierter Pull Request"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated pull request"
           }
         }
       }

@@ -1,11 +1,13 @@
 import AppKit
 import Observation
 import RadarixKit
+import WidgetKit
 
 /// Owns the controller for the app's lifetime and maps kit errors to user-facing text.
 @MainActor @Observable
 final class AppModel {
     let controller: RadarixController
+    let notifications = NotificationService()
     /// Empty when this build has no OAuth App; the token sign-in still works.
     let oauthClientID: String
     /// Set by the app delegate before any scene appears.
@@ -15,6 +17,10 @@ final class AppModel {
 
     @ObservationIgnored private var started = false
     @ObservationIgnored private var launchWindowClaimed = false
+    /// Set once `restoreSession` has returned; marks made before that are kept until then.
+    @ObservationIgnored private var sessionRestored = false
+    /// Item notifications clicked before the session was restored (a click that launched the app).
+    @ObservationIgnored private var pendingSeen: [ItemKey] = []
 
     init() {
         let clientID = Self.infoValue("GitHubOAuthClientID")
@@ -25,6 +31,10 @@ final class AppModel {
             makeAPI: { GitHubClient(token: $0) },
             oauthClientID: clientID
         )
+        controller.onSyncReport = { [weak self] report in self?.didSync(report) }
+        controller.onSnapshotWritten = { WidgetCenter.shared.reloadAllTimelines() }
+        notifications.repo = { [weak self] id in self?.controller.account?.repos[id]?.repo }
+        notifications.onOpen = { [weak self] target in self?.openNotification(target) }
     }
 
     var isDeviceFlowAvailable: Bool { !oauthClientID.isEmpty }
@@ -35,7 +45,38 @@ final class AppModel {
         started = true
         Task {
             await controller.restoreSession()
+            sessionRestored = true
+            for key in pendingSeen { controller.markSeen(key) }
+            pendingSeen = []
             controller.startScheduler()
+        }
+    }
+
+    // MARK: Notifications
+
+    /// Plans this sync's notifications now, while the account matches the report. The first
+    /// report of a launch asks for permission and posts once the user has answered.
+    private func didSync(_ report: SyncReport) {
+        guard let account = controller.account else { return }
+        let planned = NotificationPlanner.plan(report, account: account, settings: controller.settings)
+        Task {
+            await notifications.requestAuthorizationIfNeeded()
+            notifications.post(planned)
+        }
+    }
+
+    /// A clicked notification. Only an item click marks something seen.
+    private func openNotification(_ target: NotificationTarget) {
+        switch target {
+        case .item(let key, let url):
+            NSWorkspace.shared.open(url)
+            if sessionRestored {
+                controller.markSeen(key)
+            } else {
+                pendingSeen.append(key)
+            }
+        case .repo(let id):
+            open(DeepLink.repo(id))
         }
     }
 
