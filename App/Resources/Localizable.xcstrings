@@ -1133,6 +1133,22 @@
         }
       }
     },
+    "Hide from the Dock when the window is closed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus dem Dock ausblenden, wenn das Fenster geschlossen ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide from the Dock when the window is closed"
+          }
+        }
+      }
+    },
     "In a window" : {
       "localizations" : {
         "de" : {
@@ -2633,6 +2649,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Something went wrong. Try again."
+          }
+        }
+      }
+    },
+    "Start in the background" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Hintergrund starten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start in the background"
           }
         }
       }

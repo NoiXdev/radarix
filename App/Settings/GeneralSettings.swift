@@ -27,6 +27,13 @@ struct GeneralSettings: View {
                         Button("Open Login Items") { LoginItem.openSystemSettings() }
                     }
                 }
+                Toggle("Start in the background", isOn: setting(\.startInBackground))
+                Toggle(
+                    "Hide from the Dock when the window is closed",
+                    isOn: Binding(
+                        get: { model.controller.settings.menuBarOnlyWhenClosed },
+                        set: { model.setMenuBarOnlyWhenClosed($0) })
+                )
             }
             Section {
                 Picker("Layout", selection: setting(\.layout)) {

@@ -31,7 +31,12 @@ final class AppModel {
     /// button whose view was gone. The main window shows it as an alert and clears it.
     var assignFailure: AssignFailure?
 
+    /// Set by the app delegate: brings the Dock icon in step with the open windows and the setting.
+    @ObservationIgnored var updateDockIcon: @MainActor () -> Void = {}
+
     @ObservationIgnored private var started = false
+    /// This launch hands over to another running instance: it never starts and opens no window.
+    @ObservationIgnored private var yielding = false
     @ObservationIgnored private var launchWindowClaimed = false
     @ObservationIgnored private var launchKindKnown = false
     /// `claimLaunchWindow()` calls waiting for `setLaunchKind(atLogin:)`.
@@ -69,11 +74,18 @@ final class AppModel {
         updates?.setEnabled(on)
     }
 
+    /// Writes the setting and shows or hides the Dock icon to match. Turned off, the icon is back at once.
+    func setMenuBarOnlyWhenClosed(_ on: Bool) {
+        controller.updateSettings { $0.menuBarOnlyWhenClosed = on }
+        updateDockIcon()
+    }
+
     var isDeviceFlowAvailable: Bool { !oauthClientID.isEmpty }
 
-    /// Restores the stored accounts and starts periodic syncing. Runs once per launch.
+    /// Restores the stored accounts and starts periodic syncing. Runs once per launch, and never
+    /// in a launch that hands over to another instance.
     func start() {
-        guard !started else { return }
+        guard !started, !yielding else { return }
         started = true
         updates?.setEnabled(controller.settings.checkForUpdates)
         Task {
@@ -131,16 +143,26 @@ final class AppModel {
         for waiter in waiters { waiter.resume() }
     }
 
-    /// True at most once per launch, for a launch not made at login and only while no main window
-    /// has appeared: the caller then opens the main window, which the window group itself
-    /// suppresses at launch. Waits until the launch kind is known.
+    /// True at most once per launch, for a launch not made at login, with "Start in the background"
+    /// off, and only while no main window has appeared: the caller then opens the main window, which
+    /// the window group itself suppresses at launch. Waits until the launch kind is known.
+    /// A launch left without a window updates the Dock icon, which "menu bar only" then hides.
     func claimLaunchWindow() async -> Bool {
         if !launchKindKnown {
             await withCheckedContinuation { launchKindWaiters.append($0) }
         }
         guard !launchWindowClaimed else { return false }
         launchWindowClaimed = true
-        return !launchedAtLogin
+        let opens = !launchedAtLogin && !controller.settings.startInBackground
+        if !opens { updateDockIcon() }
+        return opens
+    }
+
+    /// This launch hands over to another running instance: it opens no launch window and
+    /// `start()` does nothing.
+    func yieldToOtherInstance() {
+        yielding = true
+        launchWindowClaimed = true
     }
 
     /// A main window is on screen, so the launch needs no other. A launch for a `radarix://` link
@@ -158,9 +180,11 @@ final class AppModel {
     }
 
     /// Shows `link` in the main window, opening one if none is open. Needs no `openWindow`:
-    /// the system hands the link back to the main window group.
+    /// the system hands the link back to the main window group. Sent to this copy of Radarix:
+    /// another copy would be launched only to hand over back to this one.
     func open(_ link: DeepLink) {
-        NSWorkspace.shared.open(link.url)
+        NSWorkspace.shared.open(
+            [link.url], withApplicationAt: Bundle.main.bundleURL, configuration: NSWorkspace.OpenConfiguration())
     }
 
     // MARK: Session
@@ -185,8 +209,10 @@ final class AppModel {
     func resetAllData() throws {
         defer {
             if !controller.isSignedIn { clearSession() }
-            // The check follows the settings as they are after the reset, whether it completed or not.
+            // The check and the Dock icon follow the settings as they are after the reset, whether
+            // it completed or not.
             updates?.setEnabled(controller.settings.checkForUpdates)
+            updateDockIcon()
         }
         try controller.resetAllData()
     }
