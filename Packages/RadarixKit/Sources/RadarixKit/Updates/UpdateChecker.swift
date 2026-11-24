@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 /// Tells the UI whether a newer release exists.
 ///
@@ -11,6 +12,8 @@ public final class UpdateChecker {
     /// Non-nil only when strictly newer than the running version.
     public private(set) var available: LatestRelease?
     public private(set) var isEnabled = false
+
+    private static let log = Logger(subsystem: "dev.noix.radarix", category: "updates")
 
     @ObservationIgnored private let current: AppVersion
     @ObservationIgnored private let source: ReleaseSource
@@ -61,11 +64,15 @@ public final class UpdateChecker {
         do {
             fetch = try await source.latest(etag: sentETag)
         } catch {
+            Self.log.error("Update check failed: \(error.localizedDescription, privacy: .public)")
             return
         }
         guard started == generation else { return }
         switch fetch {
-        case .notModified, .release(nil, _):
+        case .notModified:
+            return
+        case .release(nil, _):
+            Self.log.notice("Latest release is a draft, a pre-release or has an unparsable tag; keeping the last result")
             return
         case .none:
             available = nil

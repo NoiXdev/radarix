@@ -154,6 +154,43 @@ private let suspendForever: @Sendable (Duration) async throws -> Void = { _ in t
     #expect(checker.available == nil)
 }
 
+@MainActor @Test func turningOffStopsTheLoop() async {
+    let source = ScriptedSource([.fetch(.none)])
+    let checker = UpdateChecker(current: AppVersion("1.0.0")!, source: source, interval: .seconds(1), sleep: { _ in try await Task.sleep(for: .milliseconds(5)) })
+    checker.setEnabled(true)
+    await waitUntil { await source.calls >= 2 }
+    checker.setEnabled(false)
+    // A check already running when the loop is cancelled may still count once.
+    try? await Task.sleep(for: .milliseconds(30))
+    let frozen = await source.calls
+    try? await Task.sleep(for: .milliseconds(100))
+    #expect(await source.calls == frozen)
+}
+
+/// Source that suspends inside `latest` until the test resumes it.
+private actor GatedSource: ReleaseSource {
+    private var continuation: CheckedContinuation<ReleaseFetch, Never>?
+    private(set) var started = false
+
+    func latest(etag: String?) async throws -> ReleaseFetch {
+        started = true
+        return await withCheckedContinuation { continuation = $0 }
+    }
+
+    func resume(_ fetch: ReleaseFetch) { continuation?.resume(returning: fetch) }
+}
+
+@MainActor @Test func inFlightCheckCannotRestoreNoticeAfterTurningOff() async {
+    let source = GatedSource()
+    let checker = UpdateChecker(current: AppVersion("1.0.0")!, source: source, sleep: suspendForever)
+    checker.setEnabled(true)
+    await waitUntil { await source.started }
+    checker.setEnabled(false)
+    await source.resume(.release(release("1.1.0"), etag: "x"))
+    try? await Task.sleep(for: .milliseconds(50))
+    #expect(checker.available == nil)
+}
+
 @MainActor @Test func turningOnChecksAtOnce() async {
     let source = ScriptedSource([.fetch(.none)])
     let checker = UpdateChecker(current: AppVersion("1.0.0")!, source: source, sleep: suspendForever)
