@@ -14,6 +14,7 @@ final class AppModel {
     var navigation: DeepLink?
 
     @ObservationIgnored private var started = false
+    @ObservationIgnored private var launchWindowClaimed = false
 
     init() {
         let clientID = Self.infoValue("GitHubOAuthClientID")
@@ -36,6 +37,14 @@ final class AppModel {
             await controller.restoreSession()
             controller.startScheduler()
         }
+    }
+
+    /// True exactly once per launch, and only for a launch not made at login: the caller then
+    /// opens the main window, which the window group itself suppresses at launch.
+    func claimLaunchWindow() -> Bool {
+        guard !launchWindowClaimed else { return false }
+        launchWindowClaimed = true
+        return !launchedAtLogin
     }
 
     /// Shows `link` in the main window, opening one if none is open. Needs no `openWindow`:

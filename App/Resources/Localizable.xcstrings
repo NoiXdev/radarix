@@ -89,6 +89,106 @@
         }
       }
     },
+    "%lld new · %lld updated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@new@ · %#@updated@"
+          },
+          "substitutions" : {
+            "new" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg neu"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg neu"
+                    }
+                  }
+                }
+              }
+            },
+            "updated" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg aktualisiert"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg aktualisiert"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@new@ · %#@updated@"
+          },
+          "substitutions" : {
+            "new" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg new"
+                    }
+                  }
+                }
+              }
+            },
+            "updated" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg updated"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg updated"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld repositories could not be updated." : {
       "localizations" : {
         "de" : {
@@ -1073,6 +1173,22 @@
         }
       }
     },
+    "Nothing new." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts Neues."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing new."
+          }
+        }
+      }
+    },
     "Notifications" : {
       "localizations" : {
         "de" : {
@@ -1233,6 +1349,22 @@
         }
       }
     },
+    "Open Radarix" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Radarix"
+          }
+        }
+      }
+    },
     "Open at login" : {
       "localizations" : {
         "de" : {
@@ -1345,6 +1477,22 @@
         }
       }
     },
+    "Quit Radarix" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix beenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit Radarix"
+          }
+        }
+      }
+    },
     "Radarix" : {
       "localizations" : {
         "de" : {
@@ -1373,6 +1521,62 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Radarix watches your GitHub repositories for new and updated pull requests and issues."
+          }
+        }
+      }
+    },
+    "Radarix, %lld new or updated" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld neu oder aktualisiert"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld neu oder aktualisiert"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld new or updated"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld new or updated"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Radarix, sign in again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix, erneut anmelden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix, sign in again"
           }
         }
       }
@@ -1569,6 +1773,22 @@
         }
       }
     },
+    "Settings…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings…"
+          }
+        }
+      }
+    },
     "Show archived repositories" : {
       "localizations" : {
         "de" : {
@@ -1661,6 +1881,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign in again"
+          }
+        }
+      }
+    },
+    "Sign in to GitHub" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei GitHub anmelden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to GitHub"
           }
         }
       }

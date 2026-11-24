@@ -12,6 +12,8 @@ struct RadarixApp: App {
             MainWindow()
         }
         .defaultSize(width: 1040, height: 640)
+        // Opened by the menu bar label instead, so a launch at login shows no window.
+        .defaultLaunchBehavior(.suppressed)
         .handlesExternalEvents(matching: [DeepLink.scheme])
         .environment(model)
         .commands { MainCommands(controller: model.controller) }
@@ -19,6 +21,14 @@ struct RadarixApp: App {
             SettingsView()
         }
         .environment(model)
+        MenuBarExtra {
+            MenuBarPopover()
+                .environment(model)
+        } label: {
+            MenuBarLabel()
+                .environment(model)
+        }
+        .menuBarExtraStyle(.window)
     }
 }
 
