@@ -23,6 +23,36 @@ private func visible(_ records: [ItemRecord], _ change: (inout FilterSet) -> Voi
 }
 
 struct ItemFilterTests {
+    @Test func sharedPredicateMatchesItemFilter() {
+        let records = [
+            record(1, .new), record(2, .updated, kind: .pullRequest), record(3, .seen),
+            record(4, .new, assignees: ["me"]), record(5, .updated, kind: .pullRequest, reviewers: ["me"]),
+            record(6, .new, kind: .pullRequest, assignees: ["other"]), record(7, .seen, assignees: ["me"]),
+        ]
+        let viewers = ViewerLogins(["me"])
+        var filters: [FilterSet] = [FilterSet()]
+        for keyPath in [\FilterSet.new, \.updated, \.unassigned, \.assignedToMe, \.reviewRequested, \.pullRequests, \.issues] {
+            var f = FilterSet()
+            f[keyPath: keyPath].toggle()
+            filters.append(f)
+        }
+        var combined = FilterSet()
+        combined.assignedToMe = true
+        combined.reviewRequested = true
+        combined.pullRequests = true
+        filters.append(combined)
+        for filter in filters {
+            let viaFilter = Set(numbers(ItemFilter.visible(records, filter: filter, viewers: viewers, scope: .all)))
+            let direct = Set(records.filter { r in
+                ItemStateEngine.isListed(r) && filter.matches(
+                    attention: r.attention, kind: r.item.kind, isUnassigned: r.item.assignees.isEmpty,
+                    isAssignedToViewer: r.item.assignees.contains(where: viewers.contains),
+                    isReviewRequestedFromViewer: r.item.requestedReviewers.contains(where: viewers.contains))
+            }.map(\.item.key.number))
+            #expect(viaFilter == direct)
+        }
+    }
+
     @Test func defaultFilterShowsNewAndUpdatedHidesSeen() {
         let records = [record(1, .new), record(2, .updated), record(3, .seen)]
         #expect(Set(visible(records)) == [1, 2])

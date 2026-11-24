@@ -45,10 +45,6 @@ struct MainWindow: View {
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openURL) private var openURL
 
-    /// JSON-encoded `FilterSet`.
-    @SceneStorage("main.filter") private var storedFilter = ""
-    /// The Bots chip, only offered while bots form their own group.
-    @SceneStorage("main.showsBots") private var showsBots = false
     @State private var sidebarSelection: SidebarItem? = .all
     @State private var selection: ItemKey?
     /// The selected key stays listed although the filter would hide it, until selection or filter change.
@@ -91,8 +87,8 @@ struct MainWindow: View {
             }
         } else if !repos.isEmpty {
             layout(repos)
-                .onChange(of: storedFilter) { filterChanged() }
-                .onChange(of: showsBots) { filterChanged() }
+                .onChange(of: controller.settings.filter) { filterChanged() }
+                .onChange(of: controller.settings.showsBots) { filterChanged() }
                 .onChange(of: sidebarSelection) {
                     if navigationSetSidebar { navigationSetSidebar = false } else { filterChanged() }
                 }
@@ -145,7 +141,7 @@ struct MainWindow: View {
             MainBanners(openSettings: { openSettings() })
             FilterBar(
                 filter: filter,
-                showsBots: $showsBots,
+                showsBots: showsBots,
                 offersBotsChip: controller.settings.botDisplay == .grouped
             )
             Divider()
@@ -205,16 +201,21 @@ struct MainWindow: View {
 
     private var filter: Binding<FilterSet> {
         Binding(
-            get: { (try? JSONDecoder().decode(FilterSet.self, from: Data(storedFilter.utf8))) ?? FilterSet() },
-            set: { newValue in
-                guard let data = try? JSONEncoder().encode(newValue) else { return }
-                storedFilter = String(decoding: data, as: UTF8.self)
-            }
+            get: { controller.settings.filter },
+            set: { value in controller.updateSettings { $0.filter = value } }
+        )
+    }
+
+    /// The Bots chip, only offered while bots form their own group.
+    private var showsBots: Binding<Bool> {
+        Binding(
+            get: { controller.settings.showsBots },
+            set: { value in controller.updateSettings { $0.showsBots = value } }
         )
     }
 
     private var scope: BotScope {
-        if controller.settings.botDisplay == .grouped { showsBots ? .bots : .humans }
+        if controller.settings.botDisplay == .grouped { showsBots.wrappedValue ? .bots : .humans }
         else { ItemFilter.scope(for: controller.settings.botDisplay) }
     }
 

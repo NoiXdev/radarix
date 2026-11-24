@@ -5,7 +5,7 @@ public enum BotDisplayMode: String, Codable, Sendable { case badge, grouped, hid
 
 public struct AppSettings: Codable, Sendable, Equatable {
     /// Version of the file layout. Files written before versioning decode as 1; saving always writes the current one.
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 4
     public var schemaVersion = AppSettings.currentSchemaVersion
     public var layout: MainLayout = .sidebar
     public var refreshInterval: TimeInterval = 300
@@ -17,11 +17,18 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var checkForUpdates = true
     /// Signed-in accounts, oldest first. The order decides repo ownership and sidebar order.
     public var accountIDs: [AccountID] = []
+    /// The main list's filter chips, kept across launches.
+    public var filter = FilterSet()
+    /// The Bots chip, only offered while bots form their own group.
+    public var showsBots = false
+    /// Group the "All" list by repository.
+    public var groupAllByRepo = false
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, checkForUpdates, accountIDs
+        case filter, showsBots, groupAllByRepo
         /// Schema 1 and 2 only; decoded into `accountIDs`, never written.
         case lastAccountID
     }
@@ -37,6 +44,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         notifyUpdated = try c.decodeIfPresent(Bool.self, forKey: .notifyUpdated) ?? defaults.notifyUpdated
         openAtLogin = try c.decodeIfPresent(Bool.self, forKey: .openAtLogin) ?? defaults.openAtLogin
         checkForUpdates = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdates) ?? defaults.checkForUpdates
+        filter = try c.decodeIfPresent(FilterSet.self, forKey: .filter) ?? defaults.filter
+        showsBots = try c.decodeIfPresent(Bool.self, forKey: .showsBots) ?? defaults.showsBots
+        groupAllByRepo = try c.decodeIfPresent(Bool.self, forKey: .groupAllByRepo) ?? defaults.groupAllByRepo
         if let ids = try c.decodeIfPresent([AccountID].self, forKey: .accountIDs) {
             accountIDs = ids
         } else if let legacy = try c.decodeIfPresent(AccountID.self, forKey: .lastAccountID) {
@@ -55,6 +65,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         try c.encode(openAtLogin, forKey: .openAtLogin)
         try c.encode(checkForUpdates, forKey: .checkForUpdates)
         try c.encode(accountIDs, forKey: .accountIDs)
+        try c.encode(filter, forKey: .filter)
+        try c.encode(showsBots, forKey: .showsBots)
+        try c.encode(groupAllByRepo, forKey: .groupAllByRepo)
     }
 }
 

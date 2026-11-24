@@ -95,7 +95,35 @@ struct SchemaEvolutionTests {
         let ids = try #require(object["accountIDs"] as? [[String: Int]])
         #expect(ids == [["rawValue": 1], ["rawValue": 2]])
         #expect(object["lastAccountID"] == nil)
-        #expect(object["schemaVersion"] as? Int == 3)
+        #expect(object["schemaVersion"] as? Int == 4)
+    }
+
+    @Test func settingsFromOneZeroLoadWithFilterDefaults() throws {
+        let settings = try decode(AppSettings.self, #"{"schemaVersion":3,"layout":"grouped","accountIDs":[{"rawValue":42}]}"#)
+        #expect(settings.filter == FilterSet())
+        #expect(settings.showsBots == false)
+        #expect(settings.groupAllByRepo == false)
+        #expect(settings.accountIDs == [AccountID(rawValue: 42)])
+    }
+
+    @Test func filterRoundTripsThroughSettings() throws {
+        var settings = AppSettings()
+        settings.filter.assignedToMe = true
+        settings.filter.new = false
+        settings.showsBots = true
+        settings.groupAllByRepo = true
+        let data = try JSONEncoder().encode(settings)
+        #expect(try JSONDecoder().decode(AppSettings.self, from: data) == settings)
+    }
+
+    @Test func filterMissingAKeyKeepsTheOthers() throws {
+        let filter = try decode(FilterSet.self, #"{"new":false,"issues":true}"#)
+        var expected = FilterSet()
+        expected.new = false
+        expected.issues = true
+        #expect(filter == expected)
+        #expect(filter.updated)
+        #expect(!filter.unassigned && !filter.assignedToMe && !filter.reviewRequested && !filter.pullRequests)
     }
 
     @Test func accountWithoutAvailableDecodesEmpty() throws {
@@ -153,7 +181,7 @@ struct SchemaEvolutionTests {
         try store.saveAccount(account)
 
         var reloadedSettings = try store.loadSettings()
-        #expect(reloadedSettings.schemaVersion == 3)
+        #expect(reloadedSettings.schemaVersion == 4)
         reloadedSettings.schemaVersion = 1
         #expect(reloadedSettings == settings)
 

@@ -10,6 +10,44 @@ public struct FilterSet: Codable, Sendable, Equatable {
     public var pullRequests = false, issues = false
 
     public init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case new, updated, unassigned, assignedToMe, reviewRequested, pullRequests, issues
+    }
+
+    /// Tolerant: a missing key keeps its default, so older or partial files still load.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = FilterSet()
+        new = try c.decodeIfPresent(Bool.self, forKey: .new) ?? defaults.new
+        updated = try c.decodeIfPresent(Bool.self, forKey: .updated) ?? defaults.updated
+        unassigned = try c.decodeIfPresent(Bool.self, forKey: .unassigned) ?? defaults.unassigned
+        assignedToMe = try c.decodeIfPresent(Bool.self, forKey: .assignedToMe) ?? defaults.assignedToMe
+        reviewRequested = try c.decodeIfPresent(Bool.self, forKey: .reviewRequested) ?? defaults.reviewRequested
+        pullRequests = try c.decodeIfPresent(Bool.self, forKey: .pullRequests) ?? defaults.pullRequests
+        issues = try c.decodeIfPresent(Bool.self, forKey: .issues) ?? defaults.issues
+    }
+
+    /// The one filter predicate: groups are ANDed, flags inside a group ORed. Callers derive the facts from their own data.
+    public func matches(
+        attention: Attention, kind: ItemKind, isUnassigned: Bool, isAssignedToViewer: Bool, isReviewRequestedFromViewer: Bool
+    ) -> Bool {
+        let attentionMatch = (!new && !updated)
+            || (new && attention == .new)
+            || (updated && attention == .updated)
+
+        let anyAssignment = unassigned || assignedToMe || reviewRequested
+        let assignmentMatch = !anyAssignment
+            || (unassigned && isUnassigned)
+            || (assignedToMe && isAssignedToViewer)
+            || (reviewRequested && isReviewRequestedFromViewer)
+
+        let kindMatch = (!pullRequests && !issues)
+            || (pullRequests && kind == .pullRequest)
+            || (issues && kind == .issue)
+
+        return attentionMatch && assignmentMatch && kindMatch
+    }
 }
 
 public enum BotScope: Sendable { case humans, bots, all }
@@ -59,22 +97,11 @@ public enum ItemFilter {
 
     private static func matches(_ record: ItemRecord, _ filter: FilterSet, viewers: ViewerLogins) -> Bool {
         let item = record.item
-        let attention = (!filter.new && !filter.updated)
-            || (filter.new && record.attention == .new)
-            || (filter.updated && record.attention == .updated)
-
         let isViewer = { (login: String) in viewers.contains(login) }
-        let anyAssignment = filter.unassigned || filter.assignedToMe || filter.reviewRequested
-        let assignment = !anyAssignment
-            || (filter.unassigned && item.assignees.isEmpty)
-            || (filter.assignedToMe && item.assignees.contains(where: isViewer))
-            || (filter.reviewRequested && item.requestedReviewers.contains(where: isViewer))
-
-        let kind = (!filter.pullRequests && !filter.issues)
-            || (filter.pullRequests && item.kind == .pullRequest)
-            || (filter.issues && item.kind == .issue)
-
-        return attention && assignment && kind
+        return filter.matches(
+            attention: record.attention, kind: item.kind, isUnassigned: item.assignees.isEmpty,
+            isAssignedToViewer: item.assignees.contains(where: isViewer),
+            isReviewRequestedFromViewer: item.requestedReviewers.contains(where: isViewer))
     }
 
     private static func inScope(_ record: ItemRecord, _ scope: BotScope) -> Bool {
