@@ -11,6 +11,8 @@ import os
 final class AppModel {
     let controller: RadarixController
     let notifications = NotificationService()
+    /// Nil when the bundle version does not parse; nothing is checked or shown then.
+    let updates: UpdateChecker?
     /// Empty when this build has no OAuth App; the token sign-in still works.
     let oauthClientID: String
     /// Set once per launch by the app delegate, through `setLaunchKind(atLogin:)`.
@@ -38,10 +40,23 @@ final class AppModel {
             makeAPI: { GitHubClient(token: $0) },
             oauthClientID: clientID
         )
+        if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+            let current = AppVersion(version)
+        {
+            updates = UpdateChecker(current: current, source: GitHubReleaseSource(userAgent: "Radarix/\(current)"))
+        } else {
+            updates = nil
+        }
         controller.onSyncReport = { [weak self] account, report in self?.didSync(account: account, report: report) }
         controller.onSnapshotWritten = { WidgetCenter.shared.reloadAllTimelines() }
         notifications.repo = { [weak self] id in self?.controller.repos[id]?.repo }
         notifications.onOpen = { [weak self] target in self?.openNotification(target) }
+    }
+
+    /// Writes the setting and starts or stops the update check to match.
+    func setCheckForUpdates(_ on: Bool) {
+        controller.updateSettings { $0.checkForUpdates = on }
+        updates?.setEnabled(on)
     }
 
     var isDeviceFlowAvailable: Bool { !oauthClientID.isEmpty }
@@ -50,6 +65,7 @@ final class AppModel {
     func start() {
         guard !started else { return }
         started = true
+        updates?.setEnabled(controller.settings.checkForUpdates)
         Task {
             await controller.restoreSessions()
             sessionRestored = true

@@ -54,6 +54,22 @@ struct GeneralSettings: View {
                     }
                 }
             }
+            if let updates = model.updates {
+                Section {
+                    Toggle(
+                        "Check for updates",
+                        isOn: Binding(
+                            get: { model.controller.settings.checkForUpdates }, set: { model.setCheckForUpdates($0) })
+                    )
+                    if let release = updates.available {
+                        Text("Version \(release.version.description) is available.")
+                        Link("View release", destination: release.url)
+                        Text("Update with: brew upgrade --cask radarix")
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .onAppear(perform: readLoginItem)

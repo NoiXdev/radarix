@@ -597,6 +597,22 @@
         }
       }
     },
+    "Check for updates" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Updates suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for updates"
+          }
+        }
+      }
+    },
     "Choose repositories" : {
       "localizations" : {
         "de" : {
@@ -2517,6 +2533,22 @@
         }
       }
     },
+    "Update with: brew upgrade --cask radarix" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update mit: brew upgrade --cask radarix"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update with: brew upgrade --cask radarix"
+          }
+        }
+      }
+    },
     "Updated" : {
       "localizations" : {
         "de" : {
@@ -2577,6 +2609,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Use token"
+          }
+        }
+      }
+    },
+    "Version %@ is available – View release" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ ist verfügbar – Release ansehen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ is available – View release"
+          }
+        }
+      }
+    },
+    "Version %@ is available." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ ist verfügbar."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ is available."
+          }
+        }
+      }
+    },
+    "View release" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Release ansehen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View release"
           }
         }
       }

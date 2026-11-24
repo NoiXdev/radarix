@@ -20,6 +20,7 @@ struct MenuBarPopover: View {
             notices: notices,
             isSyncing: controller.isSyncing,
             lastSyncAt: controller.lastSyncAt,
+            update: model.updates?.available,
             canRefresh: controller.sessions.contains { $0.auth == .ok },
             actions: actions
         )
@@ -77,6 +78,7 @@ struct MenuBarPopover: View {
                 openSettings()
                 NSApp.activate()
             },
+            openRelease: { NSWorkspace.shared.open($0.url) },
             quit: { NSApp.terminate(nil) }
         )
     }
@@ -99,6 +101,7 @@ struct MenuBarActions {
     var markAllSeen: @MainActor () -> Void = {}
     var openMain: @MainActor () -> Void = {}
     var openSettings: @MainActor () -> Void = {}
+    var openRelease: @MainActor (LatestRelease) -> Void = { _ in }
     var quit: @MainActor () -> Void = {}
 }
 
@@ -109,6 +112,8 @@ struct MenuBarPopoverContent: View {
     let notices: [MenuBarNotice]
     let isSyncing: Bool
     let lastSyncAt: Date?
+    /// A newer release than the running one, when the update check found one.
+    var update: LatestRelease?
     /// False while every account needs to sign in again.
     var canRefresh = true
     var actions = MenuBarActions()
@@ -134,6 +139,14 @@ struct MenuBarPopoverContent: View {
             items
             Divider()
             footer.padding(5)
+            if let update {
+                Divider()
+                MenuBarRowButton(action: { actions.openRelease(update) }) {
+                    Text("Version \(update.version.description) is available – View release")
+                        .font(.callout)
+                }
+                .padding(5)
+            }
         }
         .frame(width: 340)
     }
