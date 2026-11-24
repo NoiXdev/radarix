@@ -1,0 +1,15 @@
+# Blank issues stay ON deliberately. The two forms beside this file cover a
+# bug and a request; anything else a person wants to raise (a question, a
+# packaging problem, a documentation gap) should not have to be squeezed
+# into one of them or dropped.
+blank_issues_enabled: true
+
+contact_links:
+  - name: Security problem (do not open a public issue)
+    url: https://github.com/NoiXdev/radarix/security/advisories/new
+    about: >-
+      Use "Report a vulnerability" instead. Leave every token and
+      password out of the report.
+  - name: Documentation
+    url: https://docs.noix.dev/radarix
+    about: How to install, sign in and use Radarix.

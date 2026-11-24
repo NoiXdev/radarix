@@ -1,0 +1,110 @@
+name: Bug report
+description: Something in Radarix behaves differently than it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The fields below are the ones that
+        usually decide whether a report can be acted on or has to be
+        guessed at.
+
+        **Please do not paste a token, a password, or a screenshot that
+        shows one.** Nothing below needs them.
+
+  - type: input
+    id: version
+    attributes:
+      label: Radarix version
+      description: Radarix → About Radarix, or the name of the disk image you installed from.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: Apple menu → About This Mac.
+      placeholder: "15.5"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: signin
+    attributes:
+      label: How did you sign in?
+      options:
+        - Sign in with GitHub
+        - Personal access token
+        - Both, on different accounts
+    validations:
+      required: true
+
+  - type: dropdown
+    id: accounts
+    attributes:
+      label: Are several accounts signed in?
+      options:
+        - "No, one account"
+        - "Yes, two or more"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, in as much detail as you have.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to get there
+      description: |
+        The steps you took, from opening the app onwards. If you cannot
+        reproduce it on purpose, say so. That is useful information, not a
+        reason to leave the report out.
+      placeholder: |
+        1. Open the main window
+        2. Mark a repository as seen
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Does it happen every time?
+      options:
+        - Every time
+        - Often, but not always
+        - Saw it once
+        - Have not tried again
+    validations:
+      required: true
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: Screenshots (check them for tokens first), and what you had tried before it started.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you post
+      options:
+        - label: I searched the existing issues and this is not one of them.
+          required: true
+        - label: Nothing I pasted above contains a token or a password.
+          required: true

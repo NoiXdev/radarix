@@ -1,0 +1,57 @@
+name: Feature request
+description: Something Radarix should be able to do and cannot.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Requests are read and kept, and a request that describes the
+        situation it came out of is far easier to design for than one that
+        names a solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: |
+        The task, not the feature. "I miss review requests on repositories
+        I rarely open" says more than "add a filter".
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you do it today?
+      description: In Radarix, in another app, or by hand.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: Optional. A shape you imagine, if you have one.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Menu bar popover
+        - Main window
+        - Notifications
+        - Widget
+        - Accounts and sign-in
+        - Settings
+        - Somewhere else / not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you post
+      options:
+        - label: I searched the existing issues and this is not already requested.
+          required: true
