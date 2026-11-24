@@ -1,3 +1,20 @@
+## [1.2.0](https://github.com/NoiXdev/radarix/compare/v1.1.0...v1.2.0) (2026-11-24)
+
+### Features
+
+* add assign and unassign buttons ([32f954e](https://github.com/NoiXdev/radarix/commit/32f954e8788ae89fcfdceabaaf1e018aed78066a))
+* add the 1.2 settings ([3cf2065](https://github.com/NoiXdev/radarix/commit/3cf2065ba44d04d442e3ab89f46c0eb3c16740b9))
+* assign and unassign the viewer on GitHub ([d40e21a](https://github.com/NoiXdev/radarix/commit/d40e21a84078ce0945b22d98390efe6e328646b3))
+* refresh a single repository from its context menu ([7a52b4f](https://github.com/NoiXdev/radarix/commit/7a52b4f0ea43aa62549c6a6f7a41c01f1462b845))
+* show the description in the sidebar if chosen ([e63065f](https://github.com/NoiXdev/radarix/commit/e63065fd8f59ce71d487d69f64fbbcae52344267))
+* start in the background, hide from the Dock, run once per user ([22ad4c2](https://github.com/NoiXdev/radarix/commit/22ad4c2284d68d89043f14d7343acd9cfda6bf43))
+
+### Bug Fixes
+
+* break the tie when two copies start together ([afbe4ba](https://github.com/NoiXdev/radarix/commit/afbe4bab2a5452f6aa474c93e7b4ff3ec29b6430))
+* guard the description load against late results ([24d30fe](https://github.com/NoiXdev/radarix/commit/24d30fe9a609932fe66006ea057f3a10b66f41bd))
+* show assign failures from the context menu ([1e20fb7](https://github.com/NoiXdev/radarix/commit/1e20fb75e5fcfeb9e55e608ef00cc70dd1fadf1d))
+
 ## [1.1.0](https://github.com/NoiXdev/radarix/compare/v1.0.0...v1.1.0) (2026-11-24)
 
 ### Features
