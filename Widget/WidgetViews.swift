@@ -144,7 +144,7 @@ struct LargeOverview: View {
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(busyRepos) { repo in
-                        RepoLink(repo: repo)
+                        RepoLink(repo: repo, isLowerBound: summary.lowerBoundRepos.contains(repo.id))
                     }
                 }
                 Divider()
@@ -344,6 +344,12 @@ private struct ItemRow: View {
 /// `owner/name` and its new and updated counts; a link that opens the repository in Radarix.
 private struct RepoLink: View {
     let repo: WidgetSnapshot.RepoEntry
+    /// The filtered counts may be too low, so they get a trailing "+".
+    let isLowerBound: Bool
+
+    private func badge(_ count: Int) -> String {
+        isLowerBound ? "\(count.formatted())+" : count.formatted()
+    }
 
     var body: some View {
         Link(destination: DeepLink.repo(repo.id).url) {
@@ -355,12 +361,15 @@ private struct RepoLink: View {
                     .truncationMode(.middle)
                 Spacer(minLength: 4)
                 if repo.newCount > 0 {
-                    CountBadge(text: repo.newCount.formatted(), fill: .attentionNew, ink: .white)
-                        .accessibilityLabel(Text("\(repo.newCount) new items"))
+                    CountBadge(text: badge(repo.newCount), fill: .attentionNew, ink: .white)
+                        .accessibilityLabel(
+                            isLowerBound ? Text("at least \(repo.newCount) new items") : Text("\(repo.newCount) new items"))
                 }
                 if repo.updatedCount > 0 {
-                    CountBadge(text: repo.updatedCount.formatted(), fill: .attentionUpdated, ink: .attentionUpdatedInk)
-                        .accessibilityLabel(Text("\(repo.updatedCount) updated items"))
+                    CountBadge(text: badge(repo.updatedCount), fill: .attentionUpdated, ink: .attentionUpdatedInk)
+                        .accessibilityLabel(
+                            isLowerBound
+                                ? Text("at least \(repo.updatedCount) updated items") : Text("\(repo.updatedCount) updated items"))
                 }
             }
         }

@@ -300,6 +300,20 @@ struct WidgetSnapshotTests {
         #expect(filtered.repos.first?.isTruncated == false)
     }
 
+    @Test func lowerBoundReposNamesOnlyTheTruncatedOnes() {
+        let big = RepoRef.fixture(id: 1, name: "big")
+        let small = RepoRef.fixture(id: 2, owner: "p", name: "small")
+        let s = snapshot([(big, (1...101).map { rec($0, .new) }), (small, (1...3).map { rec($0, .new) })])
+        #expect(s.summary(for: .all).lowerBoundRepos.isEmpty)
+        var filter = FilterSet()
+        filter.pullRequests = true
+        filter.issues = true
+        let filtered = s.summary(for: .all, filter: filter)
+        #expect(filtered.lowerBoundRepos == [big.id])
+        #expect(filtered.isLowerBound)
+        #expect(s.summary(for: .repo(small.id), filter: filter).lowerBoundRepos.isEmpty)
+    }
+
     @Test func snapshotMatchesControllerCounts() {
         let a = RepoRef.fixture(id: 1, name: "a")
         let b = RepoRef.fixture(id: 2, owner: "p", name: "b")

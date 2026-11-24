@@ -100,12 +100,12 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
     }
 
     public struct Summary: Sendable, Equatable {
-        init(newCount: Int, updatedCount: Int, repos: [RepoEntry], items: [ItemEntry], isLowerBound: Bool = false) {
+        init(newCount: Int, updatedCount: Int, repos: [RepoEntry], items: [ItemEntry], lowerBoundRepos: Set<RepoID> = []) {
             self.newCount = newCount
             self.updatedCount = updatedCount
             self.repos = repos
             self.items = items
-            self.isLowerBound = isLowerBound
+            self.lowerBoundRepos = lowerBoundRepos
         }
 
         public let newCount: Int
@@ -116,7 +116,10 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
         public let items: [ItemEntry]
         /// A filter is active and a chosen repo holds more items than the snapshot kept, so the
         /// counts may be too low.
-        public let isLowerBound: Bool
+        public var isLowerBound: Bool { !lowerBoundRepos.isEmpty }
+        /// The repos in scope whose stored entry is truncated, so their filtered counts may be too
+        /// low. Empty when there is no filter.
+        public let lowerBoundRepos: Set<RepoID>
         public var busiestRepo: RepoEntry? { repos.first(where: { $0.newCount + $0.updatedCount > 0 }) }
     }
 
@@ -219,7 +222,7 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
         case .owner(let login): repos.filter { $0.owner.caseInsensitiveCompare(login) == .orderedSame }
         case .repo(let id): repos.filter { $0.id == id }
         }
-        guard filter != FilterSet() else { return Self.summary(of: chosen, isLowerBound: false) }
+        guard filter != FilterSet() else { return Self.summary(of: chosen, lowerBoundRepos: []) }
         let matching = chosen.map { repo in
             let items = repo.items.filter { item in
                 filter.matches(
@@ -232,16 +235,16 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
                 newCount: items.count(where: { $0.attention == .new }),
                 updatedCount: items.count(where: { $0.attention == .updated }), items: items)
         }
-        return Self.summary(of: matching, isLowerBound: chosen.contains(where: \.isTruncated))
+        return Self.summary(of: matching, lowerBoundRepos: Set(chosen.filter(\.isTruncated).map(\.id)))
     }
 
-    private static func summary(of chosen: [RepoEntry], isLowerBound: Bool) -> Summary {
+    private static func summary(of chosen: [RepoEntry], lowerBoundRepos: Set<RepoID>) -> Summary {
         let items = chosen.flatMap(\.items)
             .sorted { newer($0.updatedAt, $0.key, than: $1.updatedAt, $1.key) }
         return Summary(
             newCount: chosen.reduce(0) { $0 + $1.newCount },
             updatedCount: chosen.reduce(0) { $0 + $1.updatedCount },
-            repos: sorted(chosen), items: items, isLowerBound: isLowerBound)
+            repos: sorted(chosen), items: items, lowerBoundRepos: lowerBoundRepos)
     }
 
     /// Distinct owners of `repos`, sorted case-insensitively.
