@@ -105,6 +105,11 @@ The core logic lives in a Swift package. Run its tests with:
 cd Packages/RadarixKit && swift test
 ```
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Security
 
 Found a vulnerability? Please report it privately. See
