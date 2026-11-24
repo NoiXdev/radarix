@@ -46,6 +46,8 @@ public final class AccountSession {
 
     /// Changes when the session ends; work started before is discarded.
     @ObservationIgnored private var generation = 0
+    /// Set by `end()`.
+    @ObservationIgnored private var hasEnded = false
     /// Cancels the API work running for this session.
     @ObservationIgnored private var cancelRunning: (() -> Void)?
     /// What `syncItems` needs from the last `resolve()` that returned true.
@@ -82,6 +84,7 @@ public final class AccountSession {
     /// Cancels running work and discards its result. The session is not used afterwards.
     public func end() {
         generation += 1
+        hasEnded = true
         cancelRunning?()
         cancelRunning = nil
         isSyncing = false
@@ -152,7 +155,7 @@ public final class AccountSession {
             // Nothing was synced yet: the account stays as it was.
             var report = SyncReport()
             report.record(stop)
-            report.rateLimit = await api.rateLimit()
+            report.rateLimit = await cancellable { [api] in await api.rateLimit() }
             guard generation == self.generation else { return false }
             report.availableRepos = resolution.available
             report.ownerIssues = resolution.ownerIssues
@@ -177,9 +180,16 @@ public final class AccountSession {
 
     /// Syncs the items of `owned` after a `resolve()` that returned true, merges what changed
     /// meanwhile and saves. Returns nil when the session ended meanwhile.
+    ///
+    /// Every `resolve()` that returned true must be followed by exactly one call, also with
+    /// `owned: []`: until then the session is mid-pass, and this call drops the states of repos
+    /// it neither owns nor keeps.
     public func syncItems(owned: [RepoRef], keep: Set<RepoID>, viewers: ViewerLogins) async -> SyncReport? {
         let generation = self.generation
-        let pass = self.pass ?? Pass(resolution: Resolution(available: account.available), offline: false)
+        guard let pass else {
+            assert(hasEnded, "syncItems needs a preceding resolve() that returned true")
+            return nil
+        }
         self.pass = nil
         isSyncing = true
         // Everything until now is in the snapshot.

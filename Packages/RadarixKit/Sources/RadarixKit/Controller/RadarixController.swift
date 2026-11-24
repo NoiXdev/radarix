@@ -14,30 +14,21 @@ public enum SyncProblem: Sendable, Equatable {
     case rateLimited(until: Date)
 }
 
-/// The app's single source of truth: settings, the account session, scheduling and the widget snapshot.
+/// The app's single source of truth: settings, one session per signed-in account, repo ownership,
+/// scheduling and the widget snapshot.
+///
+/// Every repo is synced by one account, its owner: the earliest account in `settings.accountIDs`
+/// whose watch configuration includes it, computed from each account's persisted repo lists so an
+/// unhealthy account keeps its repos.
 @MainActor @Observable
 public final class RadarixController {
-    public var auth: AuthState {
-        guard let session else { return .signedOut }
-        return switch session.auth {
-        case .ok: .signedIn(login: session.login)
-        case .needsReauth: .needsReauth(login: session.login)
-        }
-    }
     public private(set) var settings: AppSettings
-    public var account: AccountData? { session?.account }
-    public var credentialKind: CredentialKind? { session?.credentialKind }
-    /// Repo lists of the account's active owners from the last sync, keyed by owner login.
-    public var availableRepos: [String: [RepoRef]] { account?.available ?? [:] }
-    public var owners: [OwnerRef] { session?.owners ?? [] }
-    public var lastReport: SyncReport? { session?.lastReport }
-    /// When the last sync that processed every watched repo finished.
-    public var lastSyncAt: Date? { session?.lastSyncAt }
-    public private(set) var isSyncing = false
-    /// Set when the last sync attempt hit a problem; cleared by a completed sync.
-    public var syncProblem: SyncProblem? { session?.syncProblem }
-    /// Called after every sync that completed for the current session.
-    @ObservationIgnored public var onSyncReport: ((SyncReport) -> Void)?
+    /// One per account in `settings.accountIDs` whose credential loaded, in that order.
+    public private(set) var sessions: [AccountSession] = []
+    /// Repo id to owning account, from the last sync pass.
+    public private(set) var ownership: [RepoID: AccountID] = [:]
+    /// Called after every sync of a session that completed, with that session's account.
+    @ObservationIgnored public var onSyncReport: ((AccountData, SyncReport) -> Void)?
     /// Called when the widget should reload: the snapshot was removed, or what it shows changed,
     /// or its `syncedAt` moved `snapshotReloadAge` past the one of the last call.
     @ObservationIgnored public var onSnapshotWritten: (() -> Void)?
@@ -55,8 +46,8 @@ public final class RadarixController {
     private let oauthClientID: String
     private let now: @Sendable () -> Date
 
-    /// The signed-in account; a sync of a session that ended meanwhile is discarded.
-    private var session: AccountSession?
+    /// A sync pass is running.
+    @ObservationIgnored private var passRunning = false
     /// A watch change arrived after the running sync took its snapshot.
     @ObservationIgnored private var followUpRefresh = false
     /// `pendingRefresh` was started but has not begun its refresh yet.
@@ -67,8 +58,8 @@ public final class RadarixController {
     @ObservationIgnored private var writtenSnapshot: WidgetSnapshot?
     /// The `syncedAt` of the snapshot at the last `onSnapshotWritten` call.
     @ObservationIgnored private var reloadedSyncedAt: Date?
-    /// The previous launch's sync time of this account, from the snapshot file, until a sync completes.
-    @ObservationIgnored private var carriedSyncedAt: Date?
+    /// The previous launch's sync time, from the snapshot file, for the account it names.
+    @ObservationIgnored private var carriedSyncedAt: (login: String, date: Date)?
 
     private static let log = Logger(subsystem: "dev.noix.radarix", category: "controller")
 
@@ -85,36 +76,99 @@ public final class RadarixController {
         settings = (try? store.loadSettings()) ?? AppSettings()
     }
 
-    // MARK: Session
+    // MARK: Workspace state
 
-    /// Loads the last account and its credential, then syncs. Stored data is shown even when offline.
-    public func restoreSession() async {
-        guard let id = settings.accountIDs.first, let credential = try? credentials.load(for: id) else {
-            writeSnapshot()
-            return
+    public var isSignedIn: Bool { !sessions.isEmpty }
+    public var isSyncing: Bool { sessions.contains { $0.isSyncing } }
+    public var needsReauth: [AccountSession] { sessions.filter { $0.auth == .needsReauth } }
+    /// The logins of every account: who counts as "me".
+    public var viewers: ViewerLogins { ViewerLogins(sessions.map(\.login)) }
+
+    /// The oldest `lastSyncAt` of the sessions that do not need reauth, or of all when every one
+    /// does; nil without sessions or when one of those never completed a sync.
+    public var lastSyncAt: Date? {
+        let healthy = sessions.filter { $0.auth == .ok }
+        let considered = healthy.isEmpty ? sessions : healthy
+        guard !considered.isEmpty else { return nil }
+        var oldest: Date?
+        for session in considered {
+            guard let date = session.lastSyncAt else { return nil }
+            oldest = min(oldest ?? date, date)
         }
-        guard let stored = try? store.loadAccount(id) else {
-            // No (readable) account file: sign in with the stored credential; on failure stay signed out.
-            do { try await signIn(token: credential.token, kind: credential.kind) } catch { writeSnapshot() }
-            return
+        return oldest
+    }
+
+    public func session(for id: AccountID) -> AccountSession? {
+        sessions.first { $0.accountID == id }
+    }
+
+    /// The session whose state of `repo` is shown and marked: its owner, or for a repo without
+    /// one (not yet computed, or a state kept for an owner whose repo list is unknown) the first
+    /// session that has a state of it.
+    public func owner(of repo: RepoID) -> AccountSession? {
+        if let id = ownership[repo] { return session(for: id) }
+        return sessions.first { $0.account.repos[repo] != nil }
+    }
+
+    /// The state of every repo, each from its owner.
+    public var repos: [RepoID: RepoState] {
+        var result: [RepoID: RepoState] = [:]
+        for session in sessions {
+            for (id, state) in session.account.repos where result[id] == nil && owner(of: id) === session {
+                result[id] = state
+            }
         }
-        begin(api: makeAPI(credential.token), account: stored, credential: credential)
+        return result
+    }
+
+    // MARK: Accounts
+
+    /// Builds a session for every account whose credential loads, writes the snapshot, then syncs.
+    /// Stored data is shown even when offline. An account that cannot be restored stays in
+    /// `settings.accountIDs`.
+    public func restoreSessions() async {
+        for id in settings.accountIDs where session(for: id) == nil {
+            guard let credential = try? credentials.load(for: id) else { continue }
+            let api = makeAPI(credential.token)
+            if let stored = try? store.loadAccount(id) {
+                insert(makeSession(account: stored, credential: credential, api: api))
+                continue
+            }
+            // No (readable) account file: sign in with the stored credential; on failure skip it.
+            do {
+                let viewer = try await api.viewer()
+                guard viewer.id == id else {
+                    Self.log.error("The credential of account \(id.rawValue) belongs to another account")
+                    continue
+                }
+                let account = try loadOrCreateAccount(viewer, existing: nil)
+                guard session(for: id) == nil else { continue }
+                insert(makeSession(account: account, credential: credential, api: api))
+            } catch {
+                Self.log.error("Restoring account \(id.rawValue) failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        writeSnapshot()
         await refresh()
     }
 
-    /// Validates the token, keeps any stored data of that account, then syncs.
-    public func signIn(token: String, kind: CredentialKind) async throws {
+    /// Validates the token, keeps any stored data of that account, saves the credential, then syncs.
+    /// A new account goes to the end of the list; one already in it gets the new credential.
+    public func addAccount(token: String, kind: CredentialKind) async throws {
         let api = makeAPI(token)
         let viewer = try await api.viewer()
-        var loaded = try store.loadAccount(viewer.id) ?? AccountData(accountID: viewer.id, login: viewer.login)
-        loaded.login = viewer.login
-        try store.saveAccount(loaded)
+        let account = try loadOrCreateAccount(viewer, existing: session(for: viewer.id))
         let credential = Credential(token: token, kind: kind)
         try credentials.save(credential, for: viewer.id)
-        settings.accountIDs = [viewer.id]
+        if !settings.accountIDs.contains(viewer.id) { settings.accountIDs.append(viewer.id) }
+        insert(makeSession(account: account, credential: credential, api: api))
         saveSettings()
-        begin(api: api, account: loaded, credential: credential)
-        await refresh()
+        if passRunning {
+            // The running pass started without this session.
+            requestRefresh()
+        } else {
+            await refresh()
+        }
     }
 
     public func startDeviceFlow() async throws -> DeviceCode {
@@ -123,28 +177,37 @@ public final class RadarixController {
 
     public func completeDeviceFlow(_ code: DeviceCode) async throws {
         let token = try await DeviceFlow(clientID: oauthClientID).waitForToken(code)
-        try await signIn(token: token, kind: .oauth)
+        try await addAccount(token: token, kind: .oauth)
     }
 
-    /// Deletes the credential; the account file and `accountIDs` stay.
-    public func signOut() throws {
-        if let id = session?.accountID { try credentials.delete(for: id) }
-        end()
-        writeSnapshot()
+    /// Deletes the account's credential and drops it from the list; its account file stays, so
+    /// adding it again resumes its settings and seen state. Another account may take over its repos.
+    public func removeAccount(_ id: AccountID) throws {
+        try credentials.delete(for: id)
+        if let index = sessions.firstIndex(where: { $0.accountID == id }) {
+            sessions[index].end()
+            sessions.remove(at: index)
+        }
+        // Marks on its repos are dropped until the next pass assigns them.
+        ownership = ownership.filter { $0.value != id }
+        settings.accountIDs.removeAll { $0 == id }
+        if sessions.isEmpty { stopWork() }
+        saveSettings()
+        if !sessions.isEmpty { requestRefresh() }
     }
 
-    /// Deletes the credential and every file, the widget snapshot included.
+    /// Deletes every credential and every file, the widget snapshot included.
     public func resetAllData() throws {
         try credentials.deleteAll()
         do {
             try store.resetAll()
         } catch {
-            // Without a credential the session cannot go on, whatever files are left.
-            end()
+            // Without credentials the sessions cannot go on, whatever files are left.
+            endAll()
             writeSnapshot()
             throw error
         }
-        end()
+        endAll()
         settings = AppSettings()
         writtenSnapshot = nil
         reloadedSyncedAt = nil
@@ -152,42 +215,74 @@ public final class RadarixController {
         onSnapshotWritten?()
     }
 
-    private func begin(api: GitHubAPI, account: AccountData, credential: Credential) {
-        end()
-        // The widget keeps showing how old its data is, also after a relaunch.
-        carriedSyncedAt = (try? store.loadSnapshot()).flatMap { previous in
-            previous.login?.caseInsensitiveCompare(account.login) == .orderedSame ? previous.syncedAt : nil
-        }
-        let session = AccountSession(account: account, credential: credential, api: api, store: store, now: now)
-        session.onSaved = { [weak self] in self?.writeSnapshot() }
-        session.onWatchChanged = { [weak self] in self?.requestRefresh() }
-        self.session = session
-        if schedulerEnabled { launchScheduler() }
-        writeSnapshot()
+    /// The stored account of `viewer` (or the running session's, which is at least as new), with
+    /// the current login, saved; a new one when there is none.
+    private func loadOrCreateAccount(_ viewer: Viewer, existing: AccountSession?) throws -> AccountData {
+        var account = try existing?.account ?? store.loadAccount(viewer.id)
+            ?? AccountData(accountID: viewer.id, login: viewer.login)
+        account.login = viewer.login
+        try store.saveAccount(account)
+        return account
     }
 
-    private func end() {
+    private func makeSession(account: AccountData, credential: Credential, api: GitHubAPI) -> AccountSession {
+        let session = AccountSession(account: account, credential: credential, api: api, store: store, now: now)
+        session.onSaved = { [weak self] in self?.accountSaved() }
+        session.onWatchChanged = { [weak self] in self?.requestRefresh() }
+        return session
+    }
+
+    /// Puts `session` in its place by `settings.accountIDs`, ending a session of the same account.
+    private func insert(_ session: AccountSession) {
+        let wasEmpty = sessions.isEmpty
+        if let index = sessions.firstIndex(where: { $0.accountID == session.accountID }) {
+            sessions[index].end()
+            sessions[index] = session
+        } else {
+            let order = settings.accountIDs
+            let rank = { (id: AccountID) in order.firstIndex(of: id) ?? order.count }
+            let index = sessions.firstIndex { rank($0.accountID) > rank(session.accountID) } ?? sessions.endIndex
+            sessions.insert(session, at: index)
+        }
+        guard wasEmpty else { return }
+        // The widget keeps showing how old its data is, also after a relaunch.
+        carriedSyncedAt = (try? store.loadSnapshot()).flatMap { previous in
+            guard let login = previous.login, let date = previous.syncedAt else { return nil }
+            return (login, date)
+        }
+        if schedulerEnabled { launchScheduler() }
+    }
+
+    private func endAll() {
+        for session in sessions { session.end() }
+        sessions = []
+        ownership = [:]
+        stopWork()
+    }
+
+    /// Without sessions nothing is scheduled.
+    private func stopWork() {
         scheduler?.cancel()
         scheduler = nil
         pendingRefresh?.cancel()
         pendingRefresh = nil
         refreshQueued = false
         followUpRefresh = false
-        session?.end()
-        session = nil
         carriedSyncedAt = nil
     }
 
     // MARK: Sync
 
-    /// Syncs once. Does nothing while syncing, when not signed in, or before a rate limit resets.
+    /// Syncs every account once. Does nothing while syncing or when signed out; an account that
+    /// needs reauth or waits for a rate limit to reset skips the pass.
     public func refresh() async {
-        guard !isSyncing, let session, session.auth == .ok else { return }
-        if let until = session.rateLimitedUntil, now() < until { return }
-        isSyncing = true
-        let completed = await sync(session)
-        isSyncing = false
-        if followUpRefresh || (!completed && auth != .signedOut) {
+        guard !passRunning, !sessions.isEmpty else { return }
+        passRunning = true
+        let completed = await runPass()
+        passRunning = false
+        // Saves during the pass were left for this one write.
+        writeSnapshot()
+        if followUpRefresh || (!completed && !sessions.isEmpty) {
             followUpRefresh = false
             requestRefresh()
         }
@@ -196,7 +291,7 @@ public final class RadarixController {
     /// Repeats `refresh()` every `settings.refreshInterval` while signed in.
     public func startScheduler() {
         schedulerEnabled = true
-        if scheduler == nil, session != nil { launchScheduler() }
+        if scheduler == nil, !sessions.isEmpty { launchScheduler() }
     }
 
     private func launchScheduler() {
@@ -211,7 +306,7 @@ public final class RadarixController {
 
     /// Starts a refresh now, or right after the running one.
     private func requestRefresh() {
-        if isSyncing || refreshQueued {
+        if passRunning || refreshQueued {
             followUpRefresh = true
             return
         }
@@ -222,29 +317,66 @@ public final class RadarixController {
         }
     }
 
-    /// Returns false when the session ended meanwhile and the result was discarded.
-    private func sync(_ session: AccountSession) async -> Bool {
+    /// Resolves every session in account order, assigns repo ownership, then syncs the items of
+    /// every resolved session concurrently. Returns false when a session ended meanwhile and its
+    /// result was discarded.
+    private func runPass() async -> Bool {
         // The pass reads the watch config from here on.
         followUpRefresh = false
-        let proceeds = await session.resolve()
-        guard session === self.session else { return false }
-        let report: SyncReport
-        if proceeds {
-            let keep = RepoResolver.stored(in: session.account, ownedBy: session.unknownOwners)
-            guard let synced = await session.syncItems(
-                owned: session.watchedRepos(), keep: keep, viewers: ViewerLogins([session.login])),
-                session === self.session
-            else { return false }
-            report = synced
-        } else if let stopped = session.stoppedReport {
-            report = stopped
-        } else {
-            // The owners call failed; a rejected sign-in changes what the widget shows.
-            writeSnapshot()
-            return true
+        let pass = sessions
+        var resolved: [AccountSession] = []
+        for session in pass where isCurrent(session) {
+            if await session.resolve() { resolved.append(session) }
         }
-        onSyncReport?(report)
-        return true
+
+        // Sessions that could not resolve keep their repos through their persisted lists.
+        ownership = RepoOwnership.assign(sessions.map { ($0.accountID, $0.watchedRepos()) })
+        let viewers = viewers
+        let jobs = resolved.filter(isCurrent).map { session in
+            let id = session.accountID
+            let owned = session.watchedRepos().filter { ownership[$0.id] == id }
+            let keep = RepoResolver.stored(in: session.account, ownedBy: session.unknownOwners)
+                .filter { ownership[$0] == nil || ownership[$0] == id }
+            return (session: session, owned: owned, keep: keep)
+        }
+        // Each resolved session must run its item phase, also when it owns nothing: that drops
+        // the states of repos another account owns and ends its pass.
+        let results = await withTaskGroup(of: (Int, SyncReport?).self) { group in
+            for (index, job) in jobs.enumerated() {
+                group.addTask {
+                    (index, await job.session.syncItems(owned: job.owned, keep: job.keep, viewers: viewers))
+                }
+            }
+            var results = [SyncReport?](repeating: nil, count: jobs.count)
+            for await (index, report) in group { results[index] = report }
+            return results
+        }
+        var synced: [ObjectIdentifier: SyncReport] = [:]
+        for (job, report) in zip(jobs, results) {
+            if let report { synced[ObjectIdentifier(job.session)] = report }
+        }
+
+        var completed = true
+        for session in pass {
+            guard isCurrent(session) else {
+                completed = false
+                continue
+            }
+            if resolved.contains(where: { $0 === session }) {
+                guard let report = synced[ObjectIdentifier(session)] else {
+                    completed = false
+                    continue
+                }
+                onSyncReport?(session.account, report)
+            } else if let stopped = session.stoppedReport {
+                onSyncReport?(session.account, stopped)
+            }
+        }
+        return completed
+    }
+
+    private func isCurrent(_ session: AccountSession) -> Bool {
+        sessions.contains { $0 === session }
     }
 
     // MARK: Settings and watch config
@@ -256,43 +388,48 @@ public final class RadarixController {
         if settings.refreshInterval != interval, scheduler != nil { launchScheduler() }
     }
 
-    public func setOwnerMode(_ mode: OwnerMode, for owner: String) {
-        session?.setOwnerMode(mode, for: owner)
+    public func setOwnerMode(_ mode: OwnerMode, for owner: String, in account: AccountID) {
+        session(for: account)?.setOwnerMode(mode, for: owner)
     }
 
-    public func setNotifications(_ on: Bool, for repo: RepoID) {
-        session?.setNotifications(on, for: repo)
+    public func setNotifications(_ on: Bool, for repo: RepoID, in account: AccountID) {
+        session(for: account)?.setNotifications(on, for: repo)
     }
 
-    public func setShowArchived(_ on: Bool) {
-        session?.setShowArchived(on)
+    public func setShowArchived(_ on: Bool, in account: AccountID) {
+        session(for: account)?.setShowArchived(on)
     }
 
     // MARK: Marks
 
+    /// Goes to the repo's owner; dropped when it has none.
     public func markSeen(_ key: ItemKey) {
-        session?.markSeen(key)
+        owner(of: key.repo)?.markSeen(key)
+        writeSnapshot()
     }
 
     public func markUnseen(_ key: ItemKey) {
-        session?.markUnseen(key)
+        owner(of: key.repo)?.markUnseen(key)
+        writeSnapshot()
     }
 
     public func markRepoSeen(_ repo: RepoID) {
-        session?.markRepoSeen(repo)
+        owner(of: repo)?.markRepoSeen(repo)
+        writeSnapshot()
     }
 
     public func markAllSeen() {
-        session?.markAllSeen()
+        for session in sessions { session.markAllSeen() }
+        writeSnapshot()
     }
 
     // MARK: Queries
 
-    /// Records of one repo, or of every watched repo for nil. Unfiltered and unsorted.
+    /// Records of one repo, or of every watched repo for nil, each repo from its owner.
+    /// Unfiltered and unsorted.
     public func records(in repo: RepoID?) -> [ItemRecord] {
-        guard let account else { return [] }
-        if let repo { return account.repos[repo].map { Array($0.records.values) } ?? [] }
-        return account.repos.values.flatMap { $0.records.values }
+        if let repo { return owner(of: repo)?.account.repos[repo].map { Array($0.records.values) } ?? [] }
+        return repos.values.flatMap { $0.records.values }
     }
 
     public func counts(in repo: RepoID?) -> AttentionCounts {
@@ -310,12 +447,20 @@ public final class RadarixController {
         writeSnapshot()
     }
 
-    /// The widget's view of the session: `.signedOut` without an account. Saved when it differs
-    /// from the last one; the widget reloads only when `needsReload` says so, to stay within its budget.
+    /// Account saves during a pass are written once at its end.
+    private func accountSaved() {
+        if !passRunning { writeSnapshot() }
+    }
+
+    /// The widget's view of the first session (the merged view is to come): `.signedOut` without
+    /// one. Saved when it differs from the last one; the widget reloads only when `needsReload`
+    /// says so, to stay within its budget.
     private func writeSnapshot() {
-        let snapshot = if let account, auth != .signedOut {
+        let snapshot = if let session = sessions.first {
             WidgetSnapshot.make(
-                account: account, settings: settings, auth: auth, syncedAt: lastSyncAt ?? carriedSyncedAt)
+                account: session.account, settings: settings,
+                auth: session.auth == .ok ? .signedIn(login: session.login) : .needsReauth(login: session.login),
+                syncedAt: session.lastSyncAt ?? carriedSyncedAt(for: session.login))
         } else {
             WidgetSnapshot.signedOut
         }
@@ -331,6 +476,11 @@ public final class RadarixController {
         guard Self.needsReload(snapshot, previous: previous, reloadedSyncedAt: reloadedSyncedAt) else { return }
         reloadedSyncedAt = snapshot.syncedAt
         onSnapshotWritten?()
+    }
+
+    private func carriedSyncedAt(for login: String) -> Date? {
+        guard let carried = carriedSyncedAt, carried.login.caseInsensitiveCompare(login) == .orderedSame else { return nil }
+        return carried.date
     }
 
     /// True for the first write, for changed content, and for a `syncedAt` that appeared, went away

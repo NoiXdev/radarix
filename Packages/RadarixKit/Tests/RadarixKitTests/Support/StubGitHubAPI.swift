@@ -27,6 +27,7 @@ actor StubGitHubAPI: GitHubAPI {
     private var itemResults: [RepoID: [Scripted<[Item]>]] = [:]
     private var pullResults: [RepoID: [Scripted<[Int: PullDetails]>]] = [:]
     private var activityResults: [Int: [Result<Bool, GitHubError>]] = [:]
+    private var timelines: [Int: [String]] = [:]
     private var currentRateLimit: RateLimit?
     private var cancellingProbes: Set<Int> = []
     private var viewerResult: Result<Viewer, GitHubError> = .success(Viewer(id: AccountID(rawValue: 42), login: "me"))
@@ -49,6 +50,12 @@ actor StubGitHubAPI: GitHubAPI {
 
     func scriptActivity(_ number: Int, _ results: Result<Bool, GitHubError>...) {
         activityResults[number, default: []] += results
+    }
+
+    /// The probe for this item number answers from these timeline actors: true when any of them
+    /// is not one of the viewers. Takes precedence over `scriptActivity`.
+    func scriptTimeline(_ number: Int, actors: [String]) {
+        timelines[number] = actors
     }
 
     /// The probe for this item number cancels the calling task, then fails like a cancelled
@@ -131,6 +138,9 @@ actor StubGitHubAPI: GitHubAPI {
         if cancellingProbes.contains(item.key.number) {
             withUnsafeCurrentTask { $0?.cancel() }
             throw GitHubError.network("cancelled")
+        }
+        if let actors = timelines[item.key.number] {
+            return actors.contains { !viewers.contains($0) }
         }
         return try (Self.pop(&activityResults, item.key.number) ?? .success(false)).get()
     }

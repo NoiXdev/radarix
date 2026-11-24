@@ -81,6 +81,23 @@ private func account(_ states: [RepoRef: [ItemRecord]] = [:]) -> AccountData {
 
 private func key(_ number: Int, _ repo: RepoRef = repoA) -> ItemKey { ItemKey(repo: repo.id, number: number) }
 
+/// The single-account view these tests were written against, read from the only session.
+private extension RadarixController {
+    var auth: AuthState {
+        guard let session = sessions.first else { return .signedOut }
+        return switch session.auth {
+        case .ok: .signedIn(login: session.login)
+        case .needsReauth: .needsReauth(login: session.login)
+        }
+    }
+    var account: AccountData? { sessions.first?.account }
+    var credentialKind: CredentialKind? { sessions.first?.credentialKind }
+    var owners: [OwnerRef] { sessions.first?.owners ?? [] }
+    var availableRepos: [String: [RepoRef]] { sessions.first?.account.available ?? [:] }
+    var lastReport: SyncReport? { sessions.first?.lastReport }
+    var syncProblem: SyncProblem? { sessions.first?.syncProblem }
+}
+
 @MainActor
 private final class Counter {
     var value = 0
@@ -94,7 +111,7 @@ struct RadarixControllerTests {
         await h.api.setOwners(.success([user]))
         let controller = h.makeController()
 
-        try await controller.signIn(token: "pat-123", kind: .personalToken)
+        try await controller.addAccount(token: "pat-123", kind: .personalToken)
 
         #expect(h.tokens.tokens == ["pat-123"])
         #expect(try h.credentials.load(for: me) == Credential(token: "pat-123", kind: .personalToken))
@@ -118,7 +135,7 @@ struct RadarixControllerTests {
         let controller = h.makeController()
 
         await #expect(throws: GitHubError.unauthorized) {
-            try await controller.signIn(token: "bad", kind: .personalToken)
+            try await controller.addAccount(token: "bad", kind: .personalToken)
         }
         #expect(controller.auth == .signedOut)
         #expect(controller.credentialKind == nil)
@@ -132,20 +149,20 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         await h.api.setOwners(.success([user]))
         let controller = h.makeController()
-        try await controller.signIn(token: "oauth-token", kind: .oauth)
+        try await controller.addAccount(token: "oauth-token", kind: .oauth)
         #expect(controller.credentialKind == .oauth)
 
         await h.api.scriptRepositories("o", .success(.fresh([repoA])))
         await h.api.scriptItems(repoA, .success(.fresh([.fixture(number: 1, updatedAt: t1), .fixture(number: 2, updatedAt: t1)])))
-        controller.setOwnerMode(.all(excluded: []), for: "o")
-        controller.setNotifications(false, for: repoA.id)
+        controller.setOwnerMode(.all(excluded: []), for: "o", in: me)
+        controller.setNotifications(false, for: repoA.id, in: me)
         await controller.pendingRefresh?.value
         let before = try #require(controller.account)
         #expect(before.repos[repoA.id]?.records.count == 2)
 
-        try controller.signOut()
+        try controller.removeAccount(me)
         #expect(controller.credentialKind == nil)
-        try await controller.signIn(token: "pat-456", kind: .personalToken)
+        try await controller.addAccount(token: "pat-456", kind: .personalToken)
 
         #expect(controller.credentialKind == .personalToken)
         #expect(try h.credentials.load(for: me) == Credential(token: "pat-456", kind: .personalToken))
@@ -159,11 +176,11 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         await h.api.setOwners(.success([user]))
         let controller = h.makeController()
-        try await controller.signIn(token: "t", kind: .oauth)
-        controller.setOwnerMode(.all(excluded: []), for: "o")
+        try await controller.addAccount(token: "t", kind: .oauth)
+        controller.setOwnerMode(.all(excluded: []), for: "o", in: me)
         await controller.pendingRefresh?.value
 
-        try controller.signOut()
+        try controller.removeAccount(me)
         #expect(controller.auth == .signedOut)
         #expect(controller.account == nil)
         #expect(controller.owners.isEmpty)
@@ -171,9 +188,10 @@ struct RadarixControllerTests {
         #expect(controller.lastReport == nil)
         #expect(try h.credentials.load(for: me) == nil)
         #expect(try h.store.loadAccount(me)?.watch.owners["o"] == .all(excluded: []))
-        #expect(try h.store.loadSettings().accountIDs == [me])
+        // Removing drops the account from the list; its file stays.
+        #expect(try h.store.loadSettings().accountIDs.isEmpty)
 
-        try await controller.signIn(token: "t", kind: .oauth)
+        try await controller.addAccount(token: "t", kind: .oauth)
         controller.updateSettings { $0.botDisplay = .hidden }
         try controller.resetAllData()
         #expect(controller.auth == .signedOut)
@@ -217,7 +235,7 @@ struct RadarixControllerTests {
         await h.api.setOwners(.failure(.network("offline")))
         let controller = h.makeController()
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         #expect(controller.auth == .signedIn(login: "me"))
         #expect(controller.credentialKind == .personalToken)
@@ -230,7 +248,7 @@ struct RadarixControllerTests {
         let h = Harness()
         defer { h.cleanUp() }
         let empty = h.makeController()
-        await empty.restoreSession()
+        await empty.restoreSessions()
         #expect(empty.auth == .signedOut)
 
         // Credential but no account file: signs in with the stored credential.
@@ -239,7 +257,7 @@ struct RadarixControllerTests {
         try h.store.saveSettings(settings)
         try h.credentials.save(Credential(token: "stored-token", kind: .oauth), for: me)
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.auth == .signedIn(login: "me"))
         #expect(controller.credentialKind == .oauth)
         #expect(try h.store.loadAccount(me) != nil)
@@ -249,7 +267,7 @@ struct RadarixControllerTests {
         try h.store.saveSettings(settings)
         await h.api.setViewer(.failure(.network("offline")))
         let offline = h.makeController()
-        await offline.restoreSession()
+        await offline.restoreSessions()
         #expect(offline.auth == .signedOut)
         #expect(try h.credentials.load(for: me) != nil)
     }
@@ -261,7 +279,7 @@ struct RadarixControllerTests {
         await h.api.scriptRepositories("o", .failure(.unauthorized))
         let controller = h.makeController()
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         #expect(controller.auth == .needsReauth(login: "me"))
         #expect(controller.lastReport?.needsReauth == true)
@@ -281,7 +299,7 @@ struct RadarixControllerTests {
         let controller = h.makeController()
 
         // No owners known yet: the sync is skipped.
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(await h.api.calls == [.owners])
         #expect(controller.lastSyncAt == nil)
 
@@ -309,7 +327,7 @@ struct RadarixControllerTests {
         let resetAt = localNow.addingTimeInterval(900)
         await h.api.setOwners(.failure(.rateLimited(resetAt: resetAt)))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         await h.api.setOwners(.success([user]))
 
         await h.api.resetCalls()
@@ -344,7 +362,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new, updatedAt: t2), record(2, .updated)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         controller.markSeen(key(1))
         controller.markSeen(key(99))
@@ -356,7 +374,7 @@ struct RadarixControllerTests {
         #expect(seen.commentsAtSeen == 3)
 
         let reloaded = h.makeController()
-        await reloaded.restoreSession()
+        await reloaded.restoreSessions()
         #expect(reloaded.records(in: repoA.id).first { $0.item.key == key(1) }?.attention == .seen)
         #expect(reloaded.records(in: repoA.id).first { $0.item.key == key(2) }?.attention == .updated)
     }
@@ -369,7 +387,7 @@ struct RadarixControllerTests {
             repoB: [record(1, .new, repo: repoB)],
         ]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.counts(in: nil) == AttentionCounts(new: 2, updated: 1))
         #expect(controller.counts(in: repoB.id) == AttentionCounts(new: 1, updated: 0))
         #expect(controller.records(in: nil).count == 4)
@@ -403,11 +421,11 @@ struct RadarixControllerTests {
         await h.api.holdItems(repoA)
         let controller = h.makeController()
 
-        let restoring = Task { await controller.restoreSession() }
+        let restoring = Task { await controller.restoreSessions() }
         await h.api.waitForHeldItems()
         #expect(controller.isSyncing)
         controller.markSeen(key(1))
-        controller.setNotifications(false, for: repoA.id)
+        controller.setNotifications(false, for: repoA.id, in: me)
         await h.api.releaseItems()
         await restoring.value
 
@@ -430,7 +448,7 @@ struct RadarixControllerTests {
         await h.api.holdItems(repoA)
         let controller = h.makeController()
 
-        let restoring = Task { await controller.restoreSession() }
+        let restoring = Task { await controller.restoreSessions() }
         await h.api.waitForHeldItems()
         controller.markSeen(key(1))
         #expect(controller.records(in: repoA.id).first?.attention == .seen)
@@ -453,7 +471,7 @@ struct RadarixControllerTests {
         #expect(controller.syncProblem == nil)
 
         // Offline launch: no owners known, the sync is skipped, the stored data stays.
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.syncProblem == .offline)
         #expect(controller.records(in: nil).count == 1)
 
@@ -465,7 +483,7 @@ struct RadarixControllerTests {
         await controller.refresh()
         #expect(controller.syncProblem == .offline)
 
-        try controller.signOut()
+        try controller.removeAccount(me)
         #expect(controller.syncProblem == nil)
     }
 
@@ -477,7 +495,7 @@ struct RadarixControllerTests {
         await h.api.setOwners(.failure(.rateLimited(resetAt: resetAt)))
         let controller = h.makeController()
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.syncProblem == .rateLimited(until: resetAt))
 
         // A rate limit the engine reports is a problem too.
@@ -495,7 +513,7 @@ struct RadarixControllerTests {
         try await h.seed(account())
         await h.api.setOwners(.failure(.network("offline")))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.syncProblem == .offline)
 
         await h.api.setOwners(.success([user]))
@@ -513,7 +531,7 @@ struct RadarixControllerTests {
         let controller = h.makeController()
 
         // Stopped by a rate limit.
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.lastReport?.rateLimitedUntil == resetAt)
         #expect(controller.lastSyncAt == nil)
 
@@ -538,7 +556,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .seen)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(controller.lastSyncAt == localNow)
 
         // Owners are known; the owners call fails, the engine still completes on the known owners.
@@ -556,7 +574,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .seen)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         await h.api.setOwners(.failure(.network("offline")))
         await controller.refresh()
@@ -574,13 +592,13 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         await h.api.setOwners(.success([user]))
         let controller = h.makeController()
-        try await controller.signIn(token: "t", kind: .oauth)
+        try await controller.addAccount(token: "t", kind: .oauth)
         #expect(controller.availableRepos.isEmpty)
 
         await h.api.scriptRepositories("o", .success(.fresh([repoA, repoB])))
         await h.api.scriptItems(repoA, .success(.fresh([])))
         await h.api.scriptItems(repoB, .success(.fresh([])))
-        controller.setOwnerMode(.all(excluded: []), for: "o")
+        controller.setOwnerMode(.all(excluded: []), for: "o", in: me)
         #expect(try h.store.loadAccount(me)?.watch.owners["o"] == .all(excluded: []))
         await controller.pendingRefresh?.value
 
@@ -597,9 +615,9 @@ struct RadarixControllerTests {
         await h.api.holdItems(repoA)
         let controller = h.makeController()
 
-        let restoring = Task { await controller.restoreSession() }
+        let restoring = Task { await controller.restoreSessions() }
         await h.api.waitForHeldItems()
-        controller.setShowArchived(true)
+        controller.setShowArchived(true, in: me)
         await h.api.releaseItems()
         await restoring.value
         await controller.pendingRefresh?.value
@@ -621,7 +639,7 @@ struct RadarixControllerTests {
         let written = Counter()
         controller.onSnapshotWritten = { written.value += 1 }
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         let snapshot = try #require(try h.store.loadSnapshot())
         #expect(written.value > 0)
@@ -644,7 +662,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new), record(2, .updated)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         let written = Counter()
         controller.onSnapshotWritten = { written.value += 1 }
 
@@ -662,12 +680,12 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(try h.store.loadSnapshot()?.status == .ok)
         let written = Counter()
         controller.onSnapshotWritten = { written.value += 1 }
 
-        try controller.signOut()
+        try controller.removeAccount(me)
 
         #expect(written.value == 1)
         #expect(try h.store.loadSnapshot() == .signedOut)
@@ -675,7 +693,7 @@ struct RadarixControllerTests {
         // A launch without a credential also writes the signed-out snapshot.
         try h.store.removeSnapshot()
         let relaunched = h.makeController()
-        await relaunched.restoreSession()
+        await relaunched.restoreSessions()
         #expect(relaunched.auth == .signedOut)
         #expect(try h.store.loadSnapshot() == .signedOut)
     }
@@ -690,7 +708,7 @@ struct RadarixControllerTests {
         await h.api.setViewer(.failure(.network("offline")))
         let controller = h.makeController()
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         #expect(controller.auth == .signedOut)
         #expect(try h.store.loadSnapshot() == .signedOut)
@@ -701,7 +719,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         #expect(try h.store.loadSnapshot() != nil)
         let written = Counter()
         controller.onSnapshotWritten = { written.value += 1 }
@@ -721,7 +739,7 @@ struct RadarixControllerTests {
         await h.api.scriptRepositories("o", .failure(.unauthorized))
         let controller = h.makeController()
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         #expect(controller.auth == .needsReauth(login: "me"))
         let snapshot = try #require(try h.store.loadSnapshot())
@@ -733,7 +751,7 @@ struct RadarixControllerTests {
         try h.store.removeSnapshot()
         await h.api.setOwners(.failure(.unauthorized))
         let other = h.makeController()
-        await other.restoreSession()
+        await other.restoreSessions()
         #expect(other.auth == .needsReauth(login: "me"))
         #expect(try h.store.loadSnapshot()?.status == .needsReauth)
     }
@@ -743,7 +761,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         let written = Counter()
         controller.onSnapshotWritten = { written.value += 1 }
 
@@ -774,7 +792,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         let controller = h.makeController()
-        await controller.restoreSession()
+        await controller.restoreSessions()
         let written = Counter()
         controller.onSnapshotWritten = { written.value += 1 }
 
@@ -803,7 +821,7 @@ struct RadarixControllerTests {
         await h.api.setOwners(.failure(.network("offline")))
         let controller = h.makeController()
 
-        await controller.restoreSession()
+        await controller.restoreSessions()
 
         #expect(controller.lastSyncAt == nil)
         #expect(try h.store.loadSnapshot()?.syncedAt == earlier)
@@ -811,7 +829,7 @@ struct RadarixControllerTests {
         // The time of another account is not carried over.
         try h.store.saveSnapshot(WidgetSnapshot(status: .ok, login: "someone-else", syncedAt: earlier, repos: []))
         let other = h.makeController()
-        await other.restoreSession()
+        await other.restoreSessions()
         let snapshot = try #require(try h.store.loadSnapshot())
         #expect(snapshot.login == "me")
         #expect(snapshot.syncedAt == nil)
@@ -830,7 +848,7 @@ struct RadarixControllerTests {
         let controller = RadarixController(
             store: FileStore(directory: directory), credentials: credentials, makeAPI: { _ in api },
             oauthClientID: "client-id", now: { localNow })
-        try await controller.signIn(token: "t", kind: .oauth)
+        try await controller.addAccount(token: "t", kind: .oauth)
         #expect(controller.auth == .signedIn(login: "me"))
         // The data directory cannot be removed from a read-only parent.
         try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: parent.path)
@@ -850,7 +868,7 @@ struct RadarixControllerTests {
         await h.api.setOwners(.failure(.network("offline")))
         let controller = h.makeController()
 
-        try await controller.signIn(token: "t", kind: .oauth)
+        try await controller.addAccount(token: "t", kind: .oauth)
 
         #expect(controller.auth == .signedIn(login: "me"))
         let snapshot = try #require(try h.store.loadSnapshot())
