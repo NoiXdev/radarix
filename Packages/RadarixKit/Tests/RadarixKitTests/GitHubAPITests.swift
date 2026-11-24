@@ -279,6 +279,20 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         }
     }
 
+    @Test func rateLimited403OnAssignStaysRateLimited() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 403, headers: ["X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1795500000"], body: #"{"message":"rate limit"}"#)
+        let client = makeClient(stub)
+        do {
+            _ = try await client.setAssigned(true, login: "octo", number: 7, in: repo)
+            Issue.record("expected a throw")
+        } catch let error as GitHubError {
+            guard case .rateLimited = error else { Issue.record("got \(error)"); return }
+        } catch {
+            Issue.record("wrong error \(error)")
+        }
+    }
+
     @Test func assignOtherErrorsKeepGitHubError() async throws {
         let stub = StubTransport()
         await stub.enqueue(url, status: 401)

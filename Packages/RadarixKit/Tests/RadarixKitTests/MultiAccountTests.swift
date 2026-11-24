@@ -203,6 +203,27 @@ struct MultiAccountTests {
         #expect(try h.store.loadAccount(second)?.repos[workOnly.id]?.records[3]?.item.assignees == ["bob", "work"])
     }
 
+    @Test func failedAssignLeavesStateAndReleasesTheKey() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [], states: [:]),
+            account(second, available: [workOnly], states: [workOnly: [record(3, .new, repo: workOnly)]]))
+        await h.work.scriptAssigned(3, .failure(AssignError.notPermitted))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        let itemKey = key(3, workOnly)
+        let before = try #require(controller.records(in: workOnly.id).first).item.assignees
+
+        await #expect(throws: AssignError.notPermitted) {
+            try await controller.setAssigned(true, key: itemKey)
+        }
+
+        #expect(try #require(controller.records(in: workOnly.id).first).item.assignees == before)
+        #expect(controller.isAssignedToOwner(itemKey) == false)
+        #expect(controller.assigningKeys.isEmpty)
+    }
+
     @Test func overlappingAssignForTheSameItemSendsOneRequest() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }
