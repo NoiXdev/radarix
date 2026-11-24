@@ -192,16 +192,21 @@ jobs:
           echo "sha256=$(shasum -a 256 "$dmg" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG and publish the release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
-        with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          fail_on_unmatched_files: true
-          files: dist/*.dmg
-          draft: false
-          # Same pre-release flag as the changelog job's release step above —
-          # this step is what actually flips the release out of draft, so it
-          # must carry it too.
-          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
+        # `gh release` rather than a second action-gh-release call: that
+        # action looks the release up by tag, which does not find a draft,
+        # so it created a second release beside the draft and then failed
+        # to publish the draft over it (`already_exists`, v1.0.0-rc.1).
+        # `gh` resolves drafts by tag too.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          PRERELEASE: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" dist/*.dmg --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE" --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,assets \
+            --jq '"draft=\(.isDraft) prerelease=\(.isPrerelease) assets=\([.assets[].name] | join(","))"'
 
   announce:
     name: Announce on Discord
