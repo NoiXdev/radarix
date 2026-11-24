@@ -264,6 +264,22 @@
         }
       }
     },
+    "Not updated since %@. Open Radarix." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not updated since %@. Open Radarix."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit %@ nicht aktualisiert. Öffne Radarix."
+          }
+        }
+      }
+    },
     "Nothing new." : {
       "localizations" : {
         "en" : {
@@ -404,6 +420,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aktualisiert"
+          }
+        }
+      }
+    },
+    "Updated %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktualisiert %@"
+          }
+        }
+      }
+    },
+    "Waiting for the first sync." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the first sync."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf die erste Synchronisierung."
           }
         }
       }

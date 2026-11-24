@@ -27,11 +27,11 @@ struct OverviewWidgetView: View {
         case .ok:
             switch family {
             case .systemSmall:
-                SmallOverview(summary: entry.summary)
+                SmallOverview(summary: entry.summary, freshness: entry.freshness)
             case .systemLarge:
-                LargeOverview(summary: entry.summary, scopeName: entry.scopeName)
+                LargeOverview(summary: entry.summary, scopeName: entry.scopeName, freshness: entry.freshness)
             default:
-                MediumOverview(summary: entry.summary, scopeName: entry.scopeName)
+                MediumOverview(summary: entry.summary, scopeName: entry.scopeName, freshness: entry.freshness)
             }
         case .needsReauth:
             StatusMessage(text: "Sign in again in Radarix.", systemImage: "exclamationmark.triangle.fill")
@@ -44,10 +44,19 @@ struct OverviewWidgetView: View {
 // MARK: Sizes
 
 /// The new and updated counts and the busiest repository. A tap opens that repository.
+/// Stale data, or none synced yet, shows that note instead of the repository, and a tap opens Radarix.
 struct SmallOverview: View {
     let summary: WidgetSnapshot.Summary
+    let freshness: Freshness?
 
-    private var busiest: WidgetSnapshot.RepoEntry? { summary.busiestRepo }
+    private var busiest: WidgetSnapshot.RepoEntry? { notesFreshness ? nil : summary.busiestRepo }
+
+    private var notesFreshness: Bool {
+        switch freshness {
+        case .stale, .waiting: true
+        case .updated, nil: false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -55,15 +64,22 @@ struct SmallOverview: View {
                 .accessibilityLabel(Text("\(summary.newCount) new items"))
             CountTile(count: summary.updatedCount, label: "updated", fill: .attentionUpdated, ink: .attentionUpdatedInk)
                 .accessibilityLabel(Text("\(summary.updatedCount) updated items"))
-            Group {
-                if let busiest {
-                    Text(verbatim: busiest.name)
-                } else {
-                    Text("Nothing new.").foregroundStyle(.secondary)
+            if let freshness, notesFreshness {
+                FreshnessNote(freshness: freshness)
+                    .font(.caption2)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Group {
+                    if let busiest {
+                        Text(verbatim: busiest.name)
+                    } else {
+                        Text("Nothing new.").foregroundStyle(.secondary)
+                    }
                 }
+                .font(.caption)
+                .lineLimit(1)
             }
-            .font(.caption)
-            .lineLimit(1)
         }
         .widgetURL(busiest.map { DeepLink.repo($0.id).url } ?? DeepLink.main.url)
     }
@@ -73,10 +89,11 @@ struct SmallOverview: View {
 struct MediumOverview: View {
     let summary: WidgetSnapshot.Summary
     let scopeName: String
+    let freshness: Freshness?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SummaryHeader(summary: summary, scopeName: scopeName)
+            SummaryHeader(summary: summary, scopeName: scopeName, freshness: freshness)
             if summary.items.isEmpty {
                 NothingNew()
             } else {
@@ -92,6 +109,7 @@ struct MediumOverview: View {
 struct LargeOverview: View {
     let summary: WidgetSnapshot.Summary
     let scopeName: String
+    let freshness: Freshness?
 
     private var busyRepos: [WidgetSnapshot.RepoEntry] {
         Array(summary.repos.filter { $0.newCount + $0.updatedCount > 0 }.prefix(4))
@@ -99,7 +117,7 @@ struct LargeOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SummaryHeader(summary: summary, scopeName: scopeName)
+            SummaryHeader(summary: summary, scopeName: scopeName, freshness: freshness)
             if summary.items.isEmpty, busyRepos.isEmpty {
                 NothingNew()
             } else {
@@ -119,24 +137,56 @@ struct LargeOverview: View {
 
 // MARK: Parts
 
-/// "3 new · 2 updated" and the scope's name.
+/// "3 new · 2 updated", the scope's name, then how old the data is.
 private struct SummaryHeader: View {
     let summary: WidgetSnapshot.Summary
     let scopeName: String
+    let freshness: Freshness?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(summary.newCount) new · \(summary.updatedCount) updated")
-                .font(.headline)
-                .monospacedDigit()
-                .lineLimit(1)
-                .layoutPriority(1)
-            Spacer(minLength: 0)
-            Text(verbatim: scopeName)
-                .font(.caption)
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(summary.newCount) new · \(summary.updatedCount) updated")
+                    .font(.headline)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                Spacer(minLength: 0)
+                Text(verbatim: scopeName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if let freshness {
+                FreshnessNote(freshness: freshness)
+                    .font(.caption2)
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+/// "Updated 5 minutes ago", "Waiting for the first sync." or, for stale data, when it was last
+/// updated and that Radarix needs to run.
+private struct FreshnessNote: View {
+    let freshness: Freshness
+
+    var body: some View {
+        switch freshness {
+        case .waiting:
+            Text("Waiting for the first sync.")
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+        case .updated(let date):
+            Text("Updated \(RelativeTime.text(date))")
+                .foregroundStyle(.secondary)
+        case .stale(let date):
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
+                Text("Not updated since \(Text(date, format: .dateTime.day().month(.abbreviated).hour().minute())). Open Radarix.")
+            }
         }
     }
 }
@@ -372,6 +422,20 @@ extension WidgetSnapshot {
         repos: [RepoEntry(id: RepoID(rawValue: 4), owner: "octo", name: "notes", newCount: 0, updatedCount: 0, items: [])])
 
     static let sampleNeedsReauth = WidgetSnapshot(status: .needsReauth, login: "octo", syncedAt: nil, repos: [])
+
+    /// Last synced a day ago, for the stale note.
+    static let sampleStale: WidgetSnapshot = {
+        var snapshot = sample
+        snapshot.syncedAt = Date(timeIntervalSinceNow: -86_400)
+        return snapshot
+    }()
+
+    /// Signed in, no sync completed yet.
+    static let sampleWaiting: WidgetSnapshot = {
+        var snapshot = sampleEmpty
+        snapshot.syncedAt = nil
+        return snapshot
+    }()
 }
 
 #Preview("Small", as: .systemSmall) {
@@ -379,6 +443,8 @@ extension WidgetSnapshot {
 } timeline: {
     OverviewEntry(snapshot: .sample, scope: .all)
     OverviewEntry(snapshot: .sampleEmpty, scope: .all)
+    OverviewEntry(snapshot: .sampleStale, scope: .all)
+    OverviewEntry(snapshot: .sampleWaiting, scope: .all)
     OverviewEntry(snapshot: nil, scope: .all)
 }
 
@@ -388,6 +454,7 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sample, scope: .all)
     OverviewEntry(snapshot: .sample, scope: .owner("acme"))
     OverviewEntry(snapshot: .sampleEmpty, scope: .all)
+    OverviewEntry(snapshot: .sampleStale, scope: .all)
     OverviewEntry(snapshot: .sampleNeedsReauth, scope: .all)
 }
 
@@ -397,5 +464,6 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sample, scope: .all)
     OverviewEntry(snapshot: .sample, scope: .repo(RepoID(rawValue: 2)))
     OverviewEntry(snapshot: .sampleEmpty, scope: .all)
+    OverviewEntry(snapshot: .sampleStale, scope: .all)
     OverviewEntry(snapshot: .signedOut, scope: .all)
 }

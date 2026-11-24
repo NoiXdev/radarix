@@ -38,12 +38,23 @@ struct OverviewEntry: TimelineEntry {
         scopeName = Self.name(of: scope, in: snapshot)
     }
 
-    init(snapshot: WidgetSnapshot?, configuration: ScopeIntent) {
-        self.init(snapshot: snapshot, scope: ScopeEntity.scope(forID: configuration.scope?.id, in: snapshot))
+    init(date: Date = .now, snapshot: WidgetSnapshot?, configuration: ScopeIntent) {
+        self.init(date: date, snapshot: snapshot, scope: ScopeEntity.scope(forID: configuration.scope?.id, in: snapshot))
     }
 
     var summary: WidgetSnapshot.Summary {
         (snapshot ?? .signedOut).summary(for: scope)
+    }
+
+    /// How old the data is at `date`; nil unless signed in.
+    var freshness: Freshness? {
+        guard let snapshot, snapshot.status == .ok else { return nil }
+        guard let syncedAt = snapshot.syncedAt else { return .waiting }
+        return date >= Self.staleDate(of: syncedAt) ? .stale(since: syncedAt) : .updated(syncedAt)
+    }
+
+    static func staleDate(of syncedAt: Date) -> Date {
+        syncedAt.addingTimeInterval(WidgetSnapshot.staleAfter)
     }
 
     private static func name(of scope: WidgetScope, in snapshot: WidgetSnapshot?) -> String {
@@ -58,8 +69,18 @@ struct OverviewEntry: TimelineEntry {
     }
 }
 
-/// One entry per timeline, read fresh from the snapshot. The app reloads the timelines after
-/// every snapshot write, so the policy is `.never`.
+/// How old a signed-in widget's data is.
+enum Freshness: Equatable {
+    /// Signed in, no sync has completed yet.
+    case waiting
+    case updated(Date)
+    /// Radarix has not synced for `WidgetSnapshot.staleAfter`, for example because it is not running.
+    case stale(since: Date)
+}
+
+/// Read fresh from the snapshot: the current entry, and one that shows the data as stale once it
+/// is `WidgetSnapshot.staleAfter` old. The app reloads the timelines when the snapshot changes
+/// and well before that age while it syncs, so the policy is `.never`.
 struct OverviewProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> OverviewEntry {
         OverviewEntry(snapshot: .sample, scope: .all)
@@ -71,8 +92,17 @@ struct OverviewProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: ScopeIntent, in context: Context) async -> Timeline<OverviewEntry> {
-        let entry = OverviewEntry(snapshot: SnapshotReader.load(), configuration: configuration)
-        return Timeline(entries: [entry], policy: .never)
+        let snapshot = SnapshotReader.load()
+        let now = Date.now
+        var entries = [OverviewEntry(date: now, snapshot: snapshot, configuration: configuration)]
+        // Already stale data shows as stale in the current entry.
+        if snapshot?.status == .ok, let syncedAt = snapshot?.syncedAt {
+            let staleDate = OverviewEntry.staleDate(of: syncedAt)
+            if staleDate > now {
+                entries.append(OverviewEntry(date: staleDate, snapshot: snapshot, configuration: configuration))
+            }
+        }
+        return Timeline(entries: entries, policy: .never)
     }
 }
 
