@@ -7,6 +7,8 @@ struct AccountSettings: View {
     @Environment(AppModel.self) private var model
     @State private var showingDeviceFlow = false
     @State private var showingAddAccount = false
+    /// The add sheet was opened by "Sign in again", so landing on a listed account is the point.
+    @State private var signingInAgain = false
     @State private var confirmingReset = false
     @State private var errorMessage: String?
 
@@ -20,12 +22,18 @@ struct AccountSettings: View {
                 ForEach(controller.sessions, id: \.accountID) { session in
                     AccountDetailsSection(
                         session: session,
-                        signInAgain: { showingAddAccount = true },
+                        signInAgain: {
+                        signingInAgain = true
+                        showingAddAccount = true
+                    },
                         remove: { perform { try model.removeAccount(session.accountID) } }
                     )
                 }
                 Section {
-                    Button("Add account…") { showingAddAccount = true }
+                    Button("Add account…") {
+                        signingInAgain = false
+                        showingAddAccount = true
+                    }
                 }
             }
             Section {
@@ -44,7 +52,7 @@ struct AccountSettings: View {
             DeviceFlowSheet(controller: controller)
         }
         .sheet(isPresented: $showingAddAccount) {
-            AddAccountSheet()
+            AddAccountSheet(isSigningInAgain: signingInAgain)
         }
         .confirmationDialog("Reset all data?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Reset all data", role: .destructive) {
@@ -67,13 +75,18 @@ struct AccountSettings: View {
 }
 
 /// Today's sign-in in a sheet, for another account or a new sign-in of one in the list.
-/// Closes once the account is added, which includes its first sync.
+/// Closes once the account is added, which includes its first sync. When adding lands on an
+/// account already in the list (github.com was signed in to it), it stays open and says so.
 private struct AddAccountSheet: View {
+    let isSigningInAgain: Bool
+
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeviceFlow = false
-    /// The device flow added the account; this sheet closes once that sheet has.
-    @State private var signedIn = false
+    /// What the device flow signed in as; handled once its sheet has closed.
+    @State private var deviceFlowResult: AddedAccount?
+    /// The login of an account that was already in the list.
+    @State private var alreadyAdded: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -82,8 +95,17 @@ private struct AddAccountSheet: View {
                     title: "Sign in with GitHub",
                     showingDeviceFlow: $showingDeviceFlow,
                     note: "Make sure the right account is signed in on github.com.",
-                    onSignedIn: { dismiss() }
+                    onSignedIn: handle
                 )
+                if let alreadyAdded {
+                    Section {
+                        Label {
+                            Text("\(alreadyAdded) is already added. To add another account, sign in to it on github.com first, or use a token of that account.")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        }
+                    }
+                }
             }
             .formStyle(.grouped)
             HStack {
@@ -95,9 +117,18 @@ private struct AddAccountSheet: View {
         }
         .frame(width: 460, height: 470)
         .sheet(isPresented: $showingDeviceFlow, onDismiss: {
-            if signedIn { dismiss() }
+            if let deviceFlowResult { handle(deviceFlowResult) }
+            deviceFlowResult = nil
         }) {
-            DeviceFlowSheet(controller: model.controller, onSignedIn: { signedIn = true })
+            DeviceFlowSheet(controller: model.controller, onSignedIn: { deviceFlowResult = $0 })
+        }
+    }
+
+    private func handle(_ added: AddedAccount) {
+        if added.isNew || isSigningInAgain {
+            dismiss()
+        } else {
+            alreadyAdded = added.login
         }
     }
 }
@@ -108,8 +139,8 @@ private struct SignInSection: View {
     @Binding var showingDeviceFlow: Bool
     /// A line under the sign-in button.
     var note: LocalizedStringKey?
-    /// Called once the token's account is added.
-    var onSignedIn: () -> Void = {}
+    /// Called with the account the token belongs to, once it is added.
+    var onSignedIn: (AddedAccount) -> Void = { _ in }
 
     @Environment(AppModel.self) private var model
     @State private var token = ""
@@ -168,10 +199,10 @@ private struct SignInSection: View {
         errorMessage = nil
         Task {
             do {
-                try await model.controller.addAccount(token: value, kind: .personalToken)
+                let added = try await model.controller.addAccount(token: value, kind: .personalToken)
                 token = ""
                 isSigningIn = false
-                onSignedIn()
+                onSignedIn(added)
             } catch {
                 errorMessage = AppModel.message(for: error)
                 isSigningIn = false

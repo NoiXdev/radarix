@@ -184,10 +184,16 @@ public final class RadarixController {
     /// An account already in the list gets a new session, so a sign-in sheet can tell that it
     /// arrived. That session takes over the old one's owners, last sync, last report, rate limit
     /// and unknown owners, so nothing resets and the snapshot's sync time does not go back.
-    public func addAccount(token: String, kind: CredentialKind) async throws {
+    ///
+    /// Returns which account the token belongs to, and whether it was not in the list before. A
+    /// sign-in meant to add another account can land on one already in it when github.com is
+    /// signed in to that one; the caller tells the user instead of closing silently.
+    @discardableResult
+    public func addAccount(token: String, kind: CredentialKind) async throws -> AddedAccount {
         let api = makeAPI(token)
         let viewer = try await api.viewer()
         let previous = session(for: viewer.id)
+        let added = AddedAccount(accountID: viewer.id, login: viewer.login, isNew: !settings.accountIDs.contains(viewer.id))
         let account = try loadOrCreateAccount(viewer, existing: previous)
         let credential = Credential(token: token, kind: kind)
         try credentials.save(credential, for: viewer.id)
@@ -202,15 +208,17 @@ public final class RadarixController {
         } else {
             await refresh()
         }
+        return added
     }
 
     public func startDeviceFlow() async throws -> DeviceCode {
         try await DeviceFlow(clientID: oauthClientID).start()
     }
 
-    public func completeDeviceFlow(_ code: DeviceCode) async throws {
+    @discardableResult
+    public func completeDeviceFlow(_ code: DeviceCode) async throws -> AddedAccount {
         let token = try await DeviceFlow(clientID: oauthClientID).waitForToken(code)
-        try await addAccount(token: token, kind: .oauth)
+        return try await addAccount(token: token, kind: .oauth)
     }
 
     /// Deletes the account's credential and drops it from the list; its account file stays, so

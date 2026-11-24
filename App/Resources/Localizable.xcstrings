@@ -1,6 +1,22 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ is already added. To add another account, sign in to it on github.com first, or use a token of that account." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist schon hinzugefügt. Um ein weiteres Konto hinzuzufügen, melde dich zuerst auf github.com mit diesem Konto an oder nutze einen Token dieses Kontos."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is already added. To add another account, sign in to it on github.com first, or use a token of that account."
+          }
+        }
+      }
+    },
     "%@: sign in again" : {
       "localizations" : {
         "de" : {

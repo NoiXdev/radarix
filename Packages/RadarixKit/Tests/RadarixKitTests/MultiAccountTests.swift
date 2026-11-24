@@ -273,6 +273,20 @@ struct MultiAccountTests {
         #expect(try h.credentials.load(for: first)?.kind == .personalToken)
     }
 
+    @Test func addAccountTellsWhetherTheAccountIsNew() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        let controller = h.makeController()
+
+        let added = try await controller.addAccount(token: "t-me", kind: .oauth)
+        let again = try await controller.addAccount(token: "t-me", kind: .oauth)
+        let work = try await controller.addAccount(token: "t-work", kind: .personalToken)
+
+        #expect(added == AddedAccount(accountID: first, login: "me", isNew: true))
+        #expect(again == AddedAccount(accountID: first, login: "me", isNew: false))
+        #expect(work == AddedAccount(accountID: second, login: "work", isNew: true))
+    }
+
     @Test func sharedRepoListedOnce() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }

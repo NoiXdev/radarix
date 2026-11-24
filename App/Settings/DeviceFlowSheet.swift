@@ -6,8 +6,8 @@ import SwiftUI
 /// is added and has synced; closing it before GitHub accepted the sign-in cancels the flow.
 struct DeviceFlowSheet: View {
     let controller: RadarixController
-    /// Called when the account is added, right before the sheet closes.
-    var onSignedIn: () -> Void = {}
+    /// Called with the account the sign-in ended up as, right before the sheet closes.
+    var onSignedIn: (AddedAccount) -> Void = { _ in }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -83,9 +83,9 @@ struct DeviceFlowSheet: View {
         do {
             let code = try await controller.startDeviceFlow()
             self.code = code
-            try await controller.completeDeviceFlow(code)
+            let added = try await controller.completeDeviceFlow(code)
             completed = true
-            onSignedIn()
+            onSignedIn(added)
             dismiss()
         } catch {
             // Closing the sheet is not an error, whatever form the cancellation takes.
