@@ -41,7 +41,8 @@ struct RadarixApp: App {
                 .background(WindowMarker(kind: .settings, tracker: windows))
         }
         .environment(model)
-        MenuBarExtra {
+        // A copy handing over to another instance shows no item, so it cannot change settings.
+        MenuBarExtra(isInserted: Binding(get: { !model.isYielding }, set: { _ in })) {
             MenuBarPopover()
                 .environment(model)
         } label: {

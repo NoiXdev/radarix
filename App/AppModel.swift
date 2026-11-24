@@ -24,6 +24,9 @@ final class AppModel {
     let oauthClientID: String
     /// Set once per launch by the app delegate, through `setLaunchKind(atLogin:)`.
     private(set) var launchedAtLogin = false
+    /// This launch hands over to another running instance: it never starts, opens no window and
+    /// shows no menu bar item.
+    private(set) var isYielding = false
     /// A link the main window should show next; it sets this back to nil once handled.
     /// Kept only while it can still be shown: never across a sign-out or a reset.
     var navigation: DeepLink?
@@ -35,8 +38,6 @@ final class AppModel {
     @ObservationIgnored var updateDockIcon: @MainActor () -> Void = {}
 
     @ObservationIgnored private var started = false
-    /// This launch hands over to another running instance: it never starts and opens no window.
-    @ObservationIgnored private var yielding = false
     @ObservationIgnored private var launchWindowClaimed = false
     @ObservationIgnored private var launchKindKnown = false
     /// `claimLaunchWindow()` calls waiting for `setLaunchKind(atLogin:)`.
@@ -85,7 +86,7 @@ final class AppModel {
     /// Restores the stored accounts and starts periodic syncing. Runs once per launch, and never
     /// in a launch that hands over to another instance.
     func start() {
-        guard !started, !yielding else { return }
+        guard !started, !isYielding else { return }
         started = true
         updates?.setEnabled(controller.settings.checkForUpdates)
         Task {
@@ -158,10 +159,10 @@ final class AppModel {
         return opens
     }
 
-    /// This launch hands over to another running instance: it opens no launch window and
-    /// `start()` does nothing.
+    /// This launch hands over to another running instance: it opens no launch window,
+    /// `start()` does nothing and the menu bar item goes.
     func yieldToOtherInstance() {
-        yielding = true
+        isYielding = true
         launchWindowClaimed = true
     }
 

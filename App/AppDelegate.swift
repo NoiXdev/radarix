@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var windows = WindowTracker { [model] in model.controller.settings.menuBarOnlyWhenClosed }
     /// Another instance of Radarix in this user session, which this launch hands over to.
     private var yieldingTo: NSRunningApplication?
+    private var terminating = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // The open-application event tells a launch at login apart. It is not yet current here,
@@ -73,7 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard
             let pid = InstancePolicy.shouldYield(
                 selfPID: ProcessInfo.processInfo.processIdentifier,
-                running: running.map { (bundleID: $0.bundleIdentifier, pid: $0.processIdentifier) },
+                selfLaunchDate: NSRunningApplication.current.launchDate,
+                running: running.map {
+                    (bundleID: $0.bundleIdentifier, pid: $0.processIdentifier, launchDate: $0.launchDate)
+                },
                 bundleID: bundleID)
         else { return nil }
         return running.first { $0.processIdentifier == pid }
@@ -84,12 +88,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handOver(to other: NSRunningApplication) {
         guard !model.launchedAtLogin, let url = other.bundleURL else {
             if !model.launchedAtLogin { other.activate() }
-            NSApp.terminate(nil)
+            terminate()
             return
         }
         // Quits once the reopen is sent, whether or not it succeeded: one instance runs either way.
+        // A reopen that never answers still ends this copy after a few seconds.
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { _, _ in
-            Task { @MainActor in NSApp.terminate(nil) }
+            Task { @MainActor in self.terminate() }
         }
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            terminate()
+        }
+    }
+
+    /// Quits this copy, once, whichever of the handover's paths comes first.
+    private func terminate() {
+        guard !terminating else { return }
+        terminating = true
+        NSApp.terminate(nil)
     }
 }
