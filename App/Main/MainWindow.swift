@@ -147,15 +147,6 @@ struct MainWindow: View {
 
     @ToolbarContentBuilder private var syncToolbar: some ToolbarContent {
         ToolbarItem {
-            if let lastSyncAt = controller.lastSyncAt {
-                TimelineView(.everyMinute) { _ in
-                    Text("Synced \(Text(lastSyncAt, format: .relative(presentation: .named)))")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-            }
-        }
-        ToolbarItem {
             if controller.isSyncing {
                 ProgressView()
                     .controlSize(.small)
