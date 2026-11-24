@@ -14,14 +14,15 @@ public enum SyncProblem: Sendable, Equatable {
     case rateLimited(until: Date)
 }
 
+/// Why an item's description could not be fetched.
+public enum DescriptionError: Error { case noOwner }
+
 /// The app's single source of truth: settings, one session per signed-in account, repo ownership,
 /// scheduling and the widget snapshot.
 ///
 /// Every repo is synced by one account, its owner: the earliest account in `settings.accountIDs`
 /// whose watch configuration includes it, computed from each account's persisted repo lists so an
 /// unhealthy account keeps its repos.
-public enum DescriptionError: Error { case noOwner }
-
 @MainActor @Observable
 public final class RadarixController {
     public private(set) var settings: AppSettings
