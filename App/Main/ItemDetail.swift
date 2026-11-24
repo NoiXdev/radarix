@@ -83,7 +83,7 @@ private struct LabelList: View {
 
     private var chips: some View {
         ForEach(item.labels, id: \.name) { label in
-            let color = Color(hex: label.colorHex) ?? .secondary
+            let color = label.colorHex.flatMap { Color(hex: $0) } ?? .secondary
             Text(verbatim: label.name)
                 .font(.caption)
                 .padding(.horizontal, 6)

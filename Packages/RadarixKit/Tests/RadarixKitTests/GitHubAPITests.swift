@@ -151,6 +151,27 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         #expect(items[3].status == .closed)
     }
 
+    @Test func issueFromDeletedAccountDecodesAsGhost() async throws {
+        let stub = StubTransport()
+        let body = """
+        [{"number": 5, "title": "Orphan", "state": "open", "html_url": "https://github.com/octo/hello-world/issues/5",
+          "user": null, "comments": 0, "created_at": "2026-11-20T09:00:00Z", "updated_at": "2026-11-21T09:00:00Z"},
+         {"number": 6, "title": "Colorless", "state": "open", "html_url": "https://github.com/octo/hello-world/issues/6",
+          "user": {"login": "alice", "type": "User"}, "labels": [{"name": "triage", "color": null}], "assignees": null,
+          "comments": 1, "created_at": "2026-11-20T09:00:00Z", "updated_at": "2026-11-21T09:00:00Z", "body": null}]
+        """
+        await stub.enqueue("\(base)/repos/octo/hello-world/issues?state=open&sort=updated&direction=desc&per_page=100", status: 200, body: body)
+        guard case .fresh(let items) = try await makeClient(stub).items(in: repo, query: .openForBaseline) else {
+            Issue.record("expected fresh"); return
+        }
+        #expect(items.count == 2)
+        #expect(items[0].author == Actor(login: "ghost", apiType: "User"))
+        #expect(items[0].labels.isEmpty)
+        #expect(items[0].assignees.isEmpty)
+        #expect(items[1].labels == [Label(name: "triage", colorHex: nil)])
+        #expect(items[1].assignees.isEmpty)
+    }
+
     @Test func pullDetailsKeyedByNumber() async throws {
         let stub = StubTransport()
         await stub.enqueue("\(base)/repos/octo/hello-world/pulls?state=open&per_page=100", status: 200, body: try fixtureJSON("pulls"))

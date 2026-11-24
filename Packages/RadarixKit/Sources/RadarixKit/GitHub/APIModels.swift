@@ -29,7 +29,7 @@ struct IssueDTO: Decodable {
     }
     struct LabelDTO: Decodable {
         let name: String
-        let color: String
+        let color: String?
     }
     struct Assignee: Decodable { let login: String }
     struct PullRequestInfo: Decodable { let mergedAt: Date? }
@@ -38,9 +38,10 @@ struct IssueDTO: Decodable {
     let title: String
     let state: String
     let htmlUrl: URL
-    let user: User
-    let labels: [LabelDTO]
-    let assignees: [Assignee]
+    /// Null for deleted accounts.
+    let user: User?
+    let labels: [LabelDTO]?
+    let assignees: [Assignee]?
     let comments: Int
     let createdAt: Date
     let updatedAt: Date
@@ -72,6 +73,8 @@ struct TimelineEntryDTO: Decodable {
 
 extension IssueDTO {
     private static let excerptLength = 280
+    /// GitHub's stand-in for deleted accounts.
+    private static let ghost = Actor(login: "ghost", apiType: "User")
 
     func toItem(repo: RepoID) -> Item {
         let isPR = pullRequest != nil
@@ -88,11 +91,11 @@ extension IssueDTO {
             kind: isPR ? .pullRequest : .issue,
             title: title,
             url: htmlUrl,
-            author: Actor(login: user.login, apiType: user.type),
+            author: user.map { Actor(login: $0.login, apiType: $0.type) } ?? Self.ghost,
             status: status,
             isDraft: false,
-            labels: labels.map { Label(name: $0.name, colorHex: $0.color) },
-            assignees: assignees.map(\.login),
+            labels: (labels ?? []).map { Label(name: $0.name, colorHex: $0.color) },
+            assignees: (assignees ?? []).map(\.login),
             requestedReviewers: [],
             commentCount: comments,
             createdAt: createdAt,

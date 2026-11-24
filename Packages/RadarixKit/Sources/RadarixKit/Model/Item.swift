@@ -33,8 +33,9 @@ public struct Actor: Sendable, Codable, Hashable {
 
 public struct Label: Sendable, Codable, Hashable {
     public let name: String
-    public let colorHex: String
-    public init(name: String, colorHex: String) {
+    /// Hex without `#`; nil when GitHub sends none.
+    public let colorHex: String?
+    public init(name: String, colorHex: String?) {
         self.name = name
         self.colorHex = colorHex
     }
