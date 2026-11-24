@@ -82,6 +82,11 @@ private func account(_ states: [RepoRef: [ItemRecord]] = [:]) -> AccountData {
 private func key(_ number: Int, _ repo: RepoRef = repoA) -> ItemKey { ItemKey(repo: repo.id, number: number) }
 
 @MainActor
+private final class Counter {
+    var value = 0
+}
+
+@MainActor
 struct RadarixControllerTests {
     @Test func signInWithTokenStoresCredentialAndSyncs() async throws {
         let h = Harness()
@@ -602,5 +607,148 @@ struct RadarixControllerTests {
         let repoCalls = await h.api.calls.filter { $0 == .repositories(owner: "o") }
         #expect(repoCalls.count == 2)
         #expect(controller.account?.watch.showArchived == true)
+    }
+
+    // MARK: Widget snapshot
+
+    @Test func syncWritesSnapshotAndNotifies() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        let bot = ItemRecord(
+            item: .fixture(number: 3, author: "dependabot[bot]", updatedAt: t2), attention: .new, seenAt: nil, commentsAtSeen: 0)
+        try await h.seed(account([repoA: [record(1, .new), record(2, .seen), bot]]))
+        let controller = h.makeController()
+        let written = Counter()
+        controller.onSnapshotWritten = { written.value += 1 }
+
+        await controller.restoreSession()
+
+        let snapshot = try #require(try h.store.loadSnapshot())
+        #expect(written.value > 0)
+        #expect(snapshot.status == .ok)
+        #expect(snapshot.login == "me")
+        #expect(snapshot.syncedAt == controller.lastSyncAt)
+        #expect(snapshot.repos.map(\.id) == [repoA.id])
+        #expect(snapshot.repos.first?.newCount == 2)
+        #expect(snapshot.repos.first?.items.map(\.key) == [key(3), key(1)])
+
+        // A settings change rewrites it.
+        let before = written.value
+        controller.updateSettings { $0.botDisplay = .hidden }
+        #expect(written.value == before + 1)
+        #expect(try h.store.loadSnapshot()?.repos.first?.items.map(\.key) == [key(1)])
+    }
+
+    @Test func markSeenUpdatesSnapshot() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new), record(2, .updated)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        let written = Counter()
+        controller.onSnapshotWritten = { written.value += 1 }
+
+        controller.markSeen(key(1))
+
+        #expect(written.value == 1)
+        let entry = try #require(try h.store.loadSnapshot()?.repos.first)
+        #expect(entry.newCount == 0)
+        #expect(entry.updatedCount == 1)
+        #expect(entry.items.map(\.key) == [key(2)])
+    }
+
+    @Test func signOutWritesSignedOutSnapshot() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        #expect(try h.store.loadSnapshot()?.status == .ok)
+        let written = Counter()
+        controller.onSnapshotWritten = { written.value += 1 }
+
+        try controller.signOut()
+
+        #expect(written.value == 1)
+        #expect(try h.store.loadSnapshot() == .signedOut)
+
+        // A launch without a credential also writes the signed-out snapshot.
+        try h.store.removeSnapshot()
+        let relaunched = h.makeController()
+        await relaunched.restoreSession()
+        #expect(relaunched.auth == .signedOut)
+        #expect(try h.store.loadSnapshot() == .signedOut)
+    }
+
+    @Test func restoreWithFailingSignInWritesSignedOutSnapshot() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        var settings = AppSettings()
+        settings.lastAccountID = me
+        try h.store.saveSettings(settings)
+        try h.credentials.save(Credential(token: "stored-token", kind: .oauth), for: me)
+        await h.api.setViewer(.failure(.network("offline")))
+        let controller = h.makeController()
+
+        await controller.restoreSession()
+
+        #expect(controller.auth == .signedOut)
+        #expect(try h.store.loadSnapshot() == .signedOut)
+    }
+
+    @Test func resetRemovesSnapshot() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        #expect(try h.store.loadSnapshot() != nil)
+        let written = Counter()
+        controller.onSnapshotWritten = { written.value += 1 }
+
+        try controller.resetAllData()
+
+        #expect(try h.store.loadSnapshot() == nil)
+        #expect(!FileManager.default.fileExists(atPath: h.directory.path))
+        // The widget is told to reload into its signed-out state.
+        #expect(written.value == 1)
+    }
+
+    @Test func needsReauthSnapshotStatus() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        await h.api.scriptRepositories("o", .failure(.unauthorized))
+        let controller = h.makeController()
+
+        await controller.restoreSession()
+
+        #expect(controller.auth == .needsReauth(login: "me"))
+        let snapshot = try #require(try h.store.loadSnapshot())
+        #expect(snapshot.status == .needsReauth)
+        #expect(snapshot.login == "me")
+        #expect(snapshot.repos.first?.newCount == 1)
+
+        // An unauthorized owners call changes the status without saving the account.
+        try h.store.removeSnapshot()
+        await h.api.setOwners(.failure(.unauthorized))
+        let other = h.makeController()
+        await other.restoreSession()
+        #expect(other.auth == .needsReauth(login: "me"))
+        #expect(try h.store.loadSnapshot()?.status == .needsReauth)
+    }
+
+    @Test func signInWhileOfflineWritesSignedInSnapshot() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        await h.api.setOwners(.failure(.network("offline")))
+        let controller = h.makeController()
+
+        try await controller.signIn(token: "t", kind: .oauth)
+
+        #expect(controller.auth == .signedIn(login: "me"))
+        let snapshot = try #require(try h.store.loadSnapshot())
+        #expect(snapshot.status == .ok)
+        #expect(snapshot.login == "me")
     }
 }

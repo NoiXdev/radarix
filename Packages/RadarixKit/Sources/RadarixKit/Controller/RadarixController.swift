@@ -31,6 +31,8 @@ public final class RadarixController {
     public private(set) var syncProblem: SyncProblem?
     /// Called after every sync that completed for the current session.
     @ObservationIgnored public var onSyncReport: ((SyncReport) -> Void)?
+    /// Called after the widget snapshot was written or removed.
+    @ObservationIgnored public var onSnapshotWritten: (() -> Void)?
 
     /// The refresh started by the last watch change.
     @ObservationIgnored var pendingRefresh: Task<Void, Never>?
@@ -80,10 +82,13 @@ public final class RadarixController {
 
     /// Loads the last account and its credential, then syncs. Stored data is shown even when offline.
     public func restoreSession() async {
-        guard let id = settings.lastAccountID, let credential = try? credentials.load(for: id) else { return }
+        guard let id = settings.lastAccountID, let credential = try? credentials.load(for: id) else {
+            writeSnapshot()
+            return
+        }
         guard let stored = try? store.loadAccount(id) else {
             // No (readable) account file: sign in with the stored credential; on failure stay signed out.
-            try? await signIn(token: credential.token, kind: credential.kind)
+            do { try await signIn(token: credential.token, kind: credential.kind) } catch { writeSnapshot() }
             return
         }
         begin(api: makeAPI(credential.token), account: stored, kind: credential.kind)
@@ -117,14 +122,17 @@ public final class RadarixController {
     public func signOut() throws {
         if let id = account?.accountID { try credentials.delete(for: id) }
         end()
+        writeSnapshot()
     }
 
-    /// Deletes the credential and every file.
+    /// Deletes the credential and every file, the widget snapshot included.
     public func resetAllData() throws {
         try credentials.deleteAll()
         try store.resetAll()
         end()
         settings = AppSettings()
+        // No snapshot is written after the wipe; the widget reloads into its signed-out state.
+        onSnapshotWritten?()
     }
 
     private func begin(api: GitHubAPI, account: AccountData, kind: CredentialKind) {
@@ -134,6 +142,7 @@ public final class RadarixController {
         credentialKind = kind
         auth = .signedIn(login: account.login)
         if schedulerEnabled { launchScheduler() }
+        writeSnapshot()
     }
 
     private func end() {
@@ -215,6 +224,7 @@ public final class RadarixController {
                 if let account { auth = .needsReauth(login: account.login) }
                 // GitHub answered; the sign-in is the problem, shown by `auth`.
                 syncProblem = nil
+                writeSnapshot()
                 return true
             case .rateLimited(let resetAt):
                 rateLimitedUntil = resetAt
@@ -377,6 +387,7 @@ public final class RadarixController {
         } catch {
             Self.log.error("Saving the account failed: \(error.localizedDescription, privacy: .public)")
         }
+        writeSnapshot()
     }
 
     private func saveSettings() {
@@ -385,5 +396,22 @@ public final class RadarixController {
         } catch {
             Self.log.error("Saving the settings failed: \(error.localizedDescription, privacy: .public)")
         }
+        writeSnapshot()
+    }
+
+    /// The widget's view of the session: `.signedOut` without an account.
+    private func writeSnapshot() {
+        let snapshot = if let account, auth != .signedOut {
+            WidgetSnapshot.make(account: account, settings: settings, auth: auth, syncedAt: lastSyncAt)
+        } else {
+            WidgetSnapshot.signedOut
+        }
+        do {
+            try store.saveSnapshot(snapshot)
+        } catch {
+            Self.log.error("Saving the widget snapshot failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        onSnapshotWritten?()
     }
 }

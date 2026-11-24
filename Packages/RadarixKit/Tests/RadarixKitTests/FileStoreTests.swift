@@ -79,6 +79,29 @@ struct FileStoreTests {
         #expect(!FileManager.default.fileExists(atPath: dir.appending(path: "settings.json").path))
     }
 
+    @Test func snapshotRoundTripsAndRemoves() throws {
+        let dir = makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = FileStore(directory: dir)
+        #expect(try store.loadSnapshot() == nil)
+        try store.removeSnapshot()
+
+        let snapshot = WidgetSnapshot(status: .needsReauth, login: "me", syncedAt: t1, repos: [
+            WidgetSnapshot.RepoEntry(id: RepoID(rawValue: 1), owner: "o", name: "r", newCount: 1, updatedCount: 0, items: [
+                WidgetSnapshot.ItemEntry(
+                    key: ItemKey(repo: RepoID(rawValue: 1), number: 3), kind: .issue, title: "T",
+                    attention: .new, updatedAt: t0, isDraft: false, botName: nil),
+            ]),
+        ])
+        try store.saveSnapshot(snapshot)
+        #expect(FileManager.default.fileExists(atPath: dir.appending(path: "widget-snapshot.json").path))
+        #expect(try store.loadSnapshot() == snapshot)
+
+        try store.removeSnapshot()
+        #expect(try store.loadSnapshot() == nil)
+        #expect(!FileManager.default.fileExists(atPath: dir.appending(path: "widget-snapshot.json").path))
+    }
+
     @Test func defaultDirectoryEndsInRadarix() {
         #expect(FileStore.defaultDirectory(appGroup: "").lastPathComponent == "Radarix")
     }

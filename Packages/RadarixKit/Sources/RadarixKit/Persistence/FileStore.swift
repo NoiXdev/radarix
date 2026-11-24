@@ -1,6 +1,6 @@
 import Foundation
 
-/// JSON persistence: `settings.json` and `accounts/<accountID>.json` below one directory.
+/// JSON persistence: `settings.json`, `widget-snapshot.json` and `accounts/<accountID>.json` below one directory.
 public final class FileStore: @unchecked Sendable {
     private let directory: URL
     private let fileManager = FileManager.default
@@ -35,12 +35,28 @@ public final class FileStore: @unchecked Sendable {
         try write(a, to: accountURL(a.accountID))
     }
 
+    /// Nil when the file is missing.
+    public func loadSnapshot() throws -> WidgetSnapshot? {
+        try read(WidgetSnapshot.self, from: snapshotURL)
+    }
+
+    public func saveSnapshot(_ s: WidgetSnapshot) throws {
+        try write(s, to: snapshotURL)
+    }
+
+    /// Does nothing when the file is missing.
+    public func removeSnapshot() throws {
+        guard fileManager.fileExists(atPath: snapshotURL.path) else { return }
+        try fileManager.removeItem(at: snapshotURL)
+    }
+
     public func resetAll() throws {
         guard fileManager.fileExists(atPath: directory.path) else { return }
         try fileManager.removeItem(at: directory)
     }
 
     private var settingsURL: URL { directory.appending(path: "settings.json") }
+    private var snapshotURL: URL { directory.appending(path: "widget-snapshot.json") }
 
     private func accountURL(_ id: AccountID) -> URL {
         directory.appending(path: "accounts", directoryHint: .isDirectory).appending(path: "\(id.rawValue).json")
