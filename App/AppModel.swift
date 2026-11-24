@@ -24,7 +24,7 @@ final class AppModel {
     @ObservationIgnored private var launchKindKnown = false
     /// `claimLaunchWindow()` calls waiting for `setLaunchKind(atLogin:)`.
     @ObservationIgnored private var launchKindWaiters: [CheckedContinuation<Void, Never>] = []
-    /// Set once `restoreSession` has returned; marks made before that are kept until then.
+    /// Set once `restoreSessions` has returned; marks made before that are kept until then.
     @ObservationIgnored private var sessionRestored = false
     /// Item notifications clicked before the session was restored (a click that launched the app).
     @ObservationIgnored private var pendingSeen: [ItemKey] = []
@@ -38,23 +38,23 @@ final class AppModel {
             makeAPI: { GitHubClient(token: $0) },
             oauthClientID: clientID
         )
-        controller.onSyncReport = { [weak self] report in self?.didSync(report) }
+        controller.onSyncReport = { [weak self] account, report in self?.didSync(account: account, report: report) }
         controller.onSnapshotWritten = { WidgetCenter.shared.reloadAllTimelines() }
-        notifications.repo = { [weak self] id in self?.controller.account?.repos[id]?.repo }
+        notifications.repo = { [weak self] id in self?.controller.repos[id]?.repo }
         notifications.onOpen = { [weak self] target in self?.openNotification(target) }
     }
 
     var isDeviceFlowAvailable: Bool { !oauthClientID.isEmpty }
 
-    /// Restores the last session and starts periodic syncing. Runs once per launch.
+    /// Restores the stored accounts and starts periodic syncing. Runs once per launch.
     func start() {
         guard !started else { return }
         started = true
         Task {
-            await controller.restoreSession()
+            await controller.restoreSessions()
             sessionRestored = true
             // A link that launched a signed-out Radarix must not fire after a later sign-in.
-            if controller.auth == .signedOut { navigation = nil }
+            if !controller.isSignedIn { navigation = nil }
             for key in pendingSeen { controller.markSeen(key) }
             pendingSeen = []
             controller.startScheduler()
@@ -63,14 +63,15 @@ final class AppModel {
 
     // MARK: Notifications
 
-    /// Plans this sync's notifications now, while the account matches the report. The first
-    /// report of a launch asks for permission and posts once the user has answered.
-    private func didSync(_ report: SyncReport) {
-        guard let account = controller.account else { return }
+    /// Plans one session's notifications now, while its account matches the report. The banner
+    /// names the account only while there is more than one. The first report of a launch asks for
+    /// permission and posts once the user has answered.
+    private func didSync(account: AccountData, report: SyncReport) {
         let planned = NotificationPlanner.plan(report, account: account, settings: controller.settings)
+        let accountLogin = controller.sessions.count > 1 ? account.login : nil
         Task {
             await notifications.requestAuthorizationIfNeeded()
-            notifications.post(planned)
+            notifications.post(planned, accountLogin: accountLogin)
         }
     }
 
@@ -126,7 +127,7 @@ final class AppModel {
     /// A link a main window received, for `navigation`. While signed out after the launch it is
     /// dropped: the window only comes to the front.
     func receive(_ link: DeepLink) {
-        if sessionRestored, controller.auth == .signedOut { return }
+        if sessionRestored, !controller.isSignedIn { return }
         navigation = link
     }
 
@@ -138,16 +139,18 @@ final class AppModel {
 
     // MARK: Session
 
-    /// Signs out, dropping a pending link and the delivered notifications.
+    /// Removes the first account; once none is left, drops a pending link and the delivered
+    /// notifications.
     func signOut() throws {
-        defer { if controller.auth == .signedOut { clearSession() } }
-        try controller.signOut()
+        defer { if !controller.isSignedIn { clearSession() } }
+        guard let session = controller.sessions.first else { return }
+        try controller.removeAccount(session.accountID)
     }
 
     /// Resets all data, dropping a pending link and the delivered notifications. A reset that
     /// fails after the credentials were deleted has ended the session as well.
     func resetAllData() throws {
-        defer { if controller.auth == .signedOut { clearSession() } }
+        defer { if !controller.isSignedIn { clearSession() } }
         try controller.resetAllData()
     }
 
@@ -156,10 +159,10 @@ final class AppModel {
         notifications.removeAll()
     }
 
-    /// Where the user grants an organization access for the current credential.
-    var grantAccessURL: URL {
+    /// Where the user grants an organization access for the credential of `session`.
+    func grantAccessURL(for session: AccountSession) -> URL {
         let tokens = URL(string: "https://github.com/settings/tokens")!
-        guard controller.credentialKind == .oauth, isDeviceFlowAvailable else { return tokens }
+        guard session.credentialKind == .oauth, isDeviceFlowAvailable else { return tokens }
         return URL(string: "https://github.com/settings/connections/applications/\(oauthClientID)") ?? tokens
     }
 

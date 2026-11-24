@@ -7,24 +7,26 @@ struct RepositorySettings: View {
     private var controller: RadarixController { model.controller }
 
     var body: some View {
-        if let account = controller.account {
+        // Shows the first account only until this tab is grouped by account.
+        if let session = controller.sessions.first {
+            let account = session.account
             Form {
                 Section {
                     HStack {
                         Toggle("Show archived repositories", isOn: Binding(
                             get: { account.watch.showArchived },
-                            set: { controller.setShowArchived($0) }
+                            set: { controller.setShowArchived($0, in: session.accountID) }
                         ))
-                        if controller.isSyncing {
+                        if session.isSyncing {
                             Spacer()
                             ProgressView().controlSize(.small)
                         }
                     }
                 }
-                if controller.owners.isEmpty {
+                if session.owners.isEmpty {
                     Section {
                         Group {
-                            if controller.isSyncing {
+                            if session.isSyncing {
                                 Text("Loading accounts and organizations…")
                             } else {
                                 Text("No accounts or organizations found.")
@@ -33,8 +35,8 @@ struct RepositorySettings: View {
                         .foregroundStyle(.secondary)
                     }
                 }
-                ForEach(controller.owners, id: \.login) { owner in
-                    OwnerSection(owner: owner, watch: account.watch)
+                ForEach(session.owners, id: \.login) { owner in
+                    OwnerSection(session: session, owner: owner, watch: account.watch)
                 }
             }
             .formStyle(.grouped)
@@ -46,6 +48,7 @@ struct RepositorySettings: View {
 
 /// One owner: its mode, an access warning and its repositories.
 private struct OwnerSection: View {
+    let session: AccountSession
     let owner: OwnerRef
     let watch: WatchConfig
 
@@ -66,11 +69,11 @@ private struct OwnerSection: View {
             } label: {
                 Label(owner.login, systemImage: owner.kind == .organization ? "building.2" : "person")
             }
-            if let issue = controller.lastReport?.ownerIssues[owner.login] {
+            if let issue = session.lastReport?.ownerIssues[owner.login] {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(AppModel.message(for: issue), systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
-                    Link("Grant access on GitHub", destination: model.grantAccessURL)
+                    Link("Grant access on GitHub", destination: model.grantAccessURL(for: session))
                 }
             }
             repositories
@@ -81,9 +84,9 @@ private struct OwnerSection: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                if controller.credentialKind == .oauth, owner.kind == .organization,
-                   controller.lastReport?.ownerIssues[owner.login] == nil {
-                    Link("Missing repositories? Grant access on GitHub", destination: model.grantAccessURL)
+                if session.credentialKind == .oauth, owner.kind == .organization,
+                   session.lastReport?.ownerIssues[owner.login] == nil {
+                    Link("Missing repositories? Grant access on GitHub", destination: model.grantAccessURL(for: session))
                         .font(.footnote)
                 }
             }
@@ -100,7 +103,7 @@ private struct OwnerSection: View {
                     RepoRow(repo: repo, isWatched: Binding(
                         get: { !excluded.contains(repo.id) },
                         set: { on in
-                            controller.setOwnerMode(.all(excluded: on ? excluded.subtracting([repo.id]) : excluded.union([repo.id])), for: owner.login)
+                            controller.setOwnerMode(.all(excluded: on ? excluded.subtracting([repo.id]) : excluded.union([repo.id])), for: owner.login, in: session.accountID)
                         }
                     ), notifications: notifications(for: repo))
                 }
@@ -114,7 +117,7 @@ private struct OwnerSection: View {
                     RepoRow(repo: repo, isWatched: Binding(
                         get: { ids.contains(repo.id) },
                         set: { on in
-                            controller.setOwnerMode(.selected(on ? ids.union([repo.id]) : ids.subtracting([repo.id])), for: owner.login)
+                            controller.setOwnerMode(.selected(on ? ids.union([repo.id]) : ids.subtracting([repo.id])), for: owner.login, in: session.accountID)
                         }
                     ), notifications: notifications(for: repo))
                 }
@@ -133,7 +136,7 @@ private struct OwnerSection: View {
 
     /// The owner's repos as the watch config sees them: archived ones only when shown, sorted by name.
     private var available: [RepoRef]? {
-        controller.availableRepos[owner.login].map { repos in
+        session.account.available[owner.login].map { repos in
             repos
                 .filter { watch.showArchived || !$0.isArchived }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -160,7 +163,7 @@ private struct OwnerSection: View {
                 case .all: .all(excluded: [])
                 case .selected: .selected([])
                 }
-                if newMode != mode { controller.setOwnerMode(newMode, for: owner.login) }
+                if newMode != mode { controller.setOwnerMode(newMode, for: owner.login, in: session.accountID) }
             }
         )
     }
@@ -168,7 +171,7 @@ private struct OwnerSection: View {
     private func notifications(for repo: RepoRef) -> Binding<Bool> {
         Binding(
             get: { !watch.notificationsOff.contains(repo.id) },
-            set: { controller.setNotifications($0, for: repo.id) }
+            set: { controller.setNotifications($0, for: repo.id, in: session.accountID) }
         )
     }
 }

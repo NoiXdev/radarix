@@ -53,23 +53,24 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         center.removeAllPendingNotificationRequests()
     }
 
-    func post(_ planned: [PlannedNotification]) {
+    /// A non-nil `accountLogin` names the account the notifications belong to, ahead of the subtitle.
+    func post(_ planned: [PlannedNotification], accountLogin: String?) {
         let center = UNUserNotificationCenter.current()
         for notification in planned {
-            guard let content = content(for: notification) else { continue }
+            guard let content = content(for: notification, accountLogin: accountLogin) else { continue }
             let request = UNNotificationRequest(identifier: notification.id, content: content, trigger: nil)
             center.add(request, withCompletionHandler: nil)
         }
     }
 
-    private func content(for planned: PlannedNotification) -> UNNotificationContent? {
+    private func content(for planned: PlannedNotification, accountLogin: String?) -> UNNotificationContent? {
         let content = UNMutableNotificationContent()
         content.sound = .default
         switch planned.content {
         case .item(let item, let attention):
             guard let repo = repo?(item.key.repo) else { return nil }
             content.title = repo.fullName
-            content.subtitle = Self.subtitle(kind: item.kind, attention: attention)
+            content.subtitle = Self.subtitle(Self.subtitle(kind: item.kind, attention: attention), accountLogin: accountLogin)
             content.body = item.title
             content.threadIdentifier = "repo-\(repo.id.rawValue)"
             content.userInfo = [
@@ -82,11 +83,18 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             var parts: [String] = []
             if newCount > 0 || updatedCount == 0 { parts.append(String(localized: "\(newCount) new items")) }
             if updatedCount > 0 { parts.append(String(localized: "\(updatedCount) updated items")) }
+            content.subtitle = Self.subtitle("", accountLogin: accountLogin)
             content.body = parts.joined(separator: " · ")
             content.threadIdentifier = "repo-\(repo.id.rawValue)"
             content.userInfo = [Key.link: DeepLink.repo(repo.id).url.absoluteString]
         }
         return content
+    }
+
+    /// `"<login> · <subtitle>"`, the login alone for an empty subtitle, the subtitle alone without a login.
+    private static func subtitle(_ subtitle: String, accountLogin: String?) -> String {
+        guard let accountLogin else { return subtitle }
+        return subtitle.isEmpty ? accountLogin : "\(accountLogin) · \(subtitle)"
     }
 
     private static func subtitle(kind: ItemKind, attention: Attention) -> String {

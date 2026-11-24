@@ -1,7 +1,8 @@
 import RadarixKit
 import SwiftUI
 
-/// The menu bar glyph with the count of new and updated items, or `!` when the sign-in was rejected.
+/// The menu bar glyph with the count of new and updated items of every account, or `!` when the
+/// sign-in of any account was rejected.
 /// Showing the count never marks anything seen.
 struct MenuBarLabel: View {
     @Environment(AppModel.self) private var model
@@ -29,7 +30,5 @@ struct MenuBarLabel: View {
         }
     }
 
-    private var needsReauth: Bool {
-        if case .needsReauth = controller.auth { true } else { false }
-    }
+    private var needsReauth: Bool { !controller.needsReauth.isEmpty }
 }

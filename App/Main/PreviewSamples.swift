@@ -40,6 +40,15 @@ enum PreviewSamples {
         )
     }
 
+    /// One account owning every sample repo: the sidebar shows no account header.
+    static let accountSections = [AccountSection(login: "noidee", repos: sections)]
+
+    /// Two accounts, each with the repos it owns.
+    static let twoAccountSections = [
+        AccountSection(login: "noidee", repos: sections.filter { $0.repo.owner == "noixdev" }),
+        AccountSection(login: "octocat", repos: sections.filter { $0.repo.owner == "octocat" }),
+    ]
+
     private static func record(
         _ repo: RepoRef, _ number: Int, _ kind: ItemKind, _ title: String, attention: Attention, minutesAgo: Double,
         author: Actor = Actor(login: "octocat", apiType: "User"), isDraft: Bool = false, labels: [Label] = [],

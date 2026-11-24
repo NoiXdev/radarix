@@ -395,7 +395,7 @@ extension WidgetSnapshot {
                 botName: bot)
         }
         return WidgetSnapshot(
-            status: .ok, login: "octo", syncedAt: Date(timeIntervalSinceNow: -120),
+            status: .ok, logins: ["octo"], reauthLogins: [], syncedAt: Date(timeIntervalSinceNow: -120),
             repos: [
                 RepoEntry(
                     id: RepoID(rawValue: 1), owner: "acme", name: "api", newCount: 2, updatedCount: 1,
@@ -418,10 +418,11 @@ extension WidgetSnapshot {
     }()
 
     static let sampleEmpty = WidgetSnapshot(
-        status: .ok, login: "octo", syncedAt: .now,
+        status: .ok, logins: ["octo"], reauthLogins: [], syncedAt: .now,
         repos: [RepoEntry(id: RepoID(rawValue: 4), owner: "octo", name: "notes", newCount: 0, updatedCount: 0, items: [])])
 
-    static let sampleNeedsReauth = WidgetSnapshot(status: .needsReauth, login: "octo", syncedAt: nil, repos: [])
+    static let sampleNeedsReauth = WidgetSnapshot(
+        status: .needsReauth, logins: ["octo"], reauthLogins: ["octo"], syncedAt: nil, repos: [])
 
     /// Last synced a day ago, for the stale note.
     static let sampleStale: WidgetSnapshot = {

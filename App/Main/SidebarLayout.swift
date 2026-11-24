@@ -1,9 +1,10 @@
 import RadarixKit
 import SwiftUI
 
-/// Three columns: "All" and the watched repositories by owner, the filtered items, the selected item.
+/// Three columns: "All" and the watched repositories by account and owner, the filtered items, the
+/// selected item. With one account the sidebar has no account headers.
 struct SidebarLayout<Header: View>: View {
-    let sections: [RepoSection]
+    let accountSections: [AccountSection]
     /// The filtered entries of every repository, in list order.
     let allEntries: [ItemEntry]
     let totalCounts: AttentionCounts
@@ -41,25 +42,50 @@ struct SidebarLayout<Header: View>: View {
                 AttentionBadges(counts: totalCounts)
             }
             .tag(SidebarItem.all)
-            ForEach(owners, id: \.self) { owner in
-                Section {
-                    ForEach(sections.filter { $0.repo.owner == owner }) { section in
-                        RepoSidebarRow(section: section)
-                            .tag(SidebarItem.repo(section.id))
-                            .contextMenu {
-                                Button("Mark repository as seen") { actions.markRepoSeen(section.id) }
-                                Button("Open on GitHub") { actions.openRepo(section.repo) }
-                            }
+            if accountSections.count > 1 {
+                // One section per account; its owners become plain subheadings.
+                ForEach(accountSections) { account in
+                    Section {
+                        ForEach(Self.owners(of: account.repos), id: \.self) { owner in
+                            Text(verbatim: owner)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .selectionDisabled()
+                            repoRows(account.repos.filter { $0.repo.owner == owner })
+                        }
+                    } header: {
+                        Text(verbatim: account.login)
                     }
-                } header: {
-                    Text(verbatim: owner)
+                }
+            } else {
+                let sections = repoSections
+                ForEach(Self.owners(of: sections), id: \.self) { owner in
+                    Section {
+                        repoRows(sections.filter { $0.repo.owner == owner })
+                    } header: {
+                        Text(verbatim: owner)
+                    }
                 }
             }
         }
     }
 
+    private func repoRows(_ sections: [RepoSection]) -> some View {
+        ForEach(sections) { section in
+            RepoSidebarRow(section: section)
+                .tag(SidebarItem.repo(section.id))
+                .contextMenu {
+                    Button("Mark repository as seen") { actions.markRepoSeen(section.id) }
+                    Button("Open on GitHub") { actions.openRepo(section.repo) }
+                }
+        }
+    }
+
+    /// Every account's repositories, in sidebar order.
+    private var repoSections: [RepoSection] { accountSections.flatMap(\.repos) }
+
     /// Owner logins in the order of `sections`.
-    private var owners: [String] {
+    private static func owners(of sections: [RepoSection]) -> [String] {
         var seen = Set<String>()
         return sections.map(\.repo.owner).filter { seen.insert($0).inserted }
     }
@@ -70,7 +96,7 @@ struct SidebarLayout<Header: View>: View {
 
     private var entries: [ItemEntry] {
         guard let selectedRepo else { return allEntries }
-        return sections.first { $0.id == selectedRepo }?.entries ?? []
+        return repoSections.first { $0.id == selectedRepo }?.entries ?? []
     }
 
     private var itemList: some View {
@@ -133,7 +159,26 @@ struct NoMatchingItems: View {
     @Previewable @State var sidebarSelection: SidebarItem? = .all
     @Previewable @State var selection: ItemKey?
     SidebarLayout(
-        sections: PreviewSamples.sections,
+        accountSections: PreviewSamples.accountSections,
+        allEntries: PreviewSamples.entries,
+        totalCounts: ItemFilter.counts(PreviewSamples.records, bots: .badge),
+        sidebarSelection: $sidebarSelection,
+        selection: $selection,
+        selectedEntry: PreviewSamples.entries.first { $0.id == selection },
+        scrollTarget: .constant(nil),
+        showsBotBadges: true,
+        actions: ItemActions()
+    ) {
+        FilterBar(filter: .constant(FilterSet()), showsBots: .constant(false), offersBotsChip: false)
+    }
+    .frame(width: 1000, height: 560)
+}
+
+#Preview("Sidebar layout, two accounts") {
+    @Previewable @State var sidebarSelection: SidebarItem? = .all
+    @Previewable @State var selection: ItemKey?
+    SidebarLayout(
+        accountSections: PreviewSamples.twoAccountSections,
         allEntries: PreviewSamples.entries,
         totalCounts: ItemFilter.counts(PreviewSamples.records, bots: .badge),
         sidebarSelection: $sidebarSelection,

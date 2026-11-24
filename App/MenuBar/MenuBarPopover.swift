@@ -20,42 +20,45 @@ struct MenuBarPopover: View {
             notices: notices,
             isSyncing: controller.isSyncing,
             lastSyncAt: controller.lastSyncAt,
+            canRefresh: controller.sessions.contains { $0.auth == .ok },
             actions: actions
         )
     }
 
     /// The newest listed new and updated items, with the same bot rule as the label count.
     private var entries: [ItemEntry] {
-        guard let account = controller.account else { return [] }
+        guard controller.isSignedIn else { return [] }
+        let repos = controller.repos
         let records = ItemFilter.visible(
             controller.records(in: nil),
             filter: FilterSet(),
-            viewers: ViewerLogins([account.login]),
+            viewers: controller.viewers,
             scope: controller.settings.botDisplay == .hidden ? .humans : .all
         )
         return records.prefix(Self.itemLimit).compactMap { record in
-            account.repos[record.item.key.repo].map { ItemEntry(record: record, repo: $0.repo) }
+            repos[record.item.key.repo].map { ItemEntry(record: record, repo: $0.repo) }
         }
     }
 
+    /// Rejected sign-ins first, then offline, then rate limits, one per affected account. The
+    /// login is named only while there is more than one account.
     private var notices: [MenuBarNotice] {
-        switch controller.auth {
-        case .signedOut: return [.signedOut]
-        case .needsReauth: return [.needsReauth] + syncNotices
-        case .signedIn: return syncNotices
+        let sessions = controller.sessions
+        guard !sessions.isEmpty else { return [.signedOut] }
+        let named = sessions.count > 1
+        func login(_ session: AccountSession) -> String? { named ? session.login : nil }
+        var reauth: [MenuBarNotice] = [], offline: [MenuBarNotice] = [], rateLimited: [MenuBarNotice] = []
+        for session in sessions {
+            if session.auth == .needsReauth { reauth.append(.needsReauth(login: login(session))) }
+            if session.syncProblem == .offline { offline.append(.offline(login: login(session))) }
+            // From the owners request or the sync itself, like the main window's banner.
+            if case .rateLimited(let until) = session.syncProblem {
+                rateLimited.append(.rateLimited(login: login(session), until: until))
+            } else if let until = session.lastReport?.rateLimitedUntil {
+                rateLimited.append(.rateLimited(login: login(session), until: until))
+            }
         }
-    }
-
-    private var syncNotices: [MenuBarNotice] {
-        var notices: [MenuBarNotice] = []
-        if controller.syncProblem == .offline { notices.append(.offline) }
-        // From the owners request or the sync itself, like the main window's banner.
-        if case .rateLimited(let until) = controller.syncProblem {
-            notices.append(.rateLimited(until: until))
-        } else if let until = controller.lastReport?.rateLimitedUntil {
-            notices.append(.rateLimited(until: until))
-        }
-        return notices
+        return reauth + offline + rateLimited
     }
 
     private var actions: MenuBarActions {
@@ -79,9 +82,13 @@ struct MenuBarPopover: View {
     }
 }
 
-/// A state the popover reports above the items.
+/// A state the popover reports above the items. `login` names the account it is about, nil
+/// while there is only one.
 enum MenuBarNotice: Hashable {
-    case signedOut, needsReauth, offline, rateLimited(until: Date)
+    case signedOut
+    case needsReauth(login: String?)
+    case offline(login: String?)
+    case rateLimited(login: String?, until: Date)
 }
 
 /// What the popover's buttons do. The defaults do nothing, for previews.
@@ -102,6 +109,8 @@ struct MenuBarPopoverContent: View {
     let notices: [MenuBarNotice]
     let isSyncing: Bool
     let lastSyncAt: Date?
+    /// False while every account needs to sign in again.
+    var canRefresh = true
     var actions = MenuBarActions()
 
     private var isSignedOut: Bool { notices.contains(.signedOut) }
@@ -157,7 +166,7 @@ struct MenuBarPopoverContent: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
-                .disabled(isSignedOut || notices.contains(.needsReauth))
+                .disabled(isSignedOut || !canRefresh)
             }
         }
     }
@@ -170,22 +179,22 @@ struct MenuBarPopoverContent: View {
             MenuBarRowButton(action: actions.openSettings) {
                 Label("Sign in to GitHub", systemImage: "person.crop.circle.badge.questionmark")
             }
-        case .needsReauth:
+        case .needsReauth(let login):
             MenuBarRowButton(action: actions.openSettings) {
                 Label {
-                    Text("Sign in again")
+                    if let login { Text("\(login): sign in again") } else { Text("Sign in again") }
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
             }
-        case .offline:
-            NoticeLabel(systemImage: "wifi.slash") {
+        case .offline(let login):
+            NoticeLabel(systemImage: "wifi.slash", login: login) {
                 Text("Can't reach GitHub. Showing saved data.")
             }
-        case .rateLimited(let until):
+        case .rateLimited(let login, let until):
             TimelineView(.everyMinute) { context in
                 if until > context.date {
-                    NoticeLabel(systemImage: "hourglass") {
+                    NoticeLabel(systemImage: "hourglass", login: login) {
                         Text("GitHub's rate limit is reached. Radarix syncs again after \(Text(until, style: .time)).")
                     }
                 }
@@ -281,14 +290,18 @@ private struct MenuBarRowButton<Content: View>: View {
     }
 }
 
-/// A secondary, non-interactive state line.
+/// A secondary, non-interactive state line, led by the account's login when one is given.
 private struct NoticeLabel<Message: View>: View {
     let systemImage: String
+    var login: String?
     @ViewBuilder let message: Message
 
     var body: some View {
         Label {
-            message.fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                if let login { Text(verbatim: "\(login):").fontWeight(.semibold) }
+                message.fixedSize(horizontal: false, vertical: true)
+            }
         } icon: {
             Image(systemName: systemImage)
         }
@@ -303,7 +316,17 @@ private struct NoticeLabel<Message: View>: View {
     MenuBarPopoverContent(
         counts: ItemFilter.counts(PreviewSamples.records, bots: .badge),
         entries: PreviewSamples.entries.filter { $0.record.attention != .seen },
-        notices: [.offline],
+        notices: [.offline(login: nil)],
+        isSyncing: false,
+        lastSyncAt: Date(timeIntervalSinceNow: -180)
+    )
+}
+
+#Preview("Popover, two accounts") {
+    MenuBarPopoverContent(
+        counts: ItemFilter.counts(PreviewSamples.records, bots: .badge),
+        entries: PreviewSamples.entries.filter { $0.record.attention != .seen },
+        notices: [.needsReauth(login: "octocat"), .offline(login: "noidee")],
         isSyncing: false,
         lastSyncAt: Date(timeIntervalSinceNow: -180)
     )

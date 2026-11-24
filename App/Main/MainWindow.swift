@@ -17,6 +17,13 @@ struct RepoSection: Identifiable {
     var id: RepoID { repo.id }
 }
 
+/// The repositories one account owns, ordered like that account's owners list, then by name.
+struct AccountSection: Identifiable {
+    let login: String
+    let repos: [RepoSection]
+    var id: String { login }
+}
+
 /// What rows, menus and the detail can do. The defaults do nothing, for previews.
 struct ItemActions {
     var markSeen: @MainActor (ItemKey) -> Void = { _ in }
@@ -69,11 +76,12 @@ struct MainWindow: View {
                 navigate()
             }
             .onChange(of: model.navigation) { navigate() }
-            .onChange(of: controller.account == nil) { navigate() }
+            .onChange(of: controller.isSignedIn) { navigate() }
     }
 
     @ViewBuilder private var content: some View {
-        if case .signedOut = controller.auth {
+        let repos = controller.repos
+        if !controller.isSignedIn {
             ContentUnavailableView {
                 Label("Sign in to see what's new", systemImage: "person.crop.circle.badge.questionmark")
             } description: {
@@ -81,8 +89,8 @@ struct MainWindow: View {
             } actions: {
                 Button("Sign in") { openSettings() }
             }
-        } else if let account = controller.account, !account.repos.isEmpty {
-            layout(account)
+        } else if !repos.isEmpty {
+            layout(repos)
                 .onChange(of: storedFilter) { filterChanged() }
                 .onChange(of: showsBots) { filterChanged() }
                 .onChange(of: sidebarSelection) {
@@ -112,21 +120,21 @@ struct MainWindow: View {
         }
     }
 
-    @ViewBuilder private func layout(_ account: AccountData) -> some View {
-        let entries = visibleEntries(account)
-        let sections = repoSections(account, entries: entries)
-        let selected = selection.flatMap { entry(for: $0, in: account) }
+    @ViewBuilder private func layout(_ repos: [RepoID: RepoState]) -> some View {
+        let entries = visibleEntries(repos)
+        let sections = accountSections(repos, entries: entries)
+        let selected = selection.flatMap { entry(for: $0, in: repos) }
         let showsBotBadges = controller.settings.botDisplay == .badge
         switch controller.settings.layout {
         case .sidebar:
             SidebarLayout(
-                sections: sections, allEntries: entries, totalCounts: controller.counts(in: nil),
+                accountSections: sections, allEntries: entries, totalCounts: controller.counts(in: nil),
                 sidebarSelection: $sidebarSelection, selection: $selection, selectedEntry: selected,
                 scrollTarget: $scrollTarget, showsBotBadges: showsBotBadges, actions: actions
             ) { header }
         case .grouped:
             GroupedListLayout(
-                sections: sections, selection: $selection, selectedEntry: selected,
+                sections: sections.flatMap(\.repos), selection: $selection, selectedEntry: selected,
                 scrollTarget: $scrollTarget, showsBotBadges: showsBotBadges, actions: actions
             ) { header }
         }
@@ -158,28 +166,29 @@ struct MainWindow: View {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
                 .help("Refresh")
-                .disabled(!isSignedIn)
+                .disabled(!canRefresh)
             }
         }
     }
 
-    private var isSignedIn: Bool {
-        if case .signedIn = controller.auth { true } else { false }
+    /// Some account's sign-in is still accepted.
+    private var canRefresh: Bool {
+        controller.sessions.contains { $0.auth == .ok }
     }
 
     /// The layouts are on screen, so their `onChange` handlers run.
     private var showsLayout: Bool {
-        if case .signedOut = controller.auth { return false }
-        return controller.account.map { !$0.repos.isEmpty } ?? false
+        controller.isSignedIn && !controller.repos.isEmpty
     }
 
     // MARK: Navigation
 
     /// Applies and consumes `model.navigation`. It waits while no account is loaded yet.
     private func navigate() {
-        guard let link = model.navigation, let account = controller.account else { return }
+        guard let link = model.navigation, controller.isSignedIn else { return }
         model.navigation = nil
-        guard let target = MainNavigation(link, in: account, layout: controller.settings.layout) else { return }
+        guard let target = MainNavigation(link, repos: controller.repos, layout: controller.settings.layout)
+        else { return }
         if let sidebar = target.sidebar, sidebar != sidebarSelection {
             navigationSetSidebar = showsLayout
             sidebarSelection = sidebar
@@ -212,13 +221,13 @@ struct MainWindow: View {
     /// A filter change ends the pin; a selection the new filter hides is dropped.
     private func filterChanged() {
         pinned = nil
-        guard let key = selection, let account = controller.account else { return }
-        if !currentKeys(account).contains(key) { selection = nil }
+        guard let key = selection, controller.isSignedIn else { return }
+        if !currentKeys(controller.repos).contains(key) { selection = nil }
     }
 
     /// The keys of the list the user currently sees.
-    private func currentKeys(_ account: AccountData) -> Set<ItemKey> {
-        var entries = visibleEntries(account)
+    private func currentKeys(_ repos: [RepoID: RepoState]) -> Set<ItemKey> {
+        var entries = visibleEntries(repos)
         if controller.settings.layout == .sidebar, case .repo(let id) = sidebarSelection {
             entries = entries.filter { $0.repo.id == id }
         }
@@ -228,20 +237,20 @@ struct MainWindow: View {
     // MARK: Data
 
     /// Every watched repo's entries that pass the filters, plus the pinned one, in filter order.
-    private func visibleEntries(_ account: AccountData) -> [ItemEntry] {
+    private func visibleEntries(_ repos: [RepoID: RepoState]) -> [ItemEntry] {
         var records = ItemFilter.visible(
             controller.records(in: nil),
             filter: filter.wrappedValue,
-            viewers: ViewerLogins([controller.account?.login ?? ""]),
+            viewers: controller.viewers,
             scope: scope
         )
         if let pinned, !records.contains(where: { $0.item.key == pinned }),
-           let record = account.repos[pinned.repo]?.records[pinned.number] {
+           let record = repos[pinned.repo]?.records[pinned.number] {
             records.append(record)
             records.sort(by: Self.precedes)
         }
         return records.compactMap { record in
-            account.repos[record.item.key.repo].map { ItemEntry(record: record, repo: $0.repo) }
+            repos[record.item.key.repo].map { ItemEntry(record: record, repo: $0.repo) }
         }
     }
 
@@ -252,32 +261,37 @@ struct MainWindow: View {
         return a.item.key.number < b.item.key.number
     }
 
-    /// Watched repos ordered like the owners list, then by name.
-    private func repoSections(_ account: AccountData, entries: [ItemEntry]) -> [RepoSection] {
+    /// One section per account in account order, each with the watched repos it owns ordered like
+    /// its owners list, then by name. Accounts that own no watched repo are left out.
+    private func accountSections(_ repos: [RepoID: RepoState], entries: [ItemEntry]) -> [AccountSection] {
         let byRepo = Dictionary(grouping: entries, by: \.repo.id)
-        let ownerOrder = Dictionary(
-            controller.owners.enumerated().map { ($1.login, $0) }, uniquingKeysWith: { first, _ in first }
-        )
-        return account.repos.values
-            .map(\.repo)
-            .sorted { a, b in
-                let rankA = ownerOrder[a.owner] ?? .max, rankB = ownerOrder[b.owner] ?? .max
-                if rankA != rankB { return rankA < rankB }
-                if a.owner != b.owner { return a.owner.localizedCaseInsensitiveCompare(b.owner) == .orderedAscending }
-                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-            }
-            .map { repo in
-                RepoSection(
-                    repo: repo,
-                    counts: controller.counts(in: repo.id),
-                    entries: byRepo[repo.id] ?? [],
-                    failure: controller.lastReport?.repoFailures[repo.id]
-                )
-            }
+        let byOwner = Dictionary(grouping: repos.values.map(\.repo)) { controller.owner(of: $0.id)?.accountID }
+        return controller.sessions.compactMap { session in
+            guard let owned = byOwner[session.accountID], !owned.isEmpty else { return nil }
+            let ownerOrder = Dictionary(
+                session.owners.enumerated().map { ($1.login, $0) }, uniquingKeysWith: { first, _ in first }
+            )
+            let sections = owned
+                .sorted { a, b in
+                    let rankA = ownerOrder[a.owner] ?? .max, rankB = ownerOrder[b.owner] ?? .max
+                    if rankA != rankB { return rankA < rankB }
+                    if a.owner != b.owner { return a.owner.localizedCaseInsensitiveCompare(b.owner) == .orderedAscending }
+                    return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+                }
+                .map { repo in
+                    RepoSection(
+                        repo: repo,
+                        counts: controller.counts(in: repo.id),
+                        entries: byRepo[repo.id] ?? [],
+                        failure: session.lastReport?.repoFailures[repo.id]
+                    )
+                }
+            return AccountSection(login: session.login, repos: sections)
+        }
     }
 
-    private func entry(for key: ItemKey, in account: AccountData) -> ItemEntry? {
-        guard let state = account.repos[key.repo], let record = state.records[key.number] else { return nil }
+    private func entry(for key: ItemKey, in repos: [RepoID: RepoState]) -> ItemEntry? {
+        guard let state = repos[key.repo], let record = state.records[key.number] else { return nil }
         return ItemEntry(record: record, repo: state.repo)
     }
 
@@ -299,7 +313,8 @@ struct MainWindow: View {
     }
 }
 
-/// Warnings above the list: sign-in rejected, offline, rate limit, repositories that failed to sync.
+/// Warnings above the list: sign-in rejected, offline, rate limit (one per affected account, led
+/// by its login while there is more than one), repositories that failed to sync (all accounts).
 private struct MainBanners: View {
     let openSettings: () -> Void
 
@@ -308,28 +323,34 @@ private struct MainBanners: View {
     private var controller: RadarixController { model.controller }
 
     var body: some View {
-        if case .needsReauth(let login) = controller.auth {
+        let named = controller.sessions.count > 1
+        ForEach(controller.needsReauth, id: \.accountID) { session in
             Banner(systemImage: "exclamationmark.triangle.fill", tint: .orange) {
-                Text("GitHub no longer accepts the sign-in for \(login). Sign in again to continue syncing.")
+                if named {
+                    Text("\(session.login): sign in again")
+                } else {
+                    Text("GitHub no longer accepts the sign-in for \(session.login). Sign in again to continue syncing.")
+                }
             } action: {
                 Button("Sign in again", action: openSettings)
             }
         }
-        if controller.syncProblem == .offline {
-            Banner(systemImage: "wifi.slash", tint: .secondary) {
+        ForEach(controller.sessions.filter { $0.syncProblem == .offline }, id: \.accountID) { session in
+            Banner(systemImage: "wifi.slash", tint: .secondary, login: named ? session.login : nil) {
                 Text("Can't reach GitHub. Showing saved data.")
             }
         }
-        if let until = rateLimitedUntil {
+        ForEach(rateLimits) { limit in
             TimelineView(.everyMinute) { context in
-                if until > context.date {
-                    Banner(systemImage: "hourglass", tint: .yellow) {
-                        Text("GitHub's rate limit is reached. Radarix syncs again after \(Text(until, style: .time)).")
+                if limit.until > context.date {
+                    Banner(systemImage: "hourglass", tint: .yellow, login: named ? limit.login : nil) {
+                        Text("GitHub's rate limit is reached. Radarix syncs again after \(Text(limit.until, style: .time)).")
                     }
                 }
             }
         }
-        if let failures = controller.lastReport?.repoFailures, !failures.isEmpty {
+        let failures = repoFailures
+        if !failures.isEmpty {
             Banner(systemImage: "exclamationmark.circle", tint: .secondary) {
                 Text("\(failures.count) repositories could not be updated.")
             }
@@ -337,17 +358,37 @@ private struct MainBanners: View {
         }
     }
 
-    /// From the owners request or the sync itself.
-    private var rateLimitedUntil: Date? {
-        if case .rateLimited(let until) = controller.syncProblem { return until }
-        return controller.lastReport?.rateLimitedUntil
+    private struct RateLimit: Identifiable {
+        let id: AccountID
+        let login: String
+        let until: Date
+    }
+
+    /// Each rate-limited account with its reset, from the owners request or the sync itself.
+    private var rateLimits: [RateLimit] {
+        controller.sessions.compactMap { session in
+            let until: Date? = if case .rateLimited(let until) = session.syncProblem {
+                until
+            } else {
+                session.lastReport?.rateLimitedUntil
+            }
+            return until.map { RateLimit(id: session.accountID, login: session.login, until: $0) }
+        }
+    }
+
+    /// The failed repos of every account's last sync.
+    private var repoFailures: [RepoID: SyncFailure] {
+        controller.sessions.reduce(into: [:]) { result, session in
+            result.merge(session.lastReport?.repoFailures ?? [:]) { first, _ in first }
+        }
     }
 
     /// One line per failed repo: its name and what went wrong.
     private func failureDetails(_ failures: [RepoID: SyncFailure]) -> String {
-        failures
+        let repos = controller.repos
+        return failures
             .map { id, failure in
-                let name = controller.account?.repos[id]?.repo.fullName ?? String(id.rawValue)
+                let name = repos[id]?.repo.fullName ?? String(id.rawValue)
                 return "\(name): \(AppModel.message(for: failure))"
             }
             .sorted()
@@ -355,17 +396,22 @@ private struct MainBanners: View {
     }
 }
 
-/// A full-width strip with an icon, a message and an optional button.
+/// A full-width strip with an icon, a message led by an optional account login, and an optional button.
 private struct Banner<Message: View, Action: View>: View {
     let systemImage: String
     let tint: Color
+    var login: String?
     @ViewBuilder let message: Message
     @ViewBuilder let action: Action
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: systemImage).foregroundStyle(tint)
-            message.frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                if let login { Text(verbatim: "\(login):").fontWeight(.semibold) }
+                message
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             action
         }
         .padding(.horizontal, 12)
@@ -375,7 +421,7 @@ private struct Banner<Message: View, Action: View>: View {
 }
 
 extension Banner where Action == EmptyView {
-    init(systemImage: String, tint: Color, @ViewBuilder message: () -> Message) {
-        self.init(systemImage: systemImage, tint: tint, message: message, action: { EmptyView() })
+    init(systemImage: String, tint: Color, login: String? = nil, @ViewBuilder message: () -> Message) {
+        self.init(systemImage: systemImage, tint: tint, login: login, message: message, action: { EmptyView() })
     }
 }

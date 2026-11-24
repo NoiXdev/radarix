@@ -56,8 +56,10 @@ struct DeviceFlowSheet: View {
         }
     }
 
+    /// The first account's sign-in is accepted, which is what this sheet is opened for until the
+    /// Accounts tab adds accounts.
     private var isSignedIn: Bool {
-        if case .signedIn = controller.auth { true } else { false }
+        controller.sessions.first?.auth == .ok
     }
 
     private func progress(_ text: LocalizedStringKey) -> some View {

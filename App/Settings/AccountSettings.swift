@@ -11,24 +11,23 @@ struct AccountSettings: View {
 
     var body: some View {
         Form {
-            switch controller.auth {
-            case .signedOut:
+            // Shows the first account only until this tab lists every account.
+            if let session = controller.sessions.first {
+                if session.auth == .needsReauth {
+                    Section {
+                        Label(
+                            "GitHub no longer accepts the sign-in for \(session.login). Sign in again to continue syncing.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .foregroundStyle(.orange)
+                    }
+                    SignInSection(title: "Sign in again", showingDeviceFlow: $showingDeviceFlow)
+                }
+                AccountInfoSection(session: session)
+                accountActions
+            } else {
                 SignInSection(title: "Sign in with GitHub", showingDeviceFlow: $showingDeviceFlow)
                 resetSection
-            case .needsReauth(let login):
-                Section {
-                    Label(
-                        "GitHub no longer accepts the sign-in for \(login). Sign in again to continue syncing.",
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(.orange)
-                }
-                SignInSection(title: "Sign in again", showingDeviceFlow: $showingDeviceFlow)
-                AccountInfoSection()
-                accountActions
-            case .signedIn:
-                AccountInfoSection()
-                accountActions
             }
             if let errorMessage {
                 Section {
@@ -139,7 +138,7 @@ private struct SignInSection: View {
         errorMessage = nil
         Task {
             do {
-                try await model.controller.signIn(token: value, kind: .personalToken)
+                try await model.controller.addAccount(token: value, kind: .personalToken)
                 token = ""
             } catch {
                 errorMessage = AppModel.message(for: error)
@@ -150,20 +149,16 @@ private struct SignInSection: View {
 }
 
 private struct AccountInfoSection: View {
-    @Environment(AppModel.self) private var model
-
-    private var controller: RadarixController { model.controller }
+    let session: AccountSession
 
     var body: some View {
         Section {
-            if let account = controller.account {
-                LabeledContent("Account") { Text(verbatim: account.login) }
-            }
+            LabeledContent("Account") { Text(verbatim: session.login) }
             LabeledContent("Signed in with") { Text(credentialKind) }
             LabeledContent("Rate limit") { Text(rateLimit) }
             LabeledContent("Last sync") {
                 HStack(spacing: 6) {
-                    if controller.isSyncing {
+                    if session.isSyncing {
                         ProgressView().controlSize(.small)
                     }
                     Text(lastSync)
@@ -177,7 +172,7 @@ private struct AccountInfoSection: View {
     }
 
     private var syncProblem: String? {
-        switch controller.syncProblem {
+        switch session.syncProblem {
         case .offline:
             String(localized: "Can't reach GitHub. Showing saved data.")
         case .rateLimited(let until) where until > .now:
@@ -188,21 +183,20 @@ private struct AccountInfoSection: View {
     }
 
     private var credentialKind: String {
-        switch controller.credentialKind {
+        switch session.credentialKind {
         case .oauth: String(localized: "GitHub sign-in")
         case .personalToken: String(localized: "Personal access token")
-        case nil: "–"
         }
     }
 
     private var rateLimit: String {
-        guard let limit = controller.lastReport?.rateLimit else { return "–" }
+        guard let limit = session.lastReport?.rateLimit else { return "–" }
         let reset = limit.resetAt.formatted(date: .omitted, time: .shortened)
         return String(localized: "\(limit.remaining) / \(limit.limit), resets at \(reset)")
     }
 
     private var lastSync: String {
-        guard let date = controller.lastSyncAt else { return String(localized: "Not yet") }
+        guard let date = session.lastSyncAt else { return String(localized: "Not yet") }
         return date.formatted(date: .abbreviated, time: .shortened)
     }
 }
