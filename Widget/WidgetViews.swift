@@ -27,11 +27,15 @@ struct OverviewWidgetView: View {
         case .ok:
             switch family {
             case .systemSmall:
-                SmallOverview(summary: entry.summary, freshness: entry.freshness)
+                SmallOverview(summary: entry.summary, filterCaption: entry.filterCaption, freshness: entry.freshness)
             case .systemLarge:
-                LargeOverview(summary: entry.summary, scopeName: entry.scopeName, freshness: entry.freshness)
+                LargeOverview(
+                    summary: entry.summary, scopeName: entry.scopeName, filterCaption: entry.filterCaption,
+                    freshness: entry.freshness)
             default:
-                MediumOverview(summary: entry.summary, scopeName: entry.scopeName, freshness: entry.freshness)
+                MediumOverview(
+                    summary: entry.summary, scopeName: entry.scopeName, filterCaption: entry.filterCaption,
+                    freshness: entry.freshness)
             }
         case .needsReauth:
             StatusMessage(text: "Sign in again in Radarix.", systemImage: "exclamationmark.triangle.fill")
@@ -48,6 +52,7 @@ struct OverviewWidgetView: View {
 /// repository, and a tap opens Radarix.
 struct SmallOverview: View {
     let summary: WidgetSnapshot.Summary
+    var filterCaption: String?
     let freshness: Freshness?
 
     private var busiest: WidgetSnapshot.RepoEntry? { showsNote ? nil : summary.busiestRepo }
@@ -63,10 +68,20 @@ struct SmallOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            CountTile(count: summary.newCount, label: "new", fill: .attentionNew, ink: .white)
-                .accessibilityLabel(Text("\(summary.newCount) new items"))
-            CountTile(count: summary.updatedCount, label: "updated", fill: .attentionUpdated, ink: .attentionUpdatedInk)
-                .accessibilityLabel(Text("\(summary.updatedCount) updated items"))
+            CountTile(count: summary.newCount, isLowerBound: summary.isLowerBound, label: "new", fill: .attentionNew, ink: .white)
+                .accessibilityLabel(
+                    summary.isLowerBound
+                        ? Text("at least \(summary.newCount) new items") : Text("\(summary.newCount) new items"))
+            CountTile(
+                count: summary.updatedCount, isLowerBound: summary.isLowerBound, label: "updated",
+                fill: .attentionUpdated, ink: .attentionUpdatedInk
+            )
+            .accessibilityLabel(
+                summary.isLowerBound
+                    ? Text("at least \(summary.updatedCount) updated items") : Text("\(summary.updatedCount) updated items"))
+            if let filterCaption {
+                FilterCaption(text: filterCaption)
+            }
             if let freshness, showsNote {
                 FreshnessNote(freshness: freshness)
                     .font(.caption2)
@@ -92,15 +107,17 @@ struct SmallOverview: View {
 struct MediumOverview: View {
     let summary: WidgetSnapshot.Summary
     let scopeName: String
+    var filterCaption: String?
     let freshness: Freshness?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SummaryHeader(summary: summary, scopeName: scopeName, freshness: freshness)
+            SummaryHeader(summary: summary, scopeName: scopeName, filterCaption: filterCaption, freshness: freshness)
             if summary.items.isEmpty {
                 NothingNew()
             } else {
-                ItemList(items: Array(summary.items.prefix(4)), repos: summary.repos)
+                // The caption takes a line, so a filtered widget lists one item fewer.
+                ItemList(items: Array(summary.items.prefix(filterCaption == nil ? 4 : 3)), repos: summary.repos)
                 Spacer(minLength: 0)
             }
         }
@@ -112,6 +129,7 @@ struct MediumOverview: View {
 struct LargeOverview: View {
     let summary: WidgetSnapshot.Summary
     let scopeName: String
+    var filterCaption: String?
     let freshness: Freshness?
 
     private var busyRepos: [WidgetSnapshot.RepoEntry] {
@@ -120,7 +138,7 @@ struct LargeOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SummaryHeader(summary: summary, scopeName: scopeName, freshness: freshness)
+            SummaryHeader(summary: summary, scopeName: scopeName, filterCaption: filterCaption, freshness: freshness)
             if summary.items.isEmpty, busyRepos.isEmpty {
                 NothingNew()
             } else {
@@ -144,12 +162,13 @@ struct LargeOverview: View {
 private struct SummaryHeader: View {
     let summary: WidgetSnapshot.Summary
     let scopeName: String
+    let filterCaption: String?
     let freshness: Freshness?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(summary.newCount) new · \(summary.updatedCount) updated")
+                counts
                     .font(.headline)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -161,12 +180,36 @@ private struct SummaryHeader: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+            if let filterCaption {
+                FilterCaption(text: filterCaption)
+            }
             if let freshness {
                 FreshnessNote(freshness: freshness)
                     .font(.caption2)
                     .lineLimit(1)
             }
         }
+    }
+
+    /// A trailing "+" on each count says that the widget may be missing items.
+    private var counts: Text {
+        summary.isLowerBound
+            ? Text("\(summary.newCount)+ new · \(summary.updatedCount)+ updated")
+            : Text("\(summary.newCount) new · \(summary.updatedCount) updated")
+    }
+}
+
+/// What the widget's filter shows, for example "Assigned to me · Pull requests".
+private struct FilterCaption: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "line.3.horizontal.decrease")
+            .labelStyle(.titleAndIcon)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 }
 
@@ -215,13 +258,14 @@ private enum RelativeTime {
 /// A full-width bar with a count and its label, on the attention color.
 private struct CountTile: View {
     let count: Int
+    let isLowerBound: Bool
     let label: LocalizedStringKey
     let fill: Color
     let ink: Color
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(count, format: .number)
+            Text(isLowerBound ? "\(count.formatted())+" : count.formatted())
                 .font(.system(.title, design: .rounded, weight: .bold))
                 .monospacedDigit()
                 .minimumScaleFactor(0.6)
@@ -311,11 +355,11 @@ private struct RepoLink: View {
                     .truncationMode(.middle)
                 Spacer(minLength: 4)
                 if repo.newCount > 0 {
-                    CountBadge(count: repo.newCount, fill: .attentionNew, ink: .white)
+                    CountBadge(text: repo.newCount.formatted(), fill: .attentionNew, ink: .white)
                         .accessibilityLabel(Text("\(repo.newCount) new items"))
                 }
                 if repo.updatedCount > 0 {
-                    CountBadge(count: repo.updatedCount, fill: .attentionUpdated, ink: .attentionUpdatedInk)
+                    CountBadge(text: repo.updatedCount.formatted(), fill: .attentionUpdated, ink: .attentionUpdatedInk)
                         .accessibilityLabel(Text("\(repo.updatedCount) updated items"))
                 }
             }
@@ -337,12 +381,12 @@ private struct AttentionDot: View {
 
 /// A small capsule with a count.
 private struct CountBadge: View {
-    let count: Int
+    let text: String
     let fill: Color
     let ink: Color
 
     var body: some View {
-        Text(count, format: .number)
+        Text(text)
             .font(.caption2.weight(.semibold))
             .monospacedDigit()
             .foregroundStyle(ink)
@@ -395,6 +439,16 @@ private struct StatusMessage: View {
 }
 
 // MARK: Sample data
+
+extension FilterSet {
+    /// Updated pull requests, for the filtered previews.
+    static var samplePullRequests: FilterSet {
+        var filter = FilterSet()
+        filter.new = false
+        filter.pullRequests = true
+        return filter
+    }
+}
 
 extension WidgetSnapshot {
     /// For the placeholder, the widget gallery and previews.
@@ -470,6 +524,7 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sampleOneReauth, scope: .all)
     OverviewEntry(snapshot: .sampleWaiting, scope: .all)
     OverviewEntry(snapshot: nil, scope: .all)
+    OverviewEntry(snapshot: .sample, scope: .all, filter: .samplePullRequests)
 }
 
 #Preview("Medium", as: .systemMedium) {
@@ -481,6 +536,7 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sampleStale, scope: .all)
     OverviewEntry(snapshot: .sampleOneReauth, scope: .all)
     OverviewEntry(snapshot: .sampleNeedsReauth, scope: .all)
+    OverviewEntry(snapshot: .sample, scope: .all, filter: .samplePullRequests)
 }
 
 #Preview("Large", as: .systemLarge) {
@@ -491,4 +547,5 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sampleEmpty, scope: .all)
     OverviewEntry(snapshot: .sampleStale, scope: .all)
     OverviewEntry(snapshot: .signedOut, scope: .all)
+    OverviewEntry(snapshot: .sample, scope: .all, filter: .samplePullRequests)
 }

@@ -30,21 +30,28 @@ struct OverviewEntry: TimelineEntry {
     let snapshot: WidgetSnapshot?
     let scope: WidgetScope
     let scopeName: String
+    let filter: FilterSet
 
-    init(date: Date = .now, snapshot: WidgetSnapshot?, scope: WidgetScope) {
+    init(date: Date = .now, snapshot: WidgetSnapshot?, scope: WidgetScope, filter: FilterSet = FilterSet()) {
         self.date = date
         self.snapshot = snapshot
         self.scope = scope
+        self.filter = filter
         scopeName = Self.name(of: scope, in: snapshot)
     }
 
     init(date: Date = .now, snapshot: WidgetSnapshot?, configuration: ScopeIntent) {
-        self.init(date: date, snapshot: snapshot, scope: ScopeEntity.scope(forID: configuration.scope?.id, in: snapshot))
+        self.init(
+            date: date, snapshot: snapshot, scope: ScopeEntity.scope(forID: configuration.scope?.id, in: snapshot),
+            filter: configuration.filter)
     }
 
     var summary: WidgetSnapshot.Summary {
-        (snapshot ?? .signedOut).summary(for: scope)
+        (snapshot ?? .signedOut).summary(for: scope, filter: filter)
     }
+
+    /// What the active filter shows, or nil when nothing is filtered.
+    var filterCaption: String? { filter.caption }
 
     /// How old the data is at `date`; nil unless signed in.
     var freshness: Freshness? {

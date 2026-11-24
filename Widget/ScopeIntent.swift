@@ -10,10 +10,82 @@ struct ScopeIntent: WidgetConfigurationIntent {
     @Parameter(title: "Show")
     var scope: ScopeEntity?
 
+    /// The filter parameters. A widget configured with 1.0.0 lacks them and gets these defaults.
+    @Parameter(title: "New", default: true)
+    var new: Bool
+
+    @Parameter(title: "Updated", default: true)
+    var updated: Bool
+
+    @Parameter(title: "Unassigned", default: false)
+    var unassigned: Bool
+
+    @Parameter(title: "Assigned to me", default: false)
+    var assignedToMe: Bool
+
+    @Parameter(title: "Review requested", default: false)
+    var reviewRequested: Bool
+
+    @Parameter(title: "Pull requests", default: false)
+    var pullRequests: Bool
+
+    @Parameter(title: "Issues", default: false)
+    var issues: Bool
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Show \(\.$scope)") {
+            \.$new
+            \.$updated
+            \.$unassigned
+            \.$assignedToMe
+            \.$reviewRequested
+            \.$pullRequests
+            \.$issues
+        }
+    }
+
     init() {}
 
-    init(scope: ScopeEntity?) {
+    init(scope: ScopeEntity?, filter: FilterSet = FilterSet()) {
         self.scope = scope
+        new = filter.new
+        updated = filter.updated
+        unassigned = filter.unassigned
+        assignedToMe = filter.assignedToMe
+        reviewRequested = filter.reviewRequested
+        pullRequests = filter.pullRequests
+        issues = filter.issues
+    }
+
+    /// The filter these parameters describe.
+    var filter: FilterSet {
+        var filter = FilterSet()
+        filter.new = new
+        filter.updated = updated
+        filter.unassigned = unassigned
+        filter.assignedToMe = assignedToMe
+        filter.reviewRequested = reviewRequested
+        filter.pullRequests = pullRequests
+        filter.issues = issues
+        return filter
+    }
+}
+
+extension FilterSet {
+    /// The active chips joined with " · ", for example "Assigned to me · Pull requests".
+    /// Nil when the filter shows everything. Attention is named only when one of the two is off;
+    /// both off counts as both on.
+    var caption: String? {
+        var chips: [String] = []
+        if new != updated {
+            chips.append(new ? String(localized: "New") : String(localized: "Updated"))
+        }
+        if unassigned { chips.append(String(localized: "Unassigned")) }
+        if assignedToMe { chips.append(String(localized: "Assigned to me")) }
+        if reviewRequested { chips.append(String(localized: "Review requested")) }
+        if pullRequests { chips.append(String(localized: "Pull requests")) }
+        if issues { chips.append(String(localized: "Issues")) }
+        return chips.isEmpty ? nil : chips.joined(separator: " · ")
     }
 }
 
