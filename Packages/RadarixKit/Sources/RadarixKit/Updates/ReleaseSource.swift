@@ -15,7 +15,7 @@ public enum ReleaseFetch: Sendable, Equatable {
     case notModified
     /// 404: the repository has no published release yet.
     case none
-    /// 200. The release is nil when the tag does not parse the release is a draft or a pre-release, or its page is not an https URL on github.com.
+    /// 200. The release is nil when the tag does not parse, the release is a draft or a pre-release, or its page is not an https URL on github.com.
     case release(LatestRelease?, etag: String?)
 }
 
