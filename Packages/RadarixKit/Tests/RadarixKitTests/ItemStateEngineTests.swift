@@ -31,6 +31,12 @@ private func record(
     #expect(ItemStateEngine.apply(fetched: .fixture(author: "me"), previous: nil, viewers: ViewerLogins(["me"]), otherActivity: nil).attention == .seen)
 }
 
+@Test func authorMatchesViewerIgnoringCase() {
+    let result = ItemStateEngine.apply(
+        fetched: .fixture(author: "Octo"), previous: nil, viewers: ViewerLogins(["octo"]), otherActivity: nil)
+    #expect(result.attention == .seen)
+}
+
 @Test func otherAccountLoginCountsAsViewer() {
     let result = ItemStateEngine.apply(
         fetched: .fixture(author: "work"), previous: nil, viewers: ViewerLogins(["me", "work"]), otherActivity: nil)
