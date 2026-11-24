@@ -49,6 +49,17 @@ public actor GitHubClient {
         return .fresh(items)
     }
 
+    /// Elements of the last page of a paged resource: fetches page 1, then the `rel="last"` URL when present.
+    public func getLastPage<T: Decodable>(_ path: String, query: [URLQueryItem]) async throws -> [T] {
+        let first = try makeURL(path, query: pagedQuery(query))
+        let (data, response) = try await perform(first, conditional: false)
+        guard let data else { throw GitHubError.http(response.statusCode) }
+        guard let last = link(rel: "last", in: response), last != first else { return try decode([T].self, from: data) }
+        let (lastData, lastResponse) = try await perform(last, conditional: false)
+        guard let lastData else { throw GitHubError.http(lastResponse.statusCode) }
+        return try decode([T].self, from: lastData)
+    }
+
     private func collectPages<T: Decodable>(from first: URL, conditional: Bool) async throws -> [T] {
         try await collectPagesOrNil(from: first, conditional: conditional) ?? []
     }
@@ -60,7 +71,10 @@ public actor GitHubClient {
         var isFirst = true
         while let url = next {
             let (data, response) = try await perform(url, conditional: conditional && isFirst)
-            guard let data, response.statusCode != 304 else { return nil }
+            guard let data, response.statusCode != 304 else {
+                if conditional && isFirst { return nil }
+                throw GitHubError.http(304)
+            }
             result += try decode([T].self, from: data)
             next = nextLink(in: response)
             isFirst = false
@@ -121,7 +135,8 @@ public actor GitHubClient {
         case 401:
             throw GitHubError.unauthorized
         case 403:
-            if response.value(forHTTPHeaderField: "X-RateLimit-Remaining") == "0" {
+            if response.value(forHTTPHeaderField: "X-RateLimit-Remaining") == "0"
+                || response.value(forHTTPHeaderField: "Retry-After") != nil {
                 throw GitHubError.rateLimited(resetAt: resetDate(response))
             }
             throw GitHubError.forbidden(Self.message(in: data))
@@ -161,12 +176,14 @@ public actor GitHubClient {
         }
     }
 
-    /// Extracts the `rel="next"` URL from the `Link` header.
-    private func nextLink(in response: HTTPURLResponse) -> URL? {
+    private func nextLink(in response: HTTPURLResponse) -> URL? { link(rel: "next", in: response) }
+
+    /// Extracts the URL with the given `rel` from the `Link` header.
+    private func link(rel: String, in response: HTTPURLResponse) -> URL? {
         guard let header = response.value(forHTTPHeaderField: "Link") else { return nil }
         for part in header.split(separator: ",") {
             let pieces = part.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
-            guard pieces.count >= 2, pieces.dropFirst().contains(#"rel="next""#),
+            guard pieces.count >= 2, pieces.dropFirst().contains("rel=\"\(rel)\""),
                   let first = pieces.first, first.hasPrefix("<"), first.hasSuffix(">") else { continue }
             return URL(string: String(first.dropFirst().dropLast()))
         }

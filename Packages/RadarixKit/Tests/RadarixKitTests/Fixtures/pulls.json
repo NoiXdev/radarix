@@ -1,0 +1,35 @@
+[
+  {
+    "id": 201,
+    "number": 9,
+    "state": "open",
+    "draft": true,
+    "requested_reviewers": [
+      {
+        "login": "bob",
+        "id": 2,
+        "type": "User"
+      },
+      {
+        "login": "dana",
+        "id": 4,
+        "type": "User"
+      }
+    ],
+    "user": {
+      "login": "dependabot[bot]",
+      "type": "Bot"
+    }
+  },
+  {
+    "id": 202,
+    "number": 11,
+    "state": "open",
+    "draft": false,
+    "requested_reviewers": [],
+    "user": {
+      "login": "alice",
+      "type": "User"
+    }
+  }
+]

@@ -10,7 +10,7 @@ private struct Thing: Decodable, Equatable, Sendable {
 private let base = "https://api.github.com"
 
 private func makeClient(_ stub: StubTransport) -> GitHubClient {
-    GitHubClient(token: "tok", transport: stub)
+    GitHubClient(token: "SECRET-TOKEN-123", transport: stub)
 }
 
 @Suite struct GitHubClientTransportTests {
@@ -19,7 +19,7 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         await stub.enqueue("\(base)/user", status: 200, body: #"{"id":1}"#)
         let _: Thing = try await makeClient(stub).get("/user", query: [])
         let request = try #require(await stub.sent.first)
-        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer SECRET-TOKEN-123")
         #expect(request.value(forHTTPHeaderField: "Accept") == "application/vnd.github+json")
         #expect(request.value(forHTTPHeaderField: "X-GitHub-Api-Version") == "2022-11-28")
         #expect(request.httpMethod == "GET")
@@ -137,11 +137,11 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         let client = makeClient(stub)
 
         var before = Date()
-        do { let _: Thing = try await client.get("/a", query: []) } catch GitHubError.rateLimited(let resetAt) {
+        do { let _: Thing = try await client.get("/a", query: []); Issue.record("expected throw") } catch GitHubError.rateLimited(let resetAt) {
             #expect(resetAt >= before.addingTimeInterval(30) && resetAt <= Date().addingTimeInterval(30))
         }
         before = Date()
-        do { let _: Thing = try await client.get("/b", query: []) } catch GitHubError.rateLimited(let resetAt) {
+        do { let _: Thing = try await client.get("/b", query: []); Issue.record("expected throw") } catch GitHubError.rateLimited(let resetAt) {
             #expect(resetAt >= before.addingTimeInterval(60) && resetAt <= Date().addingTimeInterval(60))
         }
     }
@@ -162,8 +162,9 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         await stub.enqueue("\(base)/t", failure: URLError(.notConnectedToInternet))
         do {
             let _: Thing = try await makeClient(stub).get("/t", query: [])
+            Issue.record("expected throw")
         } catch {
-            #expect(!String(describing: error).contains("tok"))
+            #expect(!String(describing: error).contains("SECRET-TOKEN-123"))
         }
     }
 
@@ -210,5 +211,28 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         let _: [Thing] = try await client.getAllPages("/items", query: [])
         let _: [Thing] = try await client.getAllPages("/items", query: [])
         #expect(await stub.sent[1].value(forHTTPHeaderField: "If-None-Match") == nil)
+    }
+
+    @Test func secondaryRateLimit403UsesRetryAfter() async throws {
+        let stub = StubTransport()
+        await stub.enqueue("\(base)/t", status: 403, headers: ["Retry-After": "45", "X-RateLimit-Remaining": "100"])
+        let before = Date()
+        do {
+            let _: Thing = try await makeClient(stub).get("/t", query: [])
+            Issue.record("expected throw")
+        } catch GitHubError.rateLimited(let resetAt) {
+            #expect(resetAt >= before.addingTimeInterval(45) && resetAt <= Date().addingTimeInterval(45))
+        }
+    }
+
+    @Test func nonConditionalPagedThrowsOn304() async throws {
+        let stub = StubTransport()
+        await stub.enqueue("\(base)/items?per_page=100", status: 304)
+        do {
+            let _: [Thing] = try await makeClient(stub).getAllPages("/items", query: [])
+            Issue.record("expected throw")
+        } catch let error as GitHubError {
+            #expect(error == .http(304))
+        }
     }
 }

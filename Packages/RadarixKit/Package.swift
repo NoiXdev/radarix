@@ -9,6 +9,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "RadarixKit"),
-        .testTarget(name: "RadarixKitTests", dependencies: ["RadarixKit"]),
+        .testTarget(name: "RadarixKitTests", dependencies: ["RadarixKit"], resources: [.copy("Fixtures")]),
     ]
 )

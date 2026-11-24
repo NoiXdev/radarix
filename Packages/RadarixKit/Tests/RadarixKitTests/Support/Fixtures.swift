@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 @testable import RadarixKit
 
 let t0 = Date(timeIntervalSince1970: 1_800_000_000)
@@ -39,4 +40,10 @@ extension Item {
             bodyExcerpt: bodyExcerpt
         )
     }
+}
+
+/// Loads a JSON fixture from `Tests/RadarixKitTests/Fixtures`.
+func fixtureJSON(_ name: String) throws -> String {
+    let url = try #require(Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
+    return try String(contentsOf: url, encoding: .utf8)
 }
