@@ -60,7 +60,8 @@ struct DescriptionWindow: View {
             switch phase {
             case .loaded(let html?):
                 DescriptionWebView(
-                    html: DescriptionPage.html(body: html), baseURL: DescriptionPage.baseURL(for: entry.repo))
+                    html: DescriptionPage.html(body: html), baseURL: DescriptionPage.baseURL(for: entry.repo),
+                    itemURL: entry.record.item.url)
             case .loaded(nil):
                 Text("No description.")
                     .foregroundStyle(.secondary)

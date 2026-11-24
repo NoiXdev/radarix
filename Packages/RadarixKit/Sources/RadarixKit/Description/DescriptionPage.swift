@@ -32,15 +32,28 @@ public enum DescriptionPage {
     ///   - isInitialLoad: the view is waiting for the page it was just given, and has let nothing
     ///     through since.
     ///   - baseURL: the URL that page was loaded with; its navigation carries it as the request URL.
+    ///   - itemURL: the item's page on GitHub. A `#fragment` link in the body resolves against
+    ///     `baseURL`, so it opens here with that fragment instead of on the repository page.
     public static func decision(
-        for kind: NavigationKind, url: URL?, isMainFrame: Bool, isInitialLoad: Bool, baseURL: URL
+        for kind: NavigationKind, url: URL?, isMainFrame: Bool, isInitialLoad: Bool, baseURL: URL, itemURL: URL
     ) -> NavigationDecision {
         if isInitialLoad, kind == .other, isMainFrame, url == baseURL { return .allow }
         if kind == .linkActivated, let url, url.host() != nil,
            let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            if let fragment = url.fragment(percentEncoded: true), withoutFragment(url) == baseURL {
+                var target = URLComponents(url: itemURL, resolvingAgainstBaseURL: false)
+                target?.percentEncodedFragment = fragment
+                return .openInBrowser(target?.url ?? itemURL)
+            }
             return .openInBrowser(url)
         }
         return .cancel
+    }
+
+    private static func withoutFragment(_ url: URL) -> URL? {
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.fragment = nil
+        return components?.url
     }
 
     /// GitHub's rendered `body_html` in a complete page: a policy that allows no script, frame,

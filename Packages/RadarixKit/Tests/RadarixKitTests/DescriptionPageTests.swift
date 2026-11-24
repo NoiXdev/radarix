@@ -5,13 +5,15 @@ import Testing
 struct DescriptionPageTests {
     private let base = DescriptionPage.baseURL(for: .fixture(id: 1, owner: "octo", name: "radar"))
 
+    private let item = URL(string: "https://github.com/octo/radar/pull/7")!
+
     private func decide(
         _ kind: DescriptionPage.NavigationKind, _ string: String?,
         isMainFrame: Bool = true, isInitialLoad: Bool = false
     ) -> DescriptionPage.NavigationDecision {
         DescriptionPage.decision(
             for: kind, url: string.flatMap { URL(string: $0) },
-            isMainFrame: isMainFrame, isInitialLoad: isInitialLoad, baseURL: base)
+            isMainFrame: isMainFrame, isInitialLoad: isInitialLoad, baseURL: base, itemURL: item)
     }
 
     @Test func baseURLIsTheRepoOnGitHubAsADirectory() {
@@ -41,6 +43,14 @@ struct DescriptionPageTests {
         // A link is never loaded in the view, not even during the initial load or in a subframe.
         #expect(decide(.linkActivated, https.absoluteString, isInitialLoad: true) == .openInBrowser(https))
         #expect(decide(.linkActivated, https.absoluteString, isMainFrame: false) == .openInBrowser(https))
+    }
+
+    @Test func clickedFragmentLinksOpenTheItemAtTheFragment() {
+        // Same-page anchors resolve against the repo base URL; they belong to the item's page.
+        #expect(decide(.linkActivated, base.absoluteString + "#user-content-notes")
+            == .openInBrowser(URL(string: "https://github.com/octo/radar/pull/7#user-content-notes")!))
+        // A link to the repo page itself, without a fragment, still opens as it is.
+        #expect(decide(.linkActivated, base.absoluteString) == .openInBrowser(base))
     }
 
     @Test func clickedLinksWithOtherSchemesDoNothing() {
