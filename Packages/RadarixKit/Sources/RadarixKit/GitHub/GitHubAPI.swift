@@ -38,6 +38,10 @@ public protocol GitHubAPI: Sendable {
 }
 
 extension GitHubClient: GitHubAPI {
+    /// Only page 1 of a paged list is conditional (its ETag stands for the whole list), so every
+    /// list is sorted by update time: any change moves the changed entry onto page 1.
+    private static let newestFirst = [URLQueryItem(name: "sort", value: "updated"), URLQueryItem(name: "direction", value: "desc")]
+
     public func viewer() async throws -> Viewer {
         let user: UserDTO = try await get("/user", query: [])
         return Viewer(id: AccountID(rawValue: user.id), login: user.login)
@@ -53,9 +57,11 @@ extension GitHubClient: GitHubAPI {
         let fetched: Fetch<[RepoDTO]>
         switch owner.kind {
         case .user:
-            fetched = try await getAllPagesConditional("/user/repos", query: [URLQueryItem(name: "affiliation", value: "owner")])
+            fetched = try await getAllPagesConditional(
+                "/user/repos", query: [URLQueryItem(name: "affiliation", value: "owner")] + Self.newestFirst)
         case .organization:
-            fetched = try await getAllPagesConditional("/orgs/\(owner.login)/repos", query: [URLQueryItem(name: "type", value: "all")])
+            fetched = try await getAllPagesConditional(
+                "/orgs/\(owner.login)/repos", query: [URLQueryItem(name: "type", value: "all")] + Self.newestFirst)
         }
         switch fetched {
         case .notModified:
@@ -76,7 +82,7 @@ extension GitHubClient: GitHubAPI {
         case .changed:
             items = [URLQueryItem(name: "state", value: "all")]
         }
-        items += [URLQueryItem(name: "sort", value: "updated"), URLQueryItem(name: "direction", value: "desc")]
+        items += Self.newestFirst
         if case .changed(let since) = query {
             // Fixed format: the URL (and so the ETag cache key) must be identical for the same Date.
             items.append(URLQueryItem(name: "since", value: ISO8601DateFormatter().string(from: since)))
@@ -97,7 +103,7 @@ extension GitHubClient: GitHubAPI {
 
     public func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]> {
         let fetched: Fetch<[PullDTO]> = try await getAllPagesConditional(
-            "/repos/\(repo.owner)/\(repo.name)/pulls", query: [URLQueryItem(name: "state", value: "open")])
+            "/repos/\(repo.owner)/\(repo.name)/pulls", query: [URLQueryItem(name: "state", value: "open")] + Self.newestFirst)
         switch fetched {
         case .notModified:
             return .notModified

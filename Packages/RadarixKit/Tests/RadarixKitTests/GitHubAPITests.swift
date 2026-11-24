@@ -31,8 +31,8 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
 
     @Test func userReposUseOwnerAffiliation() async throws {
         let stub = StubTransport()
-        await stub.enqueue("\(base)/user/repos?affiliation=owner&per_page=100", status: 200, body: try fixtureJSON("repos"))
-        await stub.enqueue("\(base)/orgs/acme/repos?type=all&per_page=100", status: 200, body: try fixtureJSON("repos"))
+        await stub.enqueue("\(base)/user/repos?affiliation=owner&sort=updated&direction=desc&per_page=100", status: 200, body: try fixtureJSON("repos"))
+        await stub.enqueue("\(base)/orgs/acme/repos?type=all&sort=updated&direction=desc&per_page=100", status: 200, body: try fixtureJSON("repos"))
         let client = makeClient(stub)
 
         guard case .fresh(let repos) = try await client.repositories(of: OwnerRef(login: "octo", kind: .user)) else {
@@ -174,7 +174,7 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
 
     @Test func pullDetailsKeyedByNumber() async throws {
         let stub = StubTransport()
-        await stub.enqueue("\(base)/repos/octo/hello-world/pulls?state=open&per_page=100", status: 200, body: try fixtureJSON("pulls"))
+        await stub.enqueue("\(base)/repos/octo/hello-world/pulls?state=open&sort=updated&direction=desc&per_page=100", status: 200, body: try fixtureJSON("pulls"))
         guard case .fresh(let details) = try await makeClient(stub).openPullDetails(in: repo) else {
             Issue.record("expected fresh"); return
         }
