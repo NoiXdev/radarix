@@ -4,8 +4,9 @@ import Foundation
 /// Scriptable `GitHubAPI` for sync tests.
 ///
 /// Results are queued per owner login, repo id or item number and served
-/// first-in-first-out. Unscripted fetches answer `.notModified`, unscripted
-/// activity probes answer `false`. Every network call is recorded in `calls`
+/// first-in-first-out; `viewer()` and `owners()` answer a fixed, settable result.
+/// Unscripted fetches answer `.notModified`, unscripted activity probes answer
+/// `false`. Every network call is recorded in `calls`
 /// (`rateLimit()` is local state, not a call, and is not recorded); repos whose
 /// conditional state was forgotten are recorded in `forgotten`.
 actor StubGitHubAPI: GitHubAPI {
@@ -28,6 +29,11 @@ actor StubGitHubAPI: GitHubAPI {
     private var activityResults: [Int: [Result<Bool, GitHubError>]] = [:]
     private var currentRateLimit: RateLimit?
     private var cancellingProbes: Set<Int> = []
+    private var viewerResult: Result<Viewer, GitHubError> = .success(Viewer(id: AccountID(rawValue: 42), login: "me"))
+    private var ownersResult: Result<[OwnerRef], GitHubError> = .success([])
+    private var heldItems: RepoID?
+    private var heldContinuation: CheckedContinuation<Void, Never>?
+    private var holdWaiters: [CheckedContinuation<Void, Never>] = []
 
     func scriptRepositories(_ owner: String, _ results: Scripted<[RepoRef]>...) {
         repoLists[owner, default: []] += results
@@ -51,6 +57,32 @@ actor StubGitHubAPI: GitHubAPI {
         cancellingProbes.insert(number)
     }
 
+    /// Answer of every `viewer()` call from now on.
+    func setViewer(_ result: Result<Viewer, GitHubError>) {
+        viewerResult = result
+    }
+
+    /// Answer of every `owners()` call from now on.
+    func setOwners(_ result: Result<[OwnerRef], GitHubError>) {
+        ownersResult = result
+    }
+
+    /// The next `items` call for this repo suspends until `releaseItems()`.
+    func holdItems(_ repo: RepoRef) {
+        heldItems = repo.id
+    }
+
+    /// Returns once a held `items` call is suspended.
+    func waitForHeldItems() async {
+        guard heldContinuation == nil else { return }
+        await withCheckedContinuation { holdWaiters.append($0) }
+    }
+
+    func releaseItems() {
+        heldContinuation?.resume()
+        heldContinuation = nil
+    }
+
     func setRateLimit(_ limit: RateLimit?) {
         currentRateLimit = limit
     }
@@ -63,12 +95,12 @@ actor StubGitHubAPI: GitHubAPI {
 
     func viewer() async throws -> Viewer {
         calls.append(.viewer)
-        return Viewer(id: AccountID(rawValue: 42), login: "me")
+        return try viewerResult.get()
     }
 
     func owners() async throws -> [OwnerRef] {
         calls.append(.owners)
-        return []
+        return try ownersResult.get()
     }
 
     func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]> {
@@ -78,6 +110,14 @@ actor StubGitHubAPI: GitHubAPI {
 
     func items(in repo: RepoRef, query: IssueQuery) async throws -> Fetch<[Item]> {
         calls.append(.items(repo: repo.id, query: query))
+        if heldItems == repo.id {
+            heldItems = nil
+            await withCheckedContinuation { continuation in
+                heldContinuation = continuation
+                holdWaiters.forEach { $0.resume() }
+                holdWaiters = []
+            }
+        }
         return try (Self.pop(&itemResults, repo.id) ?? .success(.notModified)).get()
     }
 
