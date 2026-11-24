@@ -43,13 +43,55 @@ struct SchemaEvolutionTests {
         expectedSettings.notifyBots = true
         expectedSettings.notifyUpdated = true
         expectedSettings.openAtLogin = true
-        expectedSettings.lastAccountID = AccountID(rawValue: 42)
+        expectedSettings.accountIDs = [AccountID(rawValue: 42)]
         #expect(settings == expectedSettings)
         #expect(settings.schemaVersion == 1)
 
         let account = try decode(AccountData.self, fixtureJSON("plan1-account"))
         #expect(account == expectedAccount())
         #expect(account.schemaVersion == 1)
+    }
+
+    @Test func v2SettingsMapLastAccountToAccountList() throws {
+        let settings = try decode(AppSettings.self, fixtureJSON("plan2-settings"))
+        var expected = AppSettings()
+        expected.schemaVersion = 2
+        expected.layout = .grouped
+        expected.refreshInterval = 600
+        expected.botDisplay = .grouped
+        expected.notifyBots = true
+        expected.notifyUpdated = true
+        expected.openAtLogin = true
+        expected.accountIDs = [AccountID(rawValue: 42)]
+        #expect(settings == expected)
+    }
+
+    @Test func plan1SettingsMapLastAccountToAccountList() throws {
+        let settings = try decode(AppSettings.self, fixtureJSON("plan1-settings"))
+        #expect(settings.accountIDs == [AccountID(rawValue: 42)])
+        #expect(settings.schemaVersion == 1)
+    }
+
+    @Test func settingsWithoutAccountDecodeToEmptyList() throws {
+        let settings = try decode(AppSettings.self, "{}")
+        #expect(settings.accountIDs == [])
+        #expect(settings.schemaVersion == 1)
+    }
+
+    @Test func settingsEncodeAccountIDsNotLastAccountID() throws {
+        var settings = AppSettings()
+        settings.accountIDs = [AccountID(rawValue: 1), AccountID(rawValue: 2)]
+        let data = try JSONEncoder().encode(settings)
+        let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let ids = try #require(object["accountIDs"] as? [[String: Int]])
+        #expect(ids == [["rawValue": 1], ["rawValue": 2]])
+        #expect(object["lastAccountID"] == nil)
+        #expect(object["schemaVersion"] as? Int == 3)
+    }
+
+    @Test func accountWithoutAvailableDecodesEmpty() throws {
+        let account = try decode(AccountData.self, fixtureJSON("plan1-account"))
+        #expect(account.available == [:])
     }
 
     @Test func emptyObjectsUseDefaults() throws {
@@ -102,12 +144,12 @@ struct SchemaEvolutionTests {
         try store.saveAccount(account)
 
         var reloadedSettings = try store.loadSettings()
-        #expect(reloadedSettings.schemaVersion == 2)
+        #expect(reloadedSettings.schemaVersion == 3)
         reloadedSettings.schemaVersion = 1
         #expect(reloadedSettings == settings)
 
         var reloadedAccount = try #require(try store.loadAccount(account.accountID))
-        #expect(reloadedAccount.schemaVersion == 2)
+        #expect(reloadedAccount.schemaVersion == 3)
         reloadedAccount.schemaVersion = 1
         #expect(reloadedAccount == account)
     }

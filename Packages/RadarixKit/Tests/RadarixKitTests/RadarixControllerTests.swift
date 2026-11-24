@@ -50,7 +50,7 @@ private final class Harness {
     func seed(_ account: AccountData, kind: CredentialKind = .oauth) async throws {
         await api.setOwners(.success([user]))
         var settings = AppSettings()
-        settings.lastAccountID = account.accountID
+        settings.accountIDs = [account.accountID]
         try store.saveSettings(settings)
         try store.saveAccount(account)
         try credentials.save(Credential(token: "stored-token", kind: kind), for: account.accountID)
@@ -100,8 +100,8 @@ struct RadarixControllerTests {
         #expect(try h.credentials.load(for: me) == Credential(token: "pat-123", kind: .personalToken))
         #expect(controller.auth == .signedIn(login: "me"))
         #expect(controller.credentialKind == .personalToken)
-        #expect(controller.settings.lastAccountID == me)
-        #expect(try h.store.loadSettings().lastAccountID == me)
+        #expect(controller.settings.accountIDs == [me])
+        #expect(try h.store.loadSettings().accountIDs == [me])
         #expect(controller.owners == [user])
         #expect(controller.lastSyncAt == localNow)
         #expect(!controller.isSyncing)
@@ -124,7 +124,7 @@ struct RadarixControllerTests {
         #expect(controller.credentialKind == nil)
         #expect(try h.credentials.load(for: me) == nil)
         #expect(try h.store.loadAccount(me) == nil)
-        #expect(controller.settings.lastAccountID == nil)
+        #expect(controller.settings.accountIDs.isEmpty)
     }
 
     @Test func switchingCredentialKindKeepsAccountData() async throws {
@@ -171,7 +171,7 @@ struct RadarixControllerTests {
         #expect(controller.lastReport == nil)
         #expect(try h.credentials.load(for: me) == nil)
         #expect(try h.store.loadAccount(me)?.watch.owners["o"] == .all(excluded: []))
-        #expect(try h.store.loadSettings().lastAccountID == me)
+        #expect(try h.store.loadSettings().accountIDs == [me])
 
         try await controller.signIn(token: "t", kind: .oauth)
         controller.updateSettings { $0.botDisplay = .hidden }
@@ -235,7 +235,7 @@ struct RadarixControllerTests {
 
         // Credential but no account file: signs in with the stored credential.
         var settings = AppSettings()
-        settings.lastAccountID = me
+        settings.accountIDs = [me]
         try h.store.saveSettings(settings)
         try h.credentials.save(Credential(token: "stored-token", kind: .oauth), for: me)
         let controller = h.makeController()
@@ -684,7 +684,7 @@ struct RadarixControllerTests {
         let h = Harness()
         defer { h.cleanUp() }
         var settings = AppSettings()
-        settings.lastAccountID = me
+        settings.accountIDs = [me]
         try h.store.saveSettings(settings)
         try h.credentials.save(Credential(token: "stored-token", kind: .oauth), for: me)
         await h.api.setViewer(.failure(.network("offline")))

@@ -93,7 +93,7 @@ public final class RadarixController {
 
     /// Loads the last account and its credential, then syncs. Stored data is shown even when offline.
     public func restoreSession() async {
-        guard let id = settings.lastAccountID, let credential = try? credentials.load(for: id) else {
+        guard let id = settings.accountIDs.first, let credential = try? credentials.load(for: id) else {
             writeSnapshot()
             return
         }
@@ -114,7 +114,7 @@ public final class RadarixController {
         loaded.login = viewer.login
         try store.saveAccount(loaded)
         try credentials.save(Credential(token: token, kind: kind), for: viewer.id)
-        settings.lastAccountID = viewer.id
+        settings.accountIDs = [viewer.id]
         saveSettings()
         begin(api: api, account: loaded, kind: kind)
         await refresh()
@@ -129,7 +129,7 @@ public final class RadarixController {
         try await signIn(token: token, kind: .oauth)
     }
 
-    /// Deletes the credential; the account file and `lastAccountID` stay.
+    /// Deletes the credential; the account file and `accountIDs` stay.
     public func signOut() throws {
         if let id = account?.accountID { try credentials.delete(for: id) }
         end()

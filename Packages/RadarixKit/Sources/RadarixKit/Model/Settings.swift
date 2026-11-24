@@ -5,7 +5,7 @@ public enum BotDisplayMode: String, Codable, Sendable { case badge, grouped, hid
 
 public struct AppSettings: Codable, Sendable, Equatable {
     /// Version of the file layout. Files written before versioning decode as 1; saving always writes the current one.
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
     public var schemaVersion = AppSettings.currentSchemaVersion
     public var layout: MainLayout = .sidebar
     public var refreshInterval: TimeInterval = 300
@@ -14,12 +14,15 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var notifyBots = false
     public var notifyUpdated = false
     public var openAtLogin = false
-    public var lastAccountID: AccountID?
+    /// Signed-in accounts, oldest first. The order decides repo ownership and sidebar order.
+    public var accountIDs: [AccountID] = []
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, lastAccountID
+        case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, accountIDs
+        /// Schema 1 and 2 only; decoded into `accountIDs`, never written.
+        case lastAccountID
     }
 
     public init(from decoder: Decoder) throws {
@@ -32,7 +35,11 @@ public struct AppSettings: Codable, Sendable, Equatable {
         notifyBots = try c.decodeIfPresent(Bool.self, forKey: .notifyBots) ?? defaults.notifyBots
         notifyUpdated = try c.decodeIfPresent(Bool.self, forKey: .notifyUpdated) ?? defaults.notifyUpdated
         openAtLogin = try c.decodeIfPresent(Bool.self, forKey: .openAtLogin) ?? defaults.openAtLogin
-        lastAccountID = try c.decodeIfPresent(AccountID.self, forKey: .lastAccountID)
+        if let ids = try c.decodeIfPresent([AccountID].self, forKey: .accountIDs) {
+            accountIDs = ids
+        } else if let legacy = try c.decodeIfPresent(AccountID.self, forKey: .lastAccountID) {
+            accountIDs = [legacy]
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -44,7 +51,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         try c.encode(notifyBots, forKey: .notifyBots)
         try c.encode(notifyUpdated, forKey: .notifyUpdated)
         try c.encode(openAtLogin, forKey: .openAtLogin)
-        try c.encodeIfPresent(lastAccountID, forKey: .lastAccountID)
+        try c.encode(accountIDs, forKey: .accountIDs)
     }
 }
 
@@ -107,21 +114,27 @@ public struct RepoState: Codable, Sendable, Equatable {
 
 public struct AccountData: Codable, Sendable, Equatable {
     /// Version of the file layout. Files written before versioning decode as 1; saving always writes the current one.
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
     public var schemaVersion = AccountData.currentSchemaVersion
     public let accountID: AccountID
     public var login: String
     public var watch = WatchConfig()
     public var repos: [RepoID: RepoState] = [:]
+    /// Repo list of every active owner from the last resolution, keyed by owner login.
+    public var available: [String: [RepoRef]] = [:]
 
-    public init(accountID: AccountID, login: String, watch: WatchConfig = WatchConfig(), repos: [RepoID: RepoState] = [:]) {
+    public init(
+        accountID: AccountID, login: String, watch: WatchConfig = WatchConfig(), repos: [RepoID: RepoState] = [:],
+        available: [String: [RepoRef]] = [:]
+    ) {
         self.accountID = accountID
         self.login = login
         self.watch = watch
         self.repos = repos
+        self.available = available
     }
 
-    private enum CodingKeys: String, CodingKey { case schemaVersion, accountID, login, watch, repos }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, accountID, login, watch, repos, available }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -130,6 +143,7 @@ public struct AccountData: Codable, Sendable, Equatable {
         login = try c.decode(String.self, forKey: .login)
         watch = try c.decodeIfPresent(WatchConfig.self, forKey: .watch) ?? WatchConfig()
         repos = try c.decodeIfPresent([RepoID: RepoState].self, forKey: .repos) ?? [:]
+        available = try c.decodeIfPresent([String: [RepoRef]].self, forKey: .available) ?? [:]
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -139,5 +153,6 @@ public struct AccountData: Codable, Sendable, Equatable {
         try c.encode(login, forKey: .login)
         try c.encode(watch, forKey: .watch)
         try c.encode(repos, forKey: .repos)
+        try c.encode(available, forKey: .available)
     }
 }

@@ -16,7 +16,7 @@ struct FileStoreTests {
         #expect(s.refreshInterval == 300)
         #expect(s.botDisplay == .badge)
         #expect(!s.notifyBots && !s.notifyUpdated && !s.openAtLogin)
-        #expect(s.lastAccountID == nil)
+        #expect(s.accountIDs.isEmpty)
         #expect(AppSettings.refreshIntervals == [120, 300, 600, 900, 1800])
     }
 
@@ -29,7 +29,7 @@ struct FileStoreTests {
         s.refreshInterval = 600
         s.botDisplay = .hidden
         s.notifyBots = true
-        s.lastAccountID = AccountID(rawValue: 7)
+        s.accountIDs = [AccountID(rawValue: 7), AccountID(rawValue: 8)]
         try store.saveSettings(s)
         #expect(try store.loadSettings() == s)
         #expect(FileManager.default.fileExists(atPath: dir.appending(path: "settings.json").path))
@@ -49,6 +49,7 @@ struct FileStoreTests {
             repo: repo, baselineAt: t0, highWaterMark: t1,
             records: [5: ItemRecord(item: .fixture(number: 5), attention: .new, seenAt: t2, commentsAtSeen: 1)],
             lastFailure: "boom")
+        a.available = ["o": [repo]]
         try store.saveAccount(a)
 
         #expect(FileManager.default.fileExists(atPath: dir.appending(path: "accounts/42.json").path))
