@@ -391,6 +391,30 @@ struct RadarixControllerTests {
         #expect(stored?.watch.notificationsOff == [repoA.id])
     }
 
+    @Test func markSeenDuringSyncYieldsToNewerVersion() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .updated, updatedAt: t1)]]))
+        await h.api.scriptRepositories("o", .success(.fresh([repoA])))
+        // The sync finds a newer version of item 1 than the one the user marks seen.
+        await h.api.scriptItems(repoA, .success(.fresh([.fixture(number: 1, commentCount: 4, createdAt: t0, updatedAt: t2)])))
+        await h.api.holdItems(repoA)
+        let controller = h.makeController()
+
+        let restoring = Task { await controller.restoreSession() }
+        await h.api.waitForHeldItems()
+        controller.markSeen(key(1))
+        #expect(controller.records(in: repoA.id).first?.attention == .seen)
+        await h.api.releaseItems()
+        await restoring.value
+
+        // Re-applying the mark would hide a real update: the record keeps what the sync found.
+        let synced = try #require(controller.records(in: repoA.id).first { $0.item.key == key(1) })
+        #expect(synced.attention == .updated)
+        #expect(synced.item.updatedAt == t2)
+        #expect(try h.store.loadAccount(me)?.repos[repoA.id]?.records[1]?.attention == .updated)
+    }
+
     @Test func ownerModeChangeTriggersSync() async throws {
         let h = Harness()
         defer { h.cleanUp() }
