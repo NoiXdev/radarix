@@ -60,7 +60,7 @@ struct RepoSectionList: View {
     var body: some View {
         ScrollViewReader { proxy in
             list
-                .onChange(of: scrollTarget) { _, target in
+                .onChange(of: scrollTarget, initial: true) { _, target in
                     guard let target else { return }
                     switch target {
                     case .item(let key):

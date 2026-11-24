@@ -147,7 +147,7 @@ struct SidebarLayout<Header: View>: View {
             .overlay {
                 if entries.isEmpty { NoMatchingItems() }
             }
-            .onChange(of: scrollTarget) { _, target in
+            .onChange(of: scrollTarget, initial: true) { _, target in
                 guard let target else { return }
                 if case .item(let key) = target { proxy.scrollTo(key) }
                 scrollTarget = nil
