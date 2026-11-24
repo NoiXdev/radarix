@@ -22,7 +22,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.noix.radarix
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: App/Radarix.entitlements
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: NO
         SWIFT_VERSION: "6.0"
     info:
       path: App/Info.plist
@@ -32,3 +32,7 @@ targets:
         GitHubOAuthClientID: $(RADARIX_OAUTH_CLIENT_ID)
         RadarixAppGroup: $(TeamIdentifierPrefix)dev.noix.radarix
         LSApplicationCategoryType: public.app-category.developer-tools
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.noix.radarix
+            CFBundleURLSchemes:
+              - radarix

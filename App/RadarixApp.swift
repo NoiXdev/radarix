@@ -3,19 +3,20 @@ import SwiftUI
 
 @main
 struct RadarixApp: App {
-    @State private var model = AppModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    private var model: AppModel { appDelegate.model }
 
     var body: some Scene {
         WindowGroup(id: "main") {
             MainWindow()
-                .onAppear { model.start() }
         }
         .defaultSize(width: 1040, height: 640)
+        .handlesExternalEvents(matching: [DeepLink.scheme])
         .environment(model)
         .commands { MainCommands(controller: model.controller) }
         Settings {
             SettingsView()
-                .onAppear { model.start() }
         }
         .environment(model)
     }

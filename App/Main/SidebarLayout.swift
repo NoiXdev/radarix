@@ -10,6 +10,8 @@ struct SidebarLayout<Header: View>: View {
     @Binding var sidebarSelection: SidebarItem?
     @Binding var selection: ItemKey?
     let selectedEntry: ItemEntry?
+    /// Scrolled into view, then set back to nil.
+    @Binding var scrollTarget: ScrollTarget?
     let showsBotBadges: Bool
     let actions: ItemActions
     @ViewBuilder let header: Header
@@ -72,15 +74,22 @@ struct SidebarLayout<Header: View>: View {
     }
 
     private var itemList: some View {
-        List(selection: $selection) {
-            ForEach(entries) { entry in
-                ItemRow(entry: entry, showsRepo: selectedRepo == nil, showsBotBadge: showsBotBadges)
-                    .tag(entry.id)
+        ScrollViewReader { proxy in
+            List(selection: $selection) {
+                ForEach(entries) { entry in
+                    ItemRow(entry: entry, showsRepo: selectedRepo == nil, showsBotBadge: showsBotBadges)
+                        .tag(entry.id)
+                }
             }
-        }
-        .itemContextMenu(entries: entries, actions: actions)
-        .overlay {
-            if entries.isEmpty { NoMatchingItems() }
+            .itemContextMenu(entries: entries, actions: actions)
+            .overlay {
+                if entries.isEmpty { NoMatchingItems() }
+            }
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                if case .item(let key) = target { proxy.scrollTo(key) }
+                scrollTarget = nil
+            }
         }
     }
 }
@@ -130,6 +139,7 @@ struct NoMatchingItems: View {
         sidebarSelection: $sidebarSelection,
         selection: $selection,
         selectedEntry: PreviewSamples.entries.first { $0.id == selection },
+        scrollTarget: .constant(nil),
         showsBotBadges: true,
         actions: ItemActions()
     ) {

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 import RadarixKit
 
@@ -8,6 +8,10 @@ final class AppModel {
     let controller: RadarixController
     /// Empty when this build has no OAuth App; the token sign-in still works.
     let oauthClientID: String
+    /// Set by the app delegate before any scene appears.
+    var launchedAtLogin = false
+    /// A link the main window should show next; it sets this back to nil once handled.
+    var navigation: DeepLink?
 
     @ObservationIgnored private var started = false
 
@@ -32,6 +36,12 @@ final class AppModel {
             await controller.restoreSession()
             controller.startScheduler()
         }
+    }
+
+    /// Shows `link` in the main window, opening one if none is open. Needs no `openWindow`:
+    /// the system hands the link back to the main window group.
+    func open(_ link: DeepLink) {
+        NSWorkspace.shared.open(link.url)
     }
 
     /// Where the user grants an organization access for the current credential.

@@ -193,6 +193,22 @@
         }
       }
     },
+    "Allow Radarix in System Settings → Login Items." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlaube Radarix in den Systemeinstellungen unter „Anmeldeobjekte“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Radarix in System Settings → Login Items."
+          }
+        }
+      }
+    },
     "Archived" : {
       "localizations" : {
         "de" : {
@@ -1197,6 +1213,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open GitHub"
+          }
+        }
+      }
+    },
+    "Open Login Items" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anmeldeobjekte öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Login Items"
+          }
+        }
+      }
+    },
+    "Open at login" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei der Anmeldung öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open at login"
           }
         }
       }

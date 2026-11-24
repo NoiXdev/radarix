@@ -1,11 +1,31 @@
+import AppKit
 import RadarixKit
 import SwiftUI
 
 struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
 
+    /// The system's login item status, read on appear and whenever Radarix becomes active.
+    @State private var opensAtLogin = false
+    @State private var loginItemNeedsApproval = false
+    @State private var loginItemError: String?
+
     var body: some View {
         Form {
+            Section {
+                Toggle("Open at login", isOn: Binding(get: { opensAtLogin }, set: setOpenAtLogin))
+                if let loginItemError {
+                    Text(loginItemError)
+                        .foregroundStyle(.red)
+                } else if loginItemNeedsApproval {
+                    HStack {
+                        Text("Allow Radarix in System Settings → Login Items.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Login Items") { LoginItem.openSystemSettings() }
+                    }
+                }
+            }
             Section {
                 Picker("Layout", selection: setting(\.layout)) {
                     Text("Sidebar").tag(MainLayout.sidebar)
@@ -28,6 +48,31 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear(perform: readLoginItem)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            readLoginItem()
+        }
+    }
+
+    private func setOpenAtLogin(_ enabled: Bool) {
+        do {
+            try LoginItem.setEnabled(enabled)
+            loginItemError = nil
+        } catch {
+            loginItemError = AppModel.message(for: error)
+        }
+        readLoginItem()
+    }
+
+    /// Shows the real status and mirrors it into the settings. A registration that still
+    /// waits for approval shows as on, so it can be turned off again.
+    private func readLoginItem() {
+        loginItemNeedsApproval = LoginItem.needsApproval
+        opensAtLogin = LoginItem.isEnabled || loginItemNeedsApproval
+        let enabled = LoginItem.isEnabled
+        if model.controller.settings.openAtLogin != enabled {
+            model.controller.updateSettings { $0.openAtLogin = enabled }
+        }
     }
 
     private func setting<Value>(_ keyPath: WritableKeyPath<AppSettings, Value>) -> Binding<Value> {

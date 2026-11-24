@@ -46,6 +46,9 @@ struct MainWindow: View {
     @State private var selection: ItemKey?
     /// The selected key stays listed although the filter would hide it, until selection or filter change.
     @State private var pinned: ItemKey?
+    @State private var scrollTarget: ScrollTarget?
+    /// A deep link set the sidebar along with the selection; that change must not drop them.
+    @State private var navigationSetSidebar = false
 
     private var controller: RadarixController { model.controller }
 
@@ -54,6 +57,16 @@ struct MainWindow: View {
             .navigationTitle("Radarix")
             .toolbar { syncToolbar }
             .frame(minWidth: 720, minHeight: 420)
+            // An open main window takes the link; the window group opens a new one only when none is open.
+            .handlesExternalEvents(preferring: [DeepLink.scheme], allowing: [DeepLink.scheme])
+            .onOpenURL { url in
+                guard let link = DeepLink(url: url) else { return }
+                NSApp.activate()
+                model.navigation = link
+            }
+            .onAppear { navigate() }
+            .onChange(of: model.navigation) { navigate() }
+            .onChange(of: controller.account == nil) { navigate() }
     }
 
     @ViewBuilder private var content: some View {
@@ -69,7 +82,9 @@ struct MainWindow: View {
             layout(account)
                 .onChange(of: storedFilter) { filterChanged() }
                 .onChange(of: showsBots) { filterChanged() }
-                .onChange(of: sidebarSelection) { filterChanged() }
+                .onChange(of: sidebarSelection) {
+                    if navigationSetSidebar { navigationSetSidebar = false } else { filterChanged() }
+                }
                 .onChange(of: controller.settings.botDisplay) { filterChanged() }
                 .onChange(of: selection) { _, key in
                     pinned = key
@@ -104,12 +119,12 @@ struct MainWindow: View {
             SidebarLayout(
                 sections: sections, allEntries: entries, totalCounts: controller.counts(in: nil),
                 sidebarSelection: $sidebarSelection, selection: $selection, selectedEntry: selected,
-                showsBotBadges: showsBotBadges, actions: actions
+                scrollTarget: $scrollTarget, showsBotBadges: showsBotBadges, actions: actions
             ) { header }
         case .grouped:
             GroupedListLayout(
                 sections: sections, selection: $selection, selectedEntry: selected,
-                showsBotBadges: showsBotBadges, actions: actions
+                scrollTarget: $scrollTarget, showsBotBadges: showsBotBadges, actions: actions
             ) { header }
         }
     }
@@ -156,6 +171,31 @@ struct MainWindow: View {
 
     private var isSignedIn: Bool {
         if case .signedIn = controller.auth { true } else { false }
+    }
+
+    /// The layouts are on screen, so their `onChange` handlers run.
+    private var showsLayout: Bool {
+        if case .signedOut = controller.auth { return false }
+        return controller.account.map { !$0.repos.isEmpty } ?? false
+    }
+
+    // MARK: Navigation
+
+    /// Applies and consumes `model.navigation`. It waits while no account is loaded yet.
+    private func navigate() {
+        guard let link = model.navigation, let account = controller.account else { return }
+        model.navigation = nil
+        guard let target = MainNavigation(link, in: account, layout: controller.settings.layout) else { return }
+        if let sidebar = target.sidebar, sidebar != sidebarSelection {
+            navigationSetSidebar = showsLayout
+            sidebarSelection = sidebar
+        }
+        if !target.keepsSelection {
+            // Pinned, the item stays listed although the filter would hide it. Selecting marks it seen.
+            pinned = target.selection
+            selection = target.selection
+        }
+        scrollTarget = target.scroll
     }
 
     // MARK: Filter state

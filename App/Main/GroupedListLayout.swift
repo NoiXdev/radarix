@@ -6,6 +6,8 @@ struct GroupedListLayout<Header: View>: View {
     let sections: [RepoSection]
     @Binding var selection: ItemKey?
     let selectedEntry: ItemEntry?
+    /// Scrolled into view, then set back to nil.
+    @Binding var scrollTarget: ScrollTarget?
     let showsBotBadges: Bool
     let actions: ItemActions
     @ViewBuilder let header: Header
@@ -16,6 +18,25 @@ struct GroupedListLayout<Header: View>: View {
     private var visibleSections: [RepoSection] { sections.filter { !$0.entries.isEmpty } }
 
     var body: some View {
+        ScrollViewReader { proxy in
+            list
+                .onChange(of: scrollTarget) { _, target in
+                    guard let target else { return }
+                    switch target {
+                    case .item(let key):
+                        proxy.scrollTo(key)
+                    case .repo(let id):
+                        // The section's first row at the top brings its header into view.
+                        if let first = visibleSections.first(where: { $0.id == id })?.entries.first {
+                            proxy.scrollTo(first.id, anchor: .top)
+                        }
+                    }
+                    scrollTarget = nil
+                }
+        }
+    }
+
+    private var list: some View {
         List(selection: $selection) {
             ForEach(visibleSections) { section in
                 Section {
@@ -64,6 +85,7 @@ struct GroupedListLayout<Header: View>: View {
         sections: PreviewSamples.sections,
         selection: $selection,
         selectedEntry: PreviewSamples.entries.first { $0.id == selection },
+        scrollTarget: .constant(nil),
         showsBotBadges: true,
         actions: ItemActions()
     ) {
