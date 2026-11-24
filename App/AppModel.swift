@@ -80,12 +80,20 @@ final class AppModel {
         }
     }
 
-    /// True exactly once per launch, and only for a launch not made at login: the caller then
-    /// opens the main window, which the window group itself suppresses at launch.
+    /// True at most once per launch, for a launch not made at login and only while no main window
+    /// has appeared: the caller then opens the main window, which the window group itself
+    /// suppresses at launch.
     func claimLaunchWindow() -> Bool {
         guard !launchWindowClaimed else { return false }
         launchWindowClaimed = true
         return !launchedAtLogin
+    }
+
+    /// A main window is on screen, so the launch needs no other. A launch for a `radarix://` link
+    /// gets its window from the window group (no launch Apple event tells it apart), and that
+    /// window appears before the menu bar label claims the launch window.
+    func mainWindowAppeared() {
+        launchWindowClaimed = true
     }
 
     /// Shows `link` in the main window, opening one if none is open. Needs no `openWindow`:

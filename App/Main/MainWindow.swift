@@ -64,7 +64,10 @@ struct MainWindow: View {
                 NSApp.activate()
                 model.navigation = link
             }
-            .onAppear { navigate() }
+            .onAppear {
+                model.mainWindowAppeared()
+                navigate()
+            }
             .onChange(of: model.navigation) { navigate() }
             .onChange(of: controller.account == nil) { navigate() }
     }

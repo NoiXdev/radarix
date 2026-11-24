@@ -22,7 +22,9 @@ struct MenuBarLabel: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(needsReauth ? Text("Radarix, sign in again") : Text("Radarix, \(total) new or updated"))
         // The label exists from launch, unlike the main window, which the window group suppresses.
+        // A window opened for a launch link appears first; the yield leaves it one more turn.
         .task {
+            await Task.yield()
             if model.claimLaunchWindow() { openWindow(id: "main") }
         }
     }
