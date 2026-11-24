@@ -121,9 +121,7 @@ public final class RadarixController {
 
     /// Deletes the credential and every file.
     public func resetAllData() throws {
-        for id in Set([account?.accountID, settings.lastAccountID].compactMap { $0 }) {
-            try credentials.delete(for: id)
-        }
+        try credentials.deleteAll()
         try store.resetAll()
         end()
         settings = AppSettings()

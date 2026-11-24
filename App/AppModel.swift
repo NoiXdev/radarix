@@ -79,6 +79,10 @@ final class AppModel {
                 String(localized: "Sign-in with GitHub is not set up in this build.")
             case .http(let status):
                 String(localized: "GitHub answered with error \(status).")
+            case .disabled:
+                String(localized: "Sign-in with GitHub is turned off for this app.")
+            case .badClientID:
+                String(localized: "This build's GitHub sign-in is misconfigured. Use a token under Advanced.")
             }
         case is URLError:
             // The device flow talks to github.com directly, so its network errors arrive unmapped.

@@ -18,6 +18,8 @@ public protocol CredentialStore: Sendable {
     func load(for account: AccountID) throws -> Credential?
     func save(_ credential: Credential, for account: AccountID) throws
     func delete(for account: AccountID) throws
+    /// Removes the credentials of every account, whether or not the app knows the account.
+    func deleteAll() throws
 }
 
 public struct KeychainError: Error, Equatable {
@@ -65,6 +67,18 @@ public struct KeychainCredentialStore: CredentialStore {
         let status = SecItemDelete(baseQuery(for: account) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainError(status: status) }
     }
+
+    public func deleteAll() throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        while true {
+            let status = SecItemDelete(query as CFDictionary)
+            if status == errSecItemNotFound { return }
+            guard status == errSecSuccess else { throw KeychainError(status: status) }
+        }
+    }
 }
 
 public final class InMemoryCredentialStore: CredentialStore, @unchecked Sendable {
@@ -86,5 +100,10 @@ public final class InMemoryCredentialStore: CredentialStore, @unchecked Sendable
     public func delete(for account: AccountID) throws {
         lock.lock(); defer { lock.unlock() }
         storage[account] = nil
+    }
+
+    public func deleteAll() throws {
+        lock.lock(); defer { lock.unlock() }
+        storage.removeAll()
     }
 }

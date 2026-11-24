@@ -31,6 +31,37 @@ private func code(interval: TimeInterval = 5, expiresIn: TimeInterval = 900) -> 
 }
 
 @Suite struct DeviceFlowTests {
+    @Test func startMapsErrorBodyToDeviceFlowError() async throws {
+        for (body, expected) in [
+            ("device_flow_disabled", DeviceFlowError.disabled),
+            ("incorrect_client_credentials", .badClientID),
+            ("unauthorized_client", .badClientID),
+            ("something_else", .http(200)),
+        ] {
+            let stub = StubTransport()
+            await stub.enqueue(codeURL, status: 200, body: "{\"error\":\"\(body)\"}")
+            await #expect(throws: expected) { try await makeFlow(transport: stub).start() }
+        }
+    }
+
+    @Test func startMalformedBodyThrowsHTTP() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(codeURL, status: 200, body: "not json")
+        await #expect(throws: DeviceFlowError.http(200)) { try await makeFlow(transport: stub).start() }
+    }
+
+    @Test func waitForTokenMalformedBodyThrowsHTTP() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(tokenURL, status: 200, body: "<html>nope</html>")
+        await #expect(throws: DeviceFlowError.http(200)) { try await makeFlow(transport: stub).waitForToken(code()) }
+    }
+
+    @Test func waitForTokenMapsConfigurationErrors() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(tokenURL, status: 200, body: "{\"error\":\"device_flow_disabled\"}")
+        await #expect(throws: DeviceFlowError.disabled) { try await makeFlow(transport: stub).waitForToken(code()) }
+    }
+
     @Test func startPostsClientIDAndScopes() async throws {
         let stub = StubTransport()
         await stub.enqueue(codeURL, status: 200, body: """
@@ -139,7 +170,7 @@ private func code(interval: TimeInterval = 5, expiresIn: TimeInterval = 900) -> 
 
     @Test func unknownErrorThrowsHTTP() async throws {
         let stub = StubTransport()
-        await stub.enqueue(tokenURL, status: 200, body: #"{"error":"incorrect_client_credentials"}"#)
+        await stub.enqueue(tokenURL, status: 200, body: #"{"error":"unsupported_grant_type"}"#)
         await #expect(throws: DeviceFlowError.http(200)) {
             try await makeFlow(transport: stub).waitForToken(code())
         }

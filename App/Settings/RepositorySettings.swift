@@ -75,10 +75,16 @@ private struct OwnerSection: View {
             }
             repositories
         } footer: {
-            if case .all = mode {
-                Text("New repositories are watched automatically. Forks are not included. Uncheck a repository to exclude it.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                if case .all = mode {
+                    Text("New repositories are watched automatically. Forks are not included. Uncheck a repository to exclude it.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                if controller.credentialKind == .oauth, owner.kind == .organization {
+                    Link("Missing repositories? Grant access on GitHub", destination: model.grantAccessURL)
+                        .font(.footnote)
+                }
             }
         }
     }

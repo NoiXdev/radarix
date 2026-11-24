@@ -16,7 +16,12 @@ public struct DeviceCode: Sendable, Equatable {
     }
 }
 
-public enum DeviceFlowError: Error, Equatable { case expired, denied, notConfigured, http(Int) }
+public enum DeviceFlowError: Error, Equatable { case expired, denied, notConfigured, http(Int)
+    /// GitHub answered `device_flow_disabled`: the OAuth app does not allow the device flow.
+    case disabled
+    /// GitHub rejected the client id (`incorrect_client_credentials`, `unauthorized_client`).
+    case badClientID
+}
 
 /// GitHub OAuth device flow. Talks to github.com directly through the injected transport.
 public struct DeviceFlow: Sendable {
@@ -45,8 +50,12 @@ public struct DeviceFlow: Sendable {
     public func start() async throws -> DeviceCode {
         guard !clientID.isEmpty else { throw DeviceFlowError.notConfigured }
         let (data, response) = try await post(Self.codeURL, fields: [("client_id", clientID), ("scope", Self.scopes)])
-        guard response.statusCode == 200 else { throw DeviceFlowError.http(response.statusCode) }
-        let body = try JSONDecoder().decode(CodeResponse.self, from: data)
+        guard response.statusCode == 200 else {
+            throw Self.error(for: (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error, status: response.statusCode)
+        }
+        guard let body = try? JSONDecoder().decode(CodeResponse.self, from: data) else {
+            throw Self.error(for: (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error, status: response.statusCode)
+        }
         guard let uri = URL(string: body.verificationURI) else { throw DeviceFlowError.http(response.statusCode) }
         return DeviceCode(
             userCode: body.userCode,
@@ -74,10 +83,18 @@ public struct DeviceFlow: Sendable {
             switch body.error {
             case "authorization_pending": continue
             case "slow_down": interval = body.interval.map(TimeInterval.init) ?? interval + 5
-            case "expired_token": throw DeviceFlowError.expired
-            case "access_denied": throw DeviceFlowError.denied
-            default: throw DeviceFlowError.http(response.statusCode)
+            default: throw Self.error(for: body.error, status: response.statusCode)
             }
+        }
+    }
+
+    private static func error(for code: String?, status: Int) -> DeviceFlowError {
+        switch code {
+        case "device_flow_disabled": .disabled
+        case "incorrect_client_credentials", "unauthorized_client": .badClientID
+        case "expired_token": .expired
+        case "access_denied": .denied
+        default: .http(status)
         }
     }
 
@@ -95,6 +112,8 @@ public struct DeviceFlow: Sendable {
     private static func encode(_ value: String) -> String {
         value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? value
     }
+
+    private struct ErrorBody: Decodable { let error: String? }
 
     private struct CodeResponse: Decodable {
         let deviceCode: String

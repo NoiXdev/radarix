@@ -14,6 +14,7 @@ struct AccountSettings: View {
             switch controller.auth {
             case .signedOut:
                 SignInSection(title: "Sign in with GitHub", showingDeviceFlow: $showingDeviceFlow)
+                resetSection
             case .needsReauth(let login):
                 Section {
                     Label(
@@ -46,6 +47,14 @@ struct AccountSettings: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes your sign-in, your watched repositories and what you have seen from this Mac.")
+        }
+    }
+
+    private var resetSection: some View {
+        Section {
+            Button("Reset all data…", role: .destructive) {
+                confirmingReset = true
+            }
         }
     }
 

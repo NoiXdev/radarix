@@ -881,6 +881,22 @@
         }
       }
     },
+    "Missing repositories? Grant access on GitHub" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehlen Repositories? Erlaube den Zugriff auf GitHub."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing repositories? Grant access on GitHub"
+          }
+        }
+      }
+    },
     "New" : {
       "localizations" : {
         "de" : {
@@ -1697,6 +1713,22 @@
         }
       }
     },
+    "Sign-in with GitHub is turned off for this app." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anmeldung mit GitHub ist für diese App ausgeschaltet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in with GitHub is turned off for this app."
+          }
+        }
+      }
+    },
     "Signed in with" : {
       "localizations" : {
         "de" : {
@@ -1853,6 +1885,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The token was rejected. Check it and try again."
+          }
+        }
+      }
+    },
+    "This build's GitHub sign-in is misconfigured. Use a token under Advanced." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die GitHub-Anmeldung dieser Version ist falsch eingerichtet. Nutze unter „Erweitert“ ein Token."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build's GitHub sign-in is misconfigured. Use a token under Advanced."
           }
         }
       }

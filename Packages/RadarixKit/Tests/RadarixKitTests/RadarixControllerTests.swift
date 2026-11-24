@@ -180,6 +180,30 @@ struct RadarixControllerTests {
         #expect(!FileManager.default.fileExists(atPath: h.directory.path))
     }
 
+    @Test func resetAllDataRemovesCredentialsOfEveryAccount() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        let other = AccountID(rawValue: 999)
+        try await h.seed(account())
+        try h.credentials.save(Credential(token: "other", kind: .personalToken), for: other)
+        let controller = h.makeController()
+        try controller.resetAllData()
+        #expect(try h.credentials.load(for: me) == nil)
+        #expect(try h.credentials.load(for: other) == nil)
+    }
+
+    @Test func resetWhileSignedOutWipesFiles() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        let controller = h.makeController()
+        #expect(controller.auth == .signedOut)
+        try controller.resetAllData()
+        #expect(controller.auth == .signedOut)
+        #expect(try h.credentials.load(for: me) == nil)
+        #expect(!FileManager.default.fileExists(atPath: h.directory.path))
+    }
+
     @Test func restoreSessionShowsStoredDataWithoutViewerCall() async throws {
         let h = Harness()
         defer { h.cleanUp() }
