@@ -30,8 +30,11 @@ jobs:
         # a beta never becomes the toolchain by accident.
         #
         # Both versions are printed, because inferring the Swift version from
-        # the Xcode version is what goes wrong. The figures measured by the
-        # first real run belong in this comment; none has been taken yet.
+        # the Xcode version is what goes wrong. Measured on the first run
+        # (2026-11-24, image macos-26-arm64 20261117): Xcode 26.6 (17F113),
+        # Swift 6.3.3, both as default and as newest. That compiler crashed
+        # on a construct Swift 6.4 accepts (see GeneralSettings.swift), so
+        # the code has to build on both.
         shell: bash
         run: |
           set -euo pipefail
