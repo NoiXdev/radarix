@@ -54,16 +54,30 @@ Plan 2 (`2026-11-24-radarix-menubar-widget.md`) is merged into `main`. This file
 
 ## Several accounts (Plan 3a)
 
-- A credential that fails to load at launch drops that account from repo ownership for that launch. Another account may take over its shared repos with a fresh baseline.
 - A launch deep link is handled once the first account is restored. A link to a repo of a later account that is still restoring lands on "All".
 - `controller.repos` is rebuilt several times per render (negligible today).
+- Adding an account awaits a full pass of every account, so the add sheet stays open that long, and Cancel does not cancel a token sign-in: the account is still added. `addAccount` could `requestRefresh()` and return; the token task could then be cancelled safely until the credential is saved. Tests would await `pendingRefresh`.
+- Device and add sheets:
+  - closing the device sheet after accept leaves the add sheet open, and a later cancelled flow closes it unexpectedly;
+  - Cancel in the add sheet does not cancel an in-flight token sign-in (see above);
+  - a launch `restoreSessions` during a signed-out device flow flips `accepted` early.
+- "Sign in again" opens the generic add sheet. If github.com has the other login signed in, the device flow re-signs that account or adds a third, and nothing says so. Pass the expected login into the sheet ("Sign in as <login>") and note a different result.
+- Remove has no confirmation. For repos another account also watches, that account takes over with a fresh baseline, and the re-added account goes last for good. Confirm when the account owns repos another account watches, or at least correct the "adding it again resumes it" comment.
+- The Repositories tab says "No accounts or organizations found" for an account that has not fetched its owners this launch (in reauth, or offline at launch), and its watch config cannot be edited. Fall back to the owners in `account.watch.owners` and `account.available`, or say that the account needs to sign in again.
+- Turning an owner Off and On again within one launch can leave its repos unsynced: the repo-list ETag stays, the list answers 304, and without a previous list the owner is unknown until the ETag changes or the app restarts. Refetch unconditionally on `.notModified` without a previous list, or forget the list URL's ETag when an owner goes Off. (Predates Plan 3a.)
+- A healthy account has no status line in the Accounts tab (no "OK" string). Accepted: the spec only needs the problem states visible.
+- `SyncStop` has a public `Error` conformance (harmless).
+- `rateLimit()` is not cancellable; an extra account save happens mid-pass.
+- `suppressSnapshot` is reset without `defer` (nothing in that span throws).
+- A two-account restore whose account file is missing may write a partial snapshot briefly (rare).
+- The new widget string keys are unsorted in the catalog (Xcode re-sorts on the next edit).
 - Test gaps:
-  - case-insensitive author match;
+  - settings precedence when both `lastAccountID` and `accountIDs` are present (a v3 file never carries `lastAccountID`);
   - multi-login `GitHubClient`/`SyncEngine` activity;
   - `resolveStopsOnReauth` does not assert that the loop stops;
-  - `addAccount` mid-pass;
-  - restore with a viewer-id mismatch;
+  - no direct `AccountSession` tests (covered through the controller);
   - a two-account snapshot `syncedAt` carry;
+  - the duplicated resolve → sync test glue;
   - the duplicated `TestClock` helper.
 
 ## Manual checks still open (owner, with team signing)
@@ -90,3 +104,4 @@ Several accounts (Plan 3a):
    - that a repo shared by both accounts shows and notifies once;
    - that removing one account clears only its notifications.
 10. The widget reauth line, for one and for two accounts.
+11. An account whose credential is missing at launch: delete one account's Keychain item (or deny access when asked) and relaunch. The account keeps its sidebar section and its repos (stale), the "sign in again" banner, the menu bar `!` after the count, the widget reauth line and its Accounts row without "Signed in with". Sign in again and Remove both work.
