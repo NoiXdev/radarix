@@ -23,6 +23,7 @@ private actor ScriptedSource: ReleaseSource {
 
     private var step: Step
     private(set) var calls = 0
+    private(set) var etags: [String?] = []
 
     init(_ steps: [Step]) { step = steps[0] }
 
@@ -30,6 +31,7 @@ private actor ScriptedSource: ReleaseSource {
 
     func latest(etag: String?) async throws -> ReleaseFetch {
         calls += 1
+        etags.append(etag)
         switch step {
         case .fetch(let fetch): return fetch
         case .failure(let error): throw error
@@ -100,6 +102,18 @@ private let suspendForever: @Sendable (Duration) async throws -> Void = { _ in t
     #expect(try await source.latest(etag: nil) == .release(nil, etag: "e3"))
 }
 
+@Test func sourceAcceptsOnlyGitHubHTTPSReleasePages() async throws {
+    func json(_ url: String) -> String { #"{"tag_name":"v2.0.0","html_url":"\#(url)","draft":false,"prerelease":false}"# }
+    let transport = StubTransport()
+    await transport.enqueue(latestURL, status: 200, headers: ["ETag": "e"], body: json("https://github.com/NoiXdev/radarix/releases/tag/v2.0.0"))
+    for bad in ["file:///Applications/Some.app", "http://github.com/NoiXdev/radarix", "https://evil.example/releases/tag/v2.0.0", "https://github.com.evil.example/x"] {
+        await transport.enqueue(latestURL, status: 200, headers: ["ETag": "e"], body: json(bad))
+    }
+    let source = GitHubReleaseSource(transport: transport, userAgent: "Radarix/1.0")
+    #expect(try await source.latest(etag: nil) == .release(release("2.0.0"), etag: "e"))
+    for _ in 0..<4 { #expect(try await source.latest(etag: nil) == .release(nil, etag: "e")) }
+}
+
 @MainActor @Test func checkerShowsOnlyNewerVersions() async {
     let source = ScriptedSource([.fetch(.release(release("1.1.0"), etag: nil))])
     let checker = UpdateChecker(current: AppVersion("1.0.0")!, source: source)
@@ -152,6 +166,22 @@ private let suspendForever: @Sendable (Duration) async throws -> Void = { _ in t
     try? await Task.sleep(for: .milliseconds(50))
     #expect(await source.calls == 1)
     #expect(checker.available == nil)
+}
+
+@MainActor @Test func turningOffAndOnShowsTheHintAgain() async {
+    let source = ScriptedSource([.fetch(.release(release("1.1.0"), etag: "x"))])
+    let checker = UpdateChecker(current: AppVersion("1.0.0")!, source: source, sleep: suspendForever)
+    checker.setEnabled(true)
+    await waitUntil { checker.available != nil }
+    checker.setEnabled(false)
+    #expect(checker.available == nil)
+    checker.setEnabled(true)
+    await waitUntil { await source.calls >= 2 }
+    await waitUntil { checker.available != nil }
+    // The ETag was cleared on "off", so the second request is unconditional and not answered with a 304.
+    #expect(await source.etags == [nil, nil])
+    #expect(checker.available?.version == AppVersion("1.1.0"))
+    checker.setEnabled(false)
 }
 
 @MainActor @Test func turningOffStopsTheLoop() async {

@@ -15,7 +15,7 @@ public enum ReleaseFetch: Sendable, Equatable {
     case notModified
     /// 404: the repository has no published release yet.
     case none
-    /// 200. The release is nil when the tag does not parse or the release is a draft or a pre-release.
+    /// 200. The release is nil when the tag does not parse the release is a draft or a pre-release, or its page is not an https URL on github.com.
     case release(LatestRelease?, etag: String?)
 }
 
@@ -65,7 +65,11 @@ public struct GitHubReleaseSource: ReleaseSource {
         case 200..<300:
             let payload = try JSONDecoder().decode(Payload.self, from: data)
             let newETag = response.value(forHTTPHeaderField: "ETag")
-            guard payload.draft != true, payload.prerelease != true, let version = AppVersion(payload.tag_name) else {
+            // The URL is opened in the user's browser. Anything but a github.com page could launch
+            // a local app (`file://`) or send the user elsewhere, so it counts as unusable.
+            guard payload.draft != true, payload.prerelease != true, let version = AppVersion(payload.tag_name),
+                payload.html_url.scheme == "https", payload.html_url.host?.lowercased() == "github.com"
+            else {
                 return .release(nil, etag: newETag)
             }
             return .release(LatestRelease(version: version, url: payload.html_url), etag: newETag)
