@@ -223,3 +223,72 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         #expect(try await makeClient(stub).renderedBody(number: 7, in: repo) == nil)
     }
 }
+
+@Suite struct AssignTests {
+    private let url = "https://api.github.com/repos/octo/hello-world/issues/7/assignees"
+
+    @Test func assignSendsPOSTWithBody() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 201, body: #"{"assignees":[{"login":"Octo"},{"login":"bob"}]}"#)
+        let logins = try await makeClient(stub).setAssigned(true, login: "octo", number: 7, in: repo)
+        #expect(logins == ["Octo", "bob"])
+        let request = try #require(await stub.sent.first)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/repos/octo/hello-world/issues/7/assignees")
+        let body = try #require(request.httpBody)
+        #expect(try JSONSerialization.jsonObject(with: body) as? [String: [String]] == ["assignees": ["octo"]])
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        #expect(request.value(forHTTPHeaderField: "X-GitHub-Api-Version") == "2022-11-28")
+        #expect(request.value(forHTTPHeaderField: "If-None-Match") == nil)
+    }
+
+    @Test func unassignSendsDELETE() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 200, body: #"{"assignees":[{"login":"bob"}]}"#)
+        let logins = try await makeClient(stub).setAssigned(false, login: "octo", number: 7, in: repo)
+        #expect(logins == ["bob"])
+        let request = try #require(await stub.sent.first)
+        #expect(request.httpMethod == "DELETE")
+        #expect(request.httpBody != nil)
+    }
+
+    @Test func assignSilentlyDroppedIsNotPermitted() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 201, body: #"{"assignees":[]}"#)
+        await #expect(throws: AssignError.notPermitted) {
+            try await makeClient(stub).setAssigned(true, login: "octo", number: 7, in: repo)
+        }
+    }
+
+    @Test func unassignStillListedIsNotPermitted() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 200, body: #"{"assignees":[{"login":"OCTO"}]}"#)
+        await #expect(throws: AssignError.notPermitted) {
+            try await makeClient(stub).setAssigned(false, login: "octo", number: 7, in: repo)
+        }
+    }
+
+    @Test func assign403And404AreNotPermitted() async throws {
+        for status in [403, 404] {
+            let stub = StubTransport()
+            await stub.enqueue(url, status: status, body: #"{"message":"nope"}"#)
+            await #expect(throws: AssignError.notPermitted) {
+                try await makeClient(stub).setAssigned(true, login: "octo", number: 7, in: repo)
+            }
+        }
+    }
+
+    @Test func assignOtherErrorsKeepGitHubError() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(url, status: 401)
+        await stub.enqueue(url, status: 500)
+        let client = makeClient(stub)
+        await #expect(throws: GitHubError.unauthorized) {
+            try await client.setAssigned(true, login: "octo", number: 7, in: repo)
+        }
+        await #expect(throws: GitHubError.http(500)) {
+            try await client.setAssigned(true, login: "octo", number: 7, in: repo)
+        }
+    }
+}

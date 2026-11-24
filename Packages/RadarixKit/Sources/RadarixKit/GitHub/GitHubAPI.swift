@@ -23,6 +23,14 @@ public enum IssueQuery: Sendable, Equatable {
     case changed(since: Date)
 }
 
+/// Why assigning or unassigning the viewer did not happen.
+public enum AssignError: Error, Equatable, Sendable {
+    /// GitHub refused (403, 404) or silently left the assignee out: the sign-in lacks write access.
+    case notPermitted
+    /// No signed-in account owns the item's repo.
+    case noOwner
+}
+
 /// Everything the sync engine needs from GitHub.
 public protocol GitHubAPI: Sendable {
     func viewer() async throws -> Viewer
@@ -34,6 +42,9 @@ public protocol GitHubAPI: Sendable {
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool
     /// The item's description rendered to HTML by GitHub; nil when it has none. Never conditional.
     func renderedBody(number: Int, in repo: RepoRef) async throws -> String?
+    /// Assigns (`true`) or unassigns (`false`) `login` on the item and returns the resulting assignee
+    /// logins. Throws `AssignError.notPermitted` when GitHub refuses or does not reflect the request.
+    func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String]
     func rateLimit() async -> RateLimit?
     /// Forget cached conditional-request state (ETags) for everything under this repo.
     func forgetConditionalState(for repo: RepoRef) async
@@ -134,6 +145,26 @@ extension GitHubClient: GitHubAPI {
             accept: "application/vnd.github.html+json")
         guard let html = rendered.bodyHtml, !html.isEmpty else { return nil }
         return html
+    }
+
+    public func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String] {
+        struct Body: Encodable { let assignees: [String] }
+        struct Answer: Decodable {
+            struct Assignee: Decodable { let login: String }
+            let assignees: [Assignee]?
+        }
+        let body = try JSONEncoder().encode(Body(assignees: [login]))
+        let answer: Answer
+        do {
+            answer = try await send(
+                assigned ? "POST" : "DELETE", "/repos/\(repo.owner)/\(repo.name)/issues/\(number)/assignees", json: body)
+        } catch GitHubError.forbidden, GitHubError.notFound {
+            throw AssignError.notPermitted
+        }
+        let logins = (answer.assignees ?? []).map(\.login)
+        let contains = logins.contains { $0.caseInsensitiveCompare(login) == .orderedSame }
+        guard contains == assigned else { throw AssignError.notPermitted }
+        return logins
     }
 
     public func rateLimit() async -> RateLimit? { latestRateLimit }

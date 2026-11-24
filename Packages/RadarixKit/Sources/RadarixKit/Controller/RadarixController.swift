@@ -472,6 +472,24 @@ public final class RadarixController {
         writeSnapshot()
     }
 
+    /// Assigns or unassigns the owning account's login on GitHub, then stores the resulting
+    /// assignees. Attention is unchanged. Throws `AssignError.noOwner` when no session owns the repo.
+    public func setAssigned(_ assigned: Bool, key: ItemKey) async throws {
+        guard let session = owner(of: key.repo), let repo = repos[key.repo]?.repo else {
+            throw AssignError.noOwner
+        }
+        let logins = try await session.setAssigned(assigned, number: key.number, in: repo)
+        session.setAssignees(logins, for: key)
+        writeSnapshot()
+    }
+
+    /// Whether the owning account's login is among the item's assignees; nil without an owner.
+    public func isAssignedToOwner(_ key: ItemKey) -> Bool? {
+        guard let session = owner(of: key.repo) else { return nil }
+        let assignees = session.account.repos[key.repo]?.records[key.number]?.item.assignees ?? []
+        return assignees.contains { $0.caseInsensitiveCompare(session.login) == .orderedSame }
+    }
+
     // MARK: Queries
 
     /// The item's description as HTML, fetched with the owning account's credential.

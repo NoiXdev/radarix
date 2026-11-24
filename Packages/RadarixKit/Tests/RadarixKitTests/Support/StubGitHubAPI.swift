@@ -18,6 +18,7 @@ actor StubGitHubAPI: GitHubAPI {
         case pullDetails(repo: RepoID)
         case activity(number: Int, since: Date, viewers: ViewerLogins)
         case renderedBody(number: Int, repo: RepoID)
+        case setAssigned(Bool, login: String, number: Int, repo: RepoID)
     }
 
     typealias Scripted<T: Sendable> = Result<Fetch<T>, GitHubError>
@@ -29,6 +30,7 @@ actor StubGitHubAPI: GitHubAPI {
     private var pullResults: [RepoID: [Scripted<[Int: PullDetails]>]] = [:]
     private var activityResults: [Int: [Result<Bool, GitHubError>]] = [:]
     private var renderedBodies: [Int: [Result<String?, GitHubError>]] = [:]
+    private var assignResults: [Int: [Result<[String], any Error>]] = [:]
     private var timelines: [Int: [String]] = [:]
     private var currentRateLimit: RateLimit?
     private var cancellingProbes: Set<Int> = []
@@ -56,6 +58,10 @@ actor StubGitHubAPI: GitHubAPI {
 
     func scriptRenderedBody(_ number: Int, _ results: Result<String?, GitHubError>...) {
         renderedBodies[number, default: []] += results
+    }
+
+    func scriptAssigned(_ number: Int, _ results: Result<[String], any Error>...) {
+        assignResults[number, default: []] += results
     }
 
     /// The probe for this item number answers from these timeline actors: true when any of them
@@ -154,6 +160,11 @@ actor StubGitHubAPI: GitHubAPI {
     func renderedBody(number: Int, in repo: RepoRef) async throws -> String? {
         calls.append(.renderedBody(number: number, repo: repo.id))
         return try (Self.pop(&renderedBodies, number) ?? .success(nil)).get()
+    }
+
+    func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String] {
+        calls.append(.setAssigned(assigned, login: login, number: number, repo: repo.id))
+        return try (Self.pop(&assignResults, number) ?? .success(assigned ? [login] : [])).get()
     }
 
     func rateLimit() async -> RateLimit? {

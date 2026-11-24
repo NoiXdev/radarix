@@ -31,6 +31,15 @@ public actor GitHubClient {
         return try decode(T.self, from: data)
     }
 
+    /// A write: sends `method` with a JSON `body` and decodes the answer. Same headers, error
+    /// mapping and rate-limit tracking as a read; never conditional, stores no ETag.
+    public func send<T: Decodable>(_ method: String, _ path: String, json body: Data) async throws -> T {
+        let url = try makeURL(path, query: [])
+        let (data, response) = try await perform(url, conditional: false, method: method, body: body)
+        guard let data else { throw GitHubError.http(response.statusCode) }
+        return try decode(T.self, from: data)
+    }
+
     public func getConditional<T: Decodable>(_ path: String, query: [URLQueryItem]) async throws -> Fetch<T> {
         let url = try makeURL(path, query: query)
         let (data, response) = try await perform(url, conditional: true)
@@ -127,9 +136,16 @@ public actor GitHubClient {
 
     /// Sends one request. Returns nil data on 304 (only possible when `conditional`).
     /// Never stores an ETag: callers commit it once the whole fetch succeeded. Throws mapped errors for non-2xx.
-    private func perform(_ url: URL, conditional: Bool, accept: String = "application/vnd.github+json") async throws -> (Data?, HTTPURLResponse) {
+    private func perform(
+        _ url: URL, conditional: Bool, accept: String = "application/vnd.github+json",
+        method: String = "GET", body: Data? = nil
+    ) async throws -> (Data?, HTTPURLResponse) {
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(accept, forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")

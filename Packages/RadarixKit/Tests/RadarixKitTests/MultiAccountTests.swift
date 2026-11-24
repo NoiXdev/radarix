@@ -181,6 +181,63 @@ struct MultiAccountTests {
         }
     }
 
+    @Test func controllerAssignUpdatesRecordWithoutChangingAttention() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [], states: [:]),
+            account(second, available: [workOnly], states: [workOnly: [record(3, .new, repo: workOnly)]]))
+        await h.work.scriptAssigned(3, .success(["bob", "work"]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        #expect(controller.isAssignedToOwner(key(3, workOnly)) == false)
+
+        try await controller.setAssigned(true, key: key(3, workOnly))
+
+        #expect(await h.work.calls.contains(.setAssigned(true, login: "work", number: 3, repo: workOnly.id)))
+        #expect(await h.me.calls.allSatisfy { if case .setAssigned = $0 { false } else { true } })
+        let stored = try #require(controller.records(in: workOnly.id).first)
+        #expect(stored.item.assignees == ["bob", "work"])
+        #expect(stored.attention == .new)
+        #expect(controller.isAssignedToOwner(key(3, workOnly)) == true)
+        #expect(try h.store.loadAccount(second)?.repos[workOnly.id]?.records[3]?.item.assignees == ["bob", "work"])
+    }
+
+    @Test func controllerAssignWithoutOwnerThrows() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: []))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        #expect(controller.isAssignedToOwner(key(1, workOnly)) == nil)
+        await #expect(throws: AssignError.noOwner) {
+            try await controller.setAssigned(true, key: key(1, workOnly))
+        }
+    }
+
+    @Test func assignDuringSyncSurvivesTheSync() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [shared], states: [shared: [record(1, .seen)]]),
+            account(second, available: []))
+        await h.me.holdItems(shared)
+        await h.me.scriptAssigned(1, .success(["me"]))
+        let controller = h.makeController()
+
+        let restoring = Task { await controller.restoreSessions() }
+        await h.me.waitForHeldItems()
+        try await controller.setAssigned(true, key: key(1))
+        #expect(controller.isAssignedToOwner(key(1)) == true)
+        await h.me.releaseItems()
+        await restoring.value
+        await controller.pendingRefresh?.value
+
+        #expect(controller.isAssignedToOwner(key(1)) == true)
+        #expect(try h.store.loadAccount(first)?.repos[shared.id]?.records[1]?.item.assignees == ["me"])
+    }
+
     @Test func restoreKeepsAccountWithoutCredentialNeedingSignIn() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }

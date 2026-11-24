@@ -68,6 +68,7 @@ public final class AccountSession {
         /// `version` is the `updatedAt` of the record the user marked.
         case seen(ItemKey, version: Date)
         case unseen(ItemKey)
+        case assignees(ItemKey, [String])
     }
 
     public init(
@@ -275,6 +276,11 @@ public final class AccountSession {
         try await api.renderedBody(number: number, in: repo)
     }
 
+    /// Assigns or unassigns the account's own login on GitHub; returns the resulting assignees.
+    public func setAssigned(_ assigned: Bool, number: Int, in repo: RepoRef) async throws -> [String] {
+        try await api.setAssigned(assigned, login: login, number: number, in: repo)
+    }
+
     public func setOwnerMode(_ mode: OwnerMode, for owner: String) {
         account.watch.owners[owner] = mode
         save()
@@ -307,6 +313,12 @@ public final class AccountSession {
     public func markUnseen(_ key: ItemKey) {
         guard record(for: key) != nil else { return }
         perform([.unseen(key)])
+    }
+
+    /// Stores the assignees GitHub reported. Leaves attention alone; survives a running pass.
+    public func setAssignees(_ logins: [String], for key: ItemKey) {
+        guard record(for: key) != nil else { return }
+        perform([.assignees(key, logins)])
     }
 
     public func markRepoSeen(_ repo: RepoID) {
@@ -349,6 +361,8 @@ public final class AccountSession {
         case .unseen(let key):
             guard let record = account.repos[key.repo]?.records[key.number] else { return }
             account.repos[key.repo]?.records[key.number] = ItemStateEngine.markUnseen(record)
+        case .assignees(let key, let logins):
+            account.repos[key.repo]?.records[key.number]?.item.assignees = logins
         }
     }
 
@@ -375,6 +389,9 @@ private struct RejectingAPI: GitHubAPI {
         throw GitHubError.unauthorized
     }
     func renderedBody(number: Int, in repo: RepoRef) async throws -> String? { throw GitHubError.unauthorized }
+    func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String] {
+        throw GitHubError.unauthorized
+    }
     func rateLimit() async -> RateLimit? { nil }
     func forgetConditionalState(for repo: RepoRef) async {}
 }
