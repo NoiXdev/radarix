@@ -18,7 +18,8 @@ struct MainNavigation: Equatable {
 
     /// Nil when the link only brings the window to the front.
     ///
-    /// A repo that is not watched leads to "All"; an item that is not listed selects nothing.
+    /// A repo that is not watched leads to "All"; an item that is not listed (missing, or closed
+    /// and seen) selects nothing.
     /// In the single list a repo link only scrolls to that repo's section.
     init?(_ link: DeepLink, in account: AccountData, layout: MainLayout) {
         switch link {
@@ -35,7 +36,7 @@ struct MainNavigation: Equatable {
             }
         case .item(let key):
             let watched = account.repos[key.repo] != nil
-            let listed = account.repos[key.repo]?.records[key.number] != nil
+            let listed = account.repos[key.repo]?.records[key.number].map(ItemStateEngine.isListed) ?? false
             if layout == .sidebar { sidebar = watched ? .repo(key.repo) : .all }
             selection = listed ? key : nil
             scroll = if listed { .item(key) } else if watched, layout == .grouped { .repo(key.repo) } else { nil }
