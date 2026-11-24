@@ -257,6 +257,10 @@ for bundle in "$APP" "$WIDGET"; do
     echo "entitlements: $bundle"
     codesign -d --entitlements - --xml "$bundle"
     echo
+    # The group the binary actually opens at runtime: the app and the widget
+    # read RadarixAppGroup from their Info.plist, not from the entitlements.
+    # Printed on both paths; the signed path asserts it below.
+    echo "RadarixAppGroup (Info.plist): '$(plist RadarixAppGroup "$bundle/Contents/Info.plist")'  ($bundle)"
 done
 
 if [ "$UNSIGNED" = 1 ]; then
@@ -271,12 +275,28 @@ fi
 
 # --- signature checks (signed path) ----------------------------------------
 codesign --verify --deep --strict "$APP"
+# Reads the entitlements, or fails with codesign's own reason: a bare
+# `$(codesign …)` that fails would end the script under `set -e` without a
+# word in the CI log.
+entitlements() {
+    local out
+    out="$(codesign -d --entitlements - --xml "$1" 2>&1)" \
+        || fail "could not read the entitlements of $1: $out"
+    printf '%s\n' "$out"
+}
 for bundle in "$APP" "$WIDGET"; do
-    ents="$(codesign -d --entitlements - --xml "$bundle" 2>/dev/null)"
+    ents="$(entitlements "$bundle")" || exit 1
     case "$ents" in
         *"<string>$APP_GROUP</string>"*) ;;
         *) fail "$bundle does not carry the App Group $APP_GROUP" ;;
     esac
+    # The entitlement only grants the group; the binary opens the one named
+    # in its Info.plist. Both expand $(TeamIdentifierPrefix), but in
+    # different build phases, so a mismatch here would pass every
+    # entitlement check and still leave the widget empty.
+    info_group="$(plist RadarixAppGroup "$bundle/Contents/Info.plist")"
+    [ "$info_group" = "$APP_GROUP" ] \
+        || fail "$bundle reads RadarixAppGroup '$info_group' from its Info.plist, expected '$APP_GROUP'"
     # `-dvv`, not `-dv`: codesign prints `Authority=` lines only at
     # verbosity 2. Same team and hardened runtime on both, or notarization
     # rejects the widget or macOS refuses to load it into the app's group.
@@ -296,7 +316,8 @@ for bundle in "$APP" "$WIDGET"; do
 done
 # The widget has to stay sandboxed: WidgetKit does not load an unsandboxed
 # extension.
-case "$(codesign -d --entitlements - --xml "$WIDGET" 2>/dev/null)" in
+WIDGET_ENTS="$(entitlements "$WIDGET")" || exit 1
+case "$WIDGET_ENTS" in
     *"com.apple.security.app-sandbox"*) ;;
     *) fail "the widget is not sandboxed" ;;
 esac
