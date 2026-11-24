@@ -17,6 +17,8 @@ targets:
       - App
     dependencies:
       - package: RadarixKit
+      - target: RadarixWidget
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.noix.radarix
@@ -36,3 +38,26 @@ targets:
           - CFBundleURLName: dev.noix.radarix
             CFBundleURLSchemes:
               - radarix
+  RadarixWidget:
+    type: app-extension
+    platform: macOS
+    sources:
+      - Widget
+    dependencies:
+      - package: RadarixKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.noix.radarix.widget
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: Widget/RadarixWidget.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "6.0"
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Radarix
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        RadarixAppGroup: $(TeamIdentifierPrefix)dev.noix.radarix
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
