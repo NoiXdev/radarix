@@ -9,6 +9,8 @@ struct SidebarLayout<Header: View>: View {
     /// The filtered entries of every repository, in list order.
     let allEntries: [ItemEntry]
     let totalKindCounts: KindCounts
+    /// "All" lists its items in a section per repository.
+    @Binding var groupsAll: Bool
     @Binding var sidebarSelection: SidebarItem?
     @Binding var selection: ItemKey?
     let selectedEntry: ItemEntry?
@@ -26,6 +28,16 @@ struct SidebarLayout<Header: View>: View {
             itemList
                 .safeAreaInset(edge: .top, spacing: 0) { header }
                 .navigationSplitViewColumnWidth(min: 340, ideal: 420)
+                .toolbar {
+                    if selectedRepo == nil {
+                        ToolbarItem {
+                            Toggle(isOn: $groupsAll) {
+                                Label("Group by repository", systemImage: "rectangle.grid.1x2")
+                            }
+                            .help("Group by repository")
+                        }
+                    }
+                }
         } detail: {
             if let selectedEntry {
                 ItemDetail(entry: selectedEntry) { actions.open(selectedEntry.record) }
@@ -107,7 +119,18 @@ struct SidebarLayout<Header: View>: View {
         return repoSections.first { $0.id == selectedRepo }?.entries ?? []
     }
 
-    private var itemList: some View {
+    @ViewBuilder private var itemList: some View {
+        if selectedRepo == nil && groupsAll {
+            RepoSectionList(
+                sections: repoSections, selection: $selection, scrollTarget: $scrollTarget,
+                showsBotBadges: showsBotBadges, actions: actions
+            )
+        } else {
+            flatList
+        }
+    }
+
+    private var flatList: some View {
         ScrollViewReader { proxy in
             List(selection: $selection) {
                 ForEach(entries) { entry in
@@ -170,6 +193,7 @@ struct NoMatchingItems: View {
         accountSections: PreviewSamples.accountSections,
         allEntries: PreviewSamples.entries,
         totalKindCounts: ItemFilter.kindCounts(PreviewSamples.records, bots: .badge),
+        groupsAll: .constant(false),
         sidebarSelection: $sidebarSelection,
         selection: $selection,
         selectedEntry: PreviewSamples.entries.first { $0.id == selection },
@@ -189,6 +213,7 @@ struct NoMatchingItems: View {
         accountSections: PreviewSamples.twoAccountSections,
         allEntries: PreviewSamples.entries,
         totalKindCounts: ItemFilter.kindCounts(PreviewSamples.records, bots: .badge),
+        groupsAll: .constant(false),
         sidebarSelection: $sidebarSelection,
         selection: $selection,
         selectedEntry: PreviewSamples.entries.first { $0.id == selection },

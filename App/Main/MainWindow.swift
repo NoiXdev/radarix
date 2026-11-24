@@ -125,6 +125,7 @@ struct MainWindow: View {
         case .sidebar:
             SidebarLayout(
                 accountSections: sections, allEntries: entries, totalKindCounts: controller.kindCounts(in: nil),
+                groupsAll: groupsAll,
                 sidebarSelection: $sidebarSelection, selection: $selection, selectedEntry: selected,
                 scrollTarget: $scrollTarget, showsBotBadges: showsBotBadges, actions: actions
             ) { header }
@@ -203,6 +204,13 @@ struct MainWindow: View {
         Binding(
             get: { controller.settings.filter },
             set: { value in controller.updateSettings { $0.filter = value } }
+        )
+    }
+
+    private var groupsAll: Binding<Bool> {
+        Binding(
+            get: { controller.settings.groupAllByRepo },
+            set: { value in controller.updateSettings { $0.groupAllByRepo = value } }
         )
     }
 

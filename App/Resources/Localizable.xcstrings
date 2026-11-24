@@ -1053,6 +1053,22 @@
         }
       }
     },
+    "Group by repository" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach Repository gruppieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group by repository"
+          }
+        }
+      }
+    },
     "Hidden" : {
       "localizations" : {
         "de" : {

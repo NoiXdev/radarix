@@ -14,6 +14,42 @@ struct GroupedListLayout<Header: View>: View {
 
     @State private var showsInspector = true
 
+    var body: some View {
+        RepoSectionList(
+            sections: sections, selection: $selection, scrollTarget: $scrollTarget,
+            showsBotBadges: showsBotBadges, actions: actions
+        )
+        .safeAreaInset(edge: .top, spacing: 0) { header }
+        .inspector(isPresented: $showsInspector) {
+            Group {
+                if let selectedEntry {
+                    ItemDetail(entry: selectedEntry) { actions.open(selectedEntry.record) }
+                } else {
+                    NoItemSelected()
+                }
+            }
+            .inspectorColumnWidth(min: 280, ideal: 340)
+        }
+        .toolbar {
+            ToolbarItem {
+                Toggle(isOn: $showsInspector) {
+                    Label("Inspector", systemImage: "sidebar.trailing")
+                }
+                .help("Show or hide the inspector")
+            }
+        }
+    }
+}
+
+/// A list with a section per repository. Sections the filters leave empty are hidden.
+struct RepoSectionList: View {
+    let sections: [RepoSection]
+    @Binding var selection: ItemKey?
+    /// Scrolled into view, then set back to nil.
+    @Binding var scrollTarget: ScrollTarget?
+    let showsBotBadges: Bool
+    let actions: ItemActions
+
     /// Sections the filters leave something in.
     private var visibleSections: [RepoSection] { sections.filter { !$0.entries.isEmpty } }
 
@@ -56,25 +92,6 @@ struct GroupedListLayout<Header: View>: View {
         .itemContextMenu(entries: visibleSections.flatMap(\.entries), actions: actions)
         .overlay {
             if visibleSections.isEmpty { NoMatchingItems() }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) { header }
-        .inspector(isPresented: $showsInspector) {
-            Group {
-                if let selectedEntry {
-                    ItemDetail(entry: selectedEntry) { actions.open(selectedEntry.record) }
-                } else {
-                    NoItemSelected()
-                }
-            }
-            .inspectorColumnWidth(min: 280, ideal: 340)
-        }
-        .toolbar {
-            ToolbarItem {
-                Toggle(isOn: $showsInspector) {
-                    Label("Inspector", systemImage: "sidebar.trailing")
-                }
-                .help("Show or hide the inspector")
-            }
         }
     }
 }
