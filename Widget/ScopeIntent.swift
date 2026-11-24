@@ -58,13 +58,15 @@ struct ScopeEntity: AppEntity {
         return [.all] + snapshot.owners.map(owner) + repos.map(repo)
     }
 
-    /// `all` or nil gives `.all`, `owner:x` gives `.owner(x)`, and `repo:<id>` gives `.repo`
-    /// while that repository is still in the snapshot. Anything else falls back to `.all`.
+    /// `all` or nil gives `.all`, `owner:x` gives `.owner(x)` while the snapshot has repositories
+    /// of owner x (case-insensitively), and `repo:<id>` gives `.repo` while that repository is
+    /// still in the snapshot. Anything else falls back to `.all`.
     static func scope(forID id: String?, in snapshot: WidgetSnapshot?) -> WidgetScope {
         guard let id else { return .all }
         if id.hasPrefix(ownerPrefix) {
             let login = String(id.dropFirst(ownerPrefix.count))
-            return login.isEmpty ? .all : .owner(login)
+            let known = snapshot?.owners.contains { $0.caseInsensitiveCompare(login) == .orderedSame } == true
+            return known ? .owner(login) : .all
         }
         if id.hasPrefix(repoPrefix), let raw = Int64(id.dropFirst(repoPrefix.count)) {
             let repo = RepoID(rawValue: raw)

@@ -141,6 +141,13 @@ private struct SummaryHeader: View {
     }
 }
 
+/// A live, compact relative time such as "5 minutes ago": one unit, no seconds.
+private enum RelativeTime {
+    static func text(_ date: Date) -> Text {
+        Text(.currentDate, format: .reference(to: date, allowedFields: [.year, .month, .day, .hour, .minute], maxFieldCount: 1))
+    }
+}
+
 /// A full-width bar with a count and its label, on the attention color.
 private struct CountTile: View {
     let count: Int
@@ -208,7 +215,7 @@ private struct ItemRow: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
-                    Text(item.updatedAt, style: .relative)
+                    RelativeTime.text(item.updatedAt)
                         .lineLimit(1)
                         .layoutPriority(1)
                     if item.isDraft {
