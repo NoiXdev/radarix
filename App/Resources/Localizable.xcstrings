@@ -49,6 +49,22 @@
         }
       }
     },
+    "%lld issues, %lld new, %lld updated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Issues, %lld neu, %lld aktualisiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld issues, %lld new, %lld updated"
+          }
+        }
+      }
+    },
     "%lld minutes" : {
       "localizations" : {
         "de" : {
@@ -257,6 +273,22 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld pull requests, %lld new, %lld updated" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Pull Requests, %lld neu, %lld aktualisiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld pull requests, %lld new, %lld updated"
           }
         }
       }

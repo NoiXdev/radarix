@@ -8,7 +8,7 @@ struct SidebarLayout<Header: View>: View {
     let accountSections: [AccountSection]
     /// The filtered entries of every repository, in list order.
     let allEntries: [ItemEntry]
-    let totalCounts: AttentionCounts
+    let totalKindCounts: KindCounts
     @Binding var sidebarSelection: SidebarItem?
     @Binding var selection: ItemKey?
     let selectedEntry: ItemEntry?
@@ -40,7 +40,7 @@ struct SidebarLayout<Header: View>: View {
             HStack {
                 Label("All", systemImage: "tray.full")
                 Spacer()
-                AttentionBadges(counts: totalCounts)
+                KindBadges(counts: totalKindCounts)
             }
             .tag(SidebarItem.all)
             if accountSections.count > 1 {
@@ -147,7 +147,7 @@ private struct RepoSidebarRow: View {
                     .accessibilityLabel(AppModel.message(for: failure))
             }
             Spacer()
-            AttentionBadges(counts: section.counts)
+            KindBadges(counts: section.kindCounts)
         }
     }
 }
@@ -169,7 +169,7 @@ struct NoMatchingItems: View {
     SidebarLayout(
         accountSections: PreviewSamples.accountSections,
         allEntries: PreviewSamples.entries,
-        totalCounts: ItemFilter.counts(PreviewSamples.records, bots: .badge),
+        totalKindCounts: ItemFilter.kindCounts(PreviewSamples.records, bots: .badge),
         sidebarSelection: $sidebarSelection,
         selection: $selection,
         selectedEntry: PreviewSamples.entries.first { $0.id == selection },
@@ -188,7 +188,7 @@ struct NoMatchingItems: View {
     SidebarLayout(
         accountSections: PreviewSamples.twoAccountSections,
         allEntries: PreviewSamples.entries,
-        totalCounts: ItemFilter.counts(PreviewSamples.records, bots: .badge),
+        totalKindCounts: ItemFilter.kindCounts(PreviewSamples.records, bots: .badge),
         sidebarSelection: $sidebarSelection,
         selection: $selection,
         selectedEntry: PreviewSamples.entries.first { $0.id == selection },

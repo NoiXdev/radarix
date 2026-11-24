@@ -482,6 +482,10 @@ public final class RadarixController {
         ItemFilter.counts(records(in: repo), bots: settings.botDisplay)
     }
 
+    public func kindCounts(in repo: RepoID?) -> KindCounts {
+        ItemFilter.kindCounts(records(in: repo), bots: settings.botDisplay)
+    }
+
     // MARK: Persistence
 
     private func saveSettings() {

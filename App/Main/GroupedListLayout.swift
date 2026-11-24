@@ -48,7 +48,7 @@ struct GroupedListLayout<Header: View>: View {
                     HStack {
                         Text(verbatim: "\(section.repo.owner) / \(section.repo.name)")
                         Spacer()
-                        AttentionBadges(counts: section.counts)
+                        KindBadges(counts: section.kindCounts)
                     }
                 }
             }

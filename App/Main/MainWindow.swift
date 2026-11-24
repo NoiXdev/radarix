@@ -8,10 +8,10 @@ struct ItemEntry: Identifiable, Hashable {
     var id: ItemKey { record.item.key }
 }
 
-/// One watched repository: its attention counts and the entries that pass the filters.
+/// One watched repository: its attention counts per kind and the entries that pass the filters.
 struct RepoSection: Identifiable {
     let repo: RepoRef
-    let counts: AttentionCounts
+    let kindCounts: KindCounts
     let entries: [ItemEntry]
     let failure: SyncFailure?
     var id: RepoID { repo.id }
@@ -124,7 +124,7 @@ struct MainWindow: View {
         switch controller.settings.layout {
         case .sidebar:
             SidebarLayout(
-                accountSections: sections, allEntries: entries, totalCounts: controller.counts(in: nil),
+                accountSections: sections, allEntries: entries, totalKindCounts: controller.kindCounts(in: nil),
                 sidebarSelection: $sidebarSelection, selection: $selection, selectedEntry: selected,
                 scrollTarget: $scrollTarget, showsBotBadges: showsBotBadges, actions: actions
             ) { header }
@@ -282,7 +282,7 @@ struct MainWindow: View {
                 .map { repo in
                     RepoSection(
                         repo: repo,
-                        counts: controller.counts(in: repo.id),
+                        kindCounts: controller.kindCounts(in: repo.id),
                         entries: byRepo[repo.id] ?? [],
                         failure: session.lastReport?.repoFailures[repo.id]
                     )

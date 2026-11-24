@@ -34,7 +34,7 @@ enum PreviewSamples {
     static let sections: [RepoSection] = repos.map { repo in
         RepoSection(
             repo: repo,
-            counts: ItemFilter.counts(records.filter { $0.item.key.repo == repo.id }, bots: .badge),
+            kindCounts: ItemFilter.kindCounts(records.filter { $0.item.key.repo == repo.id }, bots: .badge),
             entries: entries.filter { $0.repo.id == repo.id },
             failure: repo == dotfiles ? .notFound : nil
         )

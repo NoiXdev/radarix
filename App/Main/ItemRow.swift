@@ -8,6 +8,19 @@ extension Color {
     static let attentionUpdated = Color(red: 0xF5 / 255, green: 0xA5 / 255, blue: 0x24 / 255)
     /// `#0B1524`, for text on `attentionUpdated`.
     static let attentionUpdatedInk = Color(red: 0x0B / 255, green: 0x15 / 255, blue: 0x24 / 255)
+    /// Teal for pull requests, pink for issues. Neither is the attention blue or amber, or the
+    /// status green, purple or red. The light variants are dark enough for text on a pale tint.
+    static let kindPullRequest = Color(light: (0x0B, 0x7F, 0x8C), dark: (0x3F, 0xC9, 0xD6))
+    static let kindIssue = Color(light: (0xC2, 0x2E, 0x76), dark: (0xF0, 0x6C, 0xA6))
+
+    private init(light: (Int, Int, Int), dark: (Int, Int, Int)) {
+        func ns(_ c: (Int, Int, Int)) -> NSColor {
+            NSColor(srgbRed: CGFloat(c.0) / 255, green: CGFloat(c.1) / 255, blue: CGFloat(c.2) / 255, alpha: 1)
+        }
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? ns(dark) : ns(light)
+        })
+    }
 }
 
 /// One issue or pull request in a list.
@@ -119,37 +132,46 @@ enum StatusText {
     }
 }
 
-/// Small capsules with the new and updated counts; nothing for zero.
-struct AttentionBadges: View {
-    let counts: AttentionCounts
+/// One capsule per kind that has anything new or updated: glyph and count in the kind's color,
+/// and a dot that says whether any of it is new or only updated.
+struct KindBadges: View {
+    let counts: KindCounts
 
     var body: some View {
         HStack(spacing: 4) {
-            if counts.new > 0 {
-                CountBadge(count: counts.new, color: .attentionNew, textColor: .white)
-                    .accessibilityLabel("\(counts.new) new")
+            if counts.pullRequests.total > 0 {
+                KindBadge(glyph: "arrow.triangle.pull", counts: counts.pullRequests, color: .kindPullRequest)
+                    .accessibilityLabel(
+                        "\(counts.pullRequests.total) pull requests, \(counts.pullRequests.new) new, \(counts.pullRequests.updated) updated")
             }
-            if counts.updated > 0 {
-                CountBadge(count: counts.updated, color: .attentionUpdated, textColor: .attentionUpdatedInk)
-                    .accessibilityLabel("\(counts.updated) updated")
+            if counts.issues.total > 0 {
+                KindBadge(glyph: "exclamationmark.circle", counts: counts.issues, color: .kindIssue)
+                    .accessibilityLabel(
+                        "\(counts.issues.total) issues, \(counts.issues.new) new, \(counts.issues.updated) updated")
             }
         }
     }
 }
 
-private struct CountBadge: View {
-    let count: Int
+private struct KindBadge: View {
+    let glyph: String
+    let counts: AttentionCounts
     let color: Color
-    let textColor: Color
 
     var body: some View {
-        Text(count, format: .number)
-            .font(.caption2.weight(.semibold))
-            .monospacedDigit()
-            .foregroundStyle(textColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(color, in: Capsule())
+        HStack(spacing: 3) {
+            Image(systemName: glyph)
+            Text(counts.total, format: .number)
+                .monospacedDigit()
+            Circle()
+                .fill(counts.new > 0 ? Color.attentionNew : Color.attentionUpdated)
+                .frame(width: 6, height: 6)
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(color)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .background(color.opacity(0.15), in: Capsule())
     }
 }
 

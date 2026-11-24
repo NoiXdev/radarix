@@ -146,6 +146,23 @@ struct ItemFilterTests {
         #expect(ItemFilter.counts(records, bots: .hidden).total == 3)
     }
 
+    @Test func kindCountsSplitByKind() {
+        let records = [
+            record(1, .new, kind: .pullRequest), record(2, .new, kind: .pullRequest), record(3, .updated, kind: .pullRequest),
+            record(4, .new, kind: .issue), record(5, .seen, kind: .issue),
+        ]
+        let counts = ItemFilter.kindCounts(records, bots: .badge)
+        #expect(counts.pullRequests == AttentionCounts(new: 2, updated: 1))
+        #expect(counts.issues == AttentionCounts(new: 1, updated: 0))
+        #expect(counts.total == ItemFilter.counts(records, bots: .badge))
+    }
+
+    @Test func kindCountsHiddenBotsLeftOut() {
+        let records = [record(1, .new, kind: .pullRequest, author: "renovate", bot: true), record(2, .new, kind: .pullRequest)]
+        #expect(ItemFilter.kindCounts(records, bots: .hidden).pullRequests == AttentionCounts(new: 1, updated: 0))
+        #expect(ItemFilter.kindCounts(records, bots: .badge).pullRequests == AttentionCounts(new: 2, updated: 0))
+    }
+
     @Test func filterSetDefaults() {
         let filter = FilterSet()
         #expect(filter.new && filter.updated)

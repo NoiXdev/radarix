@@ -61,6 +61,20 @@ public struct AttentionCounts: Sendable, Equatable {
     public var total: Int { new + updated }
 }
 
+/// The attention counts split by kind.
+public struct KindCounts: Sendable, Equatable {
+    public var pullRequests: AttentionCounts
+    public var issues: AttentionCounts
+    public init(pullRequests: AttentionCounts = AttentionCounts(), issues: AttentionCounts = AttentionCounts()) {
+        self.pullRequests = pullRequests
+        self.issues = issues
+    }
+    /// Both kinds added up.
+    public var total: AttentionCounts {
+        AttentionCounts(new: pullRequests.new + issues.new, updated: pullRequests.updated + issues.updated)
+    }
+}
+
 public enum ItemFilter {
     /// Listed records matching the filter and bot scope, newest `updatedAt` first.
     public static func visible(_ records: [ItemRecord], filter: FilterSet, viewers: ViewerLogins, scope: BotScope) -> [ItemRecord] {
@@ -83,12 +97,18 @@ public enum ItemFilter {
 
     /// New and updated listed records. Bots are left out only in `.hidden` mode.
     public static func counts(_ records: [ItemRecord], bots: BotDisplayMode) -> AttentionCounts {
-        var counts = AttentionCounts()
+        kindCounts(records, bots: bots).total
+    }
+
+    /// The same records as `counts`, split into pull requests and issues.
+    public static func kindCounts(_ records: [ItemRecord], bots: BotDisplayMode) -> KindCounts {
+        var counts = KindCounts()
         for record in records where ItemStateEngine.isListed(record) {
             if bots == .hidden, record.item.author.isBot { continue }
+            let path: WritableKeyPath<KindCounts, AttentionCounts> = record.item.kind == .pullRequest ? \.pullRequests : \.issues
             switch record.attention {
-            case .new: counts.new += 1
-            case .updated: counts.updated += 1
+            case .new: counts[keyPath: path].new += 1
+            case .updated: counts[keyPath: path].updated += 1
             case .seen: break
             }
         }
