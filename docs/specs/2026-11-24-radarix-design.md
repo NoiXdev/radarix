@@ -281,7 +281,7 @@ list and a tile board, and chose sidebar plus grouped list, switchable.
   Settings → General turns the check off (default on). Proposed by the
   designer, not yet confirmed in detail by the owner.
 
-**Owner steps the plan must include (the builder cannot do them):**
+**Owner steps the plan must include (the builder cannot do them):** all done for 1.0.0 (2026-11-24): the OAuth app is registered and its client ID is a repo secret; the App IDs and the App Group exist and the release is Developer ID signed.
 
 - Register the NoiXdev OAuth App with device flow enabled and hand over its
   client ID. Until then, development uses the token sign-in path, which
