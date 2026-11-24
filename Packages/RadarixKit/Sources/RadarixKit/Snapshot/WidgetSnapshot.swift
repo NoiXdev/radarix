@@ -75,6 +75,8 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
     }
 
     public static let itemsPerRepo = 6
+    /// The widget calls its data stale this long after `syncedAt`.
+    public static let staleAfter: TimeInterval = 60 * 60
 
     public var status: Status
     public var login: String?

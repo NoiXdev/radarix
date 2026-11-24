@@ -738,6 +738,57 @@ struct RadarixControllerTests {
         #expect(try h.store.loadSnapshot()?.status == .needsReauth)
     }
 
+    @Test func unchangedSyncsReloadOnce() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        let written = Counter()
+        controller.onSnapshotWritten = { written.value += 1 }
+
+        // Two syncs that change nothing: the file gets the new time, the widget is not reloaded.
+        h.clock.now = localNow.addingTimeInterval(300)
+        await controller.refresh()
+        h.clock.now = localNow.addingTimeInterval(600)
+        await controller.refresh()
+        #expect(written.value == 0)
+        #expect(try h.store.loadSnapshot()?.syncedAt == localNow.addingTimeInterval(600))
+
+        // Once the time the widget last got is 30 minutes old, one sync reloads it.
+        h.clock.now = localNow.addingTimeInterval(1_800)
+        await controller.refresh()
+        #expect(written.value == 1)
+        h.clock.now = localNow.addingTimeInterval(2_100)
+        await controller.refresh()
+        #expect(written.value == 1)
+        #expect(try h.store.loadSnapshot()?.syncedAt == localNow.addingTimeInterval(2_100))
+    }
+
+    @Test func contentChangeReloads() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        let written = Counter()
+        controller.onSnapshotWritten = { written.value += 1 }
+
+        h.clock.now = localNow.addingTimeInterval(60)
+        await h.api.scriptRepositories("o", .success(.fresh([repoA])))
+        await h.api.scriptItems(repoA, .success(.fresh([.fixture(number: 2, createdAt: t2, updatedAt: t2)])))
+        await controller.refresh()
+
+        #expect(written.value == 1)
+        #expect(try h.store.loadSnapshot()?.repos.first?.newCount == 2)
+        // A mark changes what the widget shows, too.
+        controller.markSeen(key(2))
+        #expect(written.value == 2)
+        // Marking it again changes nothing.
+        controller.markSeen(key(2))
+        #expect(written.value == 2)
+    }
+
     @Test func signInWhileOfflineWritesSignedInSnapshot() async throws {
         let h = Harness()
         defer { h.cleanUp() }

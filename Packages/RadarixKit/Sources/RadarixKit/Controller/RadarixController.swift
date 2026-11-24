@@ -31,8 +31,13 @@ public final class RadarixController {
     public private(set) var syncProblem: SyncProblem?
     /// Called after every sync that completed for the current session.
     @ObservationIgnored public var onSyncReport: ((SyncReport) -> Void)?
-    /// Called after the widget snapshot was written or removed.
+    /// Called when the widget should reload: the snapshot was removed, or what it shows changed,
+    /// or its `syncedAt` moved `snapshotReloadAge` past the one of the last call.
     @ObservationIgnored public var onSnapshotWritten: (() -> Void)?
+
+    /// A sync time this much newer than the widget's is worth a reload: half of
+    /// `WidgetSnapshot.staleAfter`, so a widget of a syncing app never shows its data as stale.
+    public static let snapshotReloadAge: TimeInterval = WidgetSnapshot.staleAfter / 2
 
     /// The refresh started by the last watch change.
     @ObservationIgnored var pendingRefresh: Task<Void, Never>?
@@ -56,6 +61,10 @@ public final class RadarixController {
     @ObservationIgnored private var refreshQueued = false
     @ObservationIgnored private var scheduler: Task<Void, Never>?
     @ObservationIgnored private var schedulerEnabled = false
+    /// The snapshot last saved by this controller; nil before the first write and after a reset.
+    @ObservationIgnored private var writtenSnapshot: WidgetSnapshot?
+    /// The `syncedAt` of the snapshot at the last `onSnapshotWritten` call.
+    @ObservationIgnored private var reloadedSyncedAt: Date?
 
     private static let log = Logger(subsystem: "dev.noix.radarix", category: "controller")
 
@@ -131,6 +140,8 @@ public final class RadarixController {
         try store.resetAll()
         end()
         settings = AppSettings()
+        writtenSnapshot = nil
+        reloadedSyncedAt = nil
         // No snapshot is written after the wipe; the widget reloads into its signed-out state.
         onSnapshotWritten?()
     }
@@ -399,19 +410,39 @@ public final class RadarixController {
         writeSnapshot()
     }
 
-    /// The widget's view of the session: `.signedOut` without an account.
+    /// The widget's view of the session: `.signedOut` without an account. Saved when it differs
+    /// from the last one; the widget reloads only when `needsReload` says so, to stay within its budget.
     private func writeSnapshot() {
         let snapshot = if let account, auth != .signedOut {
             WidgetSnapshot.make(account: account, settings: settings, auth: auth, syncedAt: lastSyncAt)
         } else {
             WidgetSnapshot.signedOut
         }
+        guard snapshot != writtenSnapshot else { return }
         do {
             try store.saveSnapshot(snapshot)
         } catch {
             Self.log.error("Saving the widget snapshot failed: \(error.localizedDescription, privacy: .public)")
             return
         }
+        let previous = writtenSnapshot
+        writtenSnapshot = snapshot
+        guard Self.needsReload(snapshot, previous: previous, reloadedSyncedAt: reloadedSyncedAt) else { return }
+        reloadedSyncedAt = snapshot.syncedAt
         onSnapshotWritten?()
+    }
+
+    /// True for the first write, for changed content, and for a `syncedAt` that appeared, went away
+    /// or is `snapshotReloadAge` newer than the widget's.
+    private static func needsReload(_ snapshot: WidgetSnapshot, previous: WidgetSnapshot?, reloadedSyncedAt: Date?) -> Bool {
+        guard let previous else { return true }
+        var sameTime = snapshot
+        sameTime.syncedAt = previous.syncedAt
+        if sameTime != previous { return true }
+        switch (snapshot.syncedAt, reloadedSyncedAt) {
+        case (nil, nil): return false
+        case (let syncedAt?, let reloaded?): return syncedAt.timeIntervalSince(reloaded) >= snapshotReloadAge
+        default: return true
+        }
     }
 }
