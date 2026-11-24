@@ -6,6 +6,14 @@ public enum AuthState: Sendable, Equatable {
     case signedOut, signedIn(login: String), needsReauth(login: String)
 }
 
+/// Why the last sync attempt could not run fully. Repo failures are in `SyncReport.repoFailures`.
+public enum SyncProblem: Sendable, Equatable {
+    /// GitHub could not be reached; stored data is shown.
+    case offline
+    /// No sync before this time.
+    case rateLimited(until: Date)
+}
+
 /// The app's single source of truth: session, settings, watched data and sync.
 @MainActor @Observable
 public final class RadarixController {
@@ -19,6 +27,8 @@ public final class RadarixController {
     /// When the last sync that processed every watched repo finished.
     public private(set) var lastSyncAt: Date?
     public private(set) var isSyncing = false
+    /// Set when the last sync attempt hit a problem; cleared by a completed sync.
+    public private(set) var syncProblem: SyncProblem?
     /// Called after every sync that completed for the current session.
     @ObservationIgnored public var onSyncReport: ((SyncReport) -> Void)?
 
@@ -145,6 +155,7 @@ public final class RadarixController {
         lastReport = nil
         lastSyncAt = nil
         rateLimitedUntil = nil
+        syncProblem = nil
         journal = []
     }
 
@@ -196,6 +207,7 @@ public final class RadarixController {
     /// Returns false when the session changed meanwhile and the result was discarded.
     private func sync(_ api: GitHubAPI, session: Int) async -> Bool {
         let fetchedOwners: [OwnerRef]
+        var offline = false
         do {
             fetchedOwners = try await api.owners()
         } catch {
@@ -203,11 +215,18 @@ public final class RadarixController {
             switch error as? GitHubError {
             case .unauthorized:
                 if let account { auth = .needsReauth(login: account.login) }
+                // GitHub answered; the sign-in is the problem, shown by `auth`.
+                syncProblem = nil
                 return true
             case .rateLimited(let resetAt):
                 rateLimitedUntil = resetAt
+                syncProblem = .rateLimited(until: resetAt)
                 return true
             default:
+                if case .network = error as? GitHubError {
+                    offline = true
+                    syncProblem = .offline
+                }
                 // Keep the previous owners; without any, try again next time.
                 guard !owners.isEmpty else { return true }
                 fetchedOwners = owners
@@ -234,6 +253,12 @@ public final class RadarixController {
         lastReport = report
         if report.isComplete { lastSyncAt = now() }
         rateLimitedUntil = report.rateLimitedUntil
+        if let until = report.rateLimitedUntil {
+            syncProblem = .rateLimited(until: until)
+        } else if report.isComplete {
+            // The repos synced from the previous owners, but GitHub was not reachable for the owners list.
+            syncProblem = offline ? .offline : nil
+        }
         if report.needsReauth { auth = .needsReauth(login: merged.login) }
         saveAccount()
         onSyncReport?(report)

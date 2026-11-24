@@ -415,6 +415,66 @@ struct RadarixControllerTests {
         #expect(try h.store.loadAccount(me)?.repos[repoA.id]?.records[1]?.attention == .updated)
     }
 
+    @Test func ownersNetworkErrorSetsOfflineProblem() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        await h.api.setOwners(.failure(.network("offline")))
+        let controller = h.makeController()
+        #expect(controller.syncProblem == nil)
+
+        // Offline launch: no owners known, the sync is skipped, the stored data stays.
+        await controller.restoreSession()
+        #expect(controller.syncProblem == .offline)
+        #expect(controller.records(in: nil).count == 1)
+
+        // Owners known: the sync falls back to them and still reports the owners failure.
+        await h.api.setOwners(.success([user]))
+        await controller.refresh()
+        #expect(controller.syncProblem == nil)
+        await h.api.setOwners(.failure(.network("offline")))
+        await controller.refresh()
+        #expect(controller.syncProblem == .offline)
+
+        try controller.signOut()
+        #expect(controller.syncProblem == nil)
+    }
+
+    @Test func ownersRateLimitSetsRateLimitedProblem() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        let resetAt = localNow.addingTimeInterval(900)
+        await h.api.setOwners(.failure(.rateLimited(resetAt: resetAt)))
+        let controller = h.makeController()
+
+        await controller.restoreSession()
+        #expect(controller.syncProblem == .rateLimited(until: resetAt))
+
+        // A rate limit the engine reports is a problem too.
+        h.clock.now = resetAt
+        await h.api.setOwners(.success([user]))
+        let later = resetAt.addingTimeInterval(900)
+        await h.api.scriptRepositories("o", .failure(.rateLimited(resetAt: later)))
+        await controller.refresh()
+        #expect(controller.syncProblem == .rateLimited(until: later))
+    }
+
+    @Test func completedSyncClearsProblem() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        await h.api.setOwners(.failure(.network("offline")))
+        let controller = h.makeController()
+        await controller.restoreSession()
+        #expect(controller.syncProblem == .offline)
+
+        await h.api.setOwners(.success([user]))
+        await controller.refresh()
+        #expect(controller.syncProblem == nil)
+        #expect(controller.lastSyncAt == localNow)
+    }
+
     @Test func lastSyncAtOnlyAfterCompletedSync() async throws {
         let h = Harness()
         defer { h.cleanUp() }
