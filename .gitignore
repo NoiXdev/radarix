@@ -1,0 +1,7 @@
+.DS_Store
+.build/
+DerivedData/
+*.xcodeproj/
+Config/Local.xcconfig
+.superpowers/
+xcuserdata/
