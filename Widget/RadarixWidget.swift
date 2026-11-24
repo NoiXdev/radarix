@@ -49,8 +49,11 @@ struct OverviewEntry: TimelineEntry {
     /// How old the data is at `date`; nil unless signed in.
     var freshness: Freshness? {
         guard let snapshot, snapshot.status == .ok else { return nil }
+        let isStale = snapshot.syncedAt.map { date >= Self.staleDate(of: $0) } ?? false
+        // An account that needs sign-in matters more than how old the data is.
+        if !snapshot.reauthLogins.isEmpty { return .needsSignIn(snapshot.reauthLogins, isStale: isStale) }
         guard let syncedAt = snapshot.syncedAt else { return .waiting }
-        return date >= Self.staleDate(of: syncedAt) ? .stale(since: syncedAt) : .updated(syncedAt)
+        return isStale ? .stale(since: syncedAt) : .updated(syncedAt)
     }
 
     static func staleDate(of syncedAt: Date) -> Date {
@@ -76,6 +79,12 @@ enum Freshness: Equatable {
     case updated(Date)
     /// Radarix has not synced for `WidgetSnapshot.staleAfter`, for example because it is not running.
     case stale(since: Date)
+    /// One or more accounts need to sign in again while the rest still sync. Wins over the age note.
+    case needsSignIn([String], isStale: Bool)
+
+    var needsSignIn: Bool {
+        if case .needsSignIn = self { true } else { false }
+    }
 }
 
 /// Read fresh from the snapshot: the current entry, and one that shows the data as stale once it

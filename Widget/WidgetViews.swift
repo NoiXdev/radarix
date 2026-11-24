@@ -53,8 +53,8 @@ struct SmallOverview: View {
 
     private var notesFreshness: Bool {
         switch freshness {
-        case .stale, .waiting: true
-        case .updated, nil: false
+        case .stale, .waiting, .needsSignIn(_, isStale: true): true
+        case .updated, .needsSignIn(_, isStale: false), nil: false
         }
     }
 
@@ -64,7 +64,7 @@ struct SmallOverview: View {
                 .accessibilityLabel(Text("\(summary.newCount) new items"))
             CountTile(count: summary.updatedCount, label: "updated", fill: .attentionUpdated, ink: .attentionUpdatedInk)
                 .accessibilityLabel(Text("\(summary.updatedCount) updated items"))
-            if let freshness, notesFreshness {
+            if let freshness, notesFreshness || freshness.needsSignIn {
                 FreshnessNote(freshness: freshness)
                     .font(.caption2)
                     .lineLimit(3)
@@ -168,7 +168,7 @@ private struct SummaryHeader: View {
 }
 
 /// "Updated 5 minutes ago", "Waiting for the first sync." or, for stale data, when it was last
-/// updated and that Radarix needs to run.
+/// updated and that Radarix needs to run. Accounts that need sign-in replace all of these.
 private struct FreshnessNote: View {
     let freshness: Freshness
 
@@ -180,6 +180,17 @@ private struct FreshnessNote: View {
         case .updated(let date):
             Text("Updated \(RelativeTime.text(date))")
                 .foregroundStyle(.secondary)
+        case .needsSignIn(let logins, _):
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
+                if logins.count == 1, let login = logins.first {
+                    Text("\(login): sign in again")
+                } else {
+                    Text("\(logins.count) accounts need sign-in")
+                }
+            }
         case .stale(let date):
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -424,6 +435,14 @@ extension WidgetSnapshot {
     static let sampleNeedsReauth = WidgetSnapshot(
         status: .needsReauth, logins: ["octo"], reauthLogins: ["octo"], syncedAt: nil, repos: [])
 
+    /// Two accounts, one of which needs to sign in again, for the sign-in line.
+    static let sampleOneReauth: WidgetSnapshot = {
+        var snapshot = sample
+        snapshot.logins = ["octo", "acme-bot"]
+        snapshot.reauthLogins = ["acme-bot"]
+        return snapshot
+    }()
+
     /// Last synced a day ago, for the stale note.
     static let sampleStale: WidgetSnapshot = {
         var snapshot = sample
@@ -445,6 +464,7 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sample, scope: .all)
     OverviewEntry(snapshot: .sampleEmpty, scope: .all)
     OverviewEntry(snapshot: .sampleStale, scope: .all)
+    OverviewEntry(snapshot: .sampleOneReauth, scope: .all)
     OverviewEntry(snapshot: .sampleWaiting, scope: .all)
     OverviewEntry(snapshot: nil, scope: .all)
 }
@@ -456,6 +476,7 @@ extension WidgetSnapshot {
     OverviewEntry(snapshot: .sample, scope: .owner("acme"))
     OverviewEntry(snapshot: .sampleEmpty, scope: .all)
     OverviewEntry(snapshot: .sampleStale, scope: .all)
+    OverviewEntry(snapshot: .sampleOneReauth, scope: .all)
     OverviewEntry(snapshot: .sampleNeedsReauth, scope: .all)
 }
 

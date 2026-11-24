@@ -392,6 +392,38 @@
         }
       }
     },
+    "%@: sign in again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: sign in again"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: erneut anmelden"
+          }
+        }
+      }
+    },
+    "%lld accounts need sign-in" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld accounts need sign-in"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Konten müssen neu angemeldet werden"
+          }
+        }
+      }
+    },
     "Sign in again in Radarix." : {
       "localizations" : {
         "en" : {
