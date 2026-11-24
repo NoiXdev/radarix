@@ -58,8 +58,10 @@ public final class RadarixController {
     @ObservationIgnored private var writtenSnapshot: WidgetSnapshot?
     /// The `syncedAt` of the snapshot at the last `onSnapshotWritten` call.
     @ObservationIgnored private var reloadedSyncedAt: Date?
-    /// The previous launch's sync time, from the snapshot file, for the account it names.
-    @ObservationIgnored private var carriedSyncedAt: (login: String, date: Date)?
+    /// The previous launch's sync time, from the snapshot file, for the accounts it names.
+    @ObservationIgnored private var carriedSyncedAt: (logins: Set<String>, date: Date)?
+    /// `markAllSeen` is saving; it writes the snapshot once itself.
+    @ObservationIgnored private var suppressSnapshot = false
 
     private static let log = Logger(subsystem: "dev.noix.radarix", category: "controller")
 
@@ -247,8 +249,8 @@ public final class RadarixController {
         guard wasEmpty else { return }
         // The widget keeps showing how old its data is, also after a relaunch.
         carriedSyncedAt = (try? store.loadSnapshot()).flatMap { previous in
-            guard let login = previous.login, let date = previous.syncedAt else { return nil }
-            return (login, date)
+            guard let date = previous.syncedAt, !previous.logins.isEmpty else { return nil }
+            return (Set(previous.logins.map { $0.lowercased() }), date)
         }
         if schedulerEnabled { launchScheduler() }
     }
@@ -419,7 +421,9 @@ public final class RadarixController {
     }
 
     public func markAllSeen() {
+        suppressSnapshot = true
         for session in sessions { session.markAllSeen() }
+        suppressSnapshot = false
         writeSnapshot()
     }
 
@@ -449,21 +453,16 @@ public final class RadarixController {
 
     /// Account saves during a pass are written once at its end.
     private func accountSaved() {
-        if !passRunning { writeSnapshot() }
+        if !passRunning, !suppressSnapshot { writeSnapshot() }
     }
 
-    /// The widget's view of the first session (the merged view is to come): `.signedOut` without
-    /// one. Saved when it differs from the last one; the widget reloads only when `needsReload`
-    /// says so, to stay within its budget.
+    /// The widget's view of every session at once: `.signedOut` without one. Saved when it differs
+    /// from the last one; the widget reloads only when `needsReload` says so, to stay within its budget.
     private func writeSnapshot() {
-        let snapshot = if let session = sessions.first {
-            WidgetSnapshot.make(
-                account: session.account, settings: settings,
-                auth: session.auth == .ok ? .signedIn(login: session.login) : .needsReauth(login: session.login),
-                syncedAt: session.lastSyncAt ?? carriedSyncedAt(for: session.login))
-        } else {
-            WidgetSnapshot.signedOut
-        }
+        let logins = sessions.map(\.login)
+        let snapshot = WidgetSnapshot.make(
+            repos: Array(repos.values), logins: logins, reauthLogins: needsReauth.map(\.login), settings: settings,
+            syncedAt: lastSyncAt ?? carriedSyncedAt(for: logins))
         guard snapshot != writtenSnapshot else { return }
         do {
             try store.saveSnapshot(snapshot)
@@ -478,8 +477,9 @@ public final class RadarixController {
         onSnapshotWritten?()
     }
 
-    private func carriedSyncedAt(for login: String) -> Date? {
-        guard let carried = carriedSyncedAt, carried.login.caseInsensitiveCompare(login) == .orderedSame else { return nil }
+    /// Only when the previous snapshot named the same accounts, ignoring case and order.
+    private func carriedSyncedAt(for logins: [String]) -> Date? {
+        guard let carried = carriedSyncedAt, carried.logins == Set(logins.map { $0.lowercased() }) else { return nil }
         return carried.date
     }
 

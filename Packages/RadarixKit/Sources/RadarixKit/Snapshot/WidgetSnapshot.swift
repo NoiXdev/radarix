@@ -79,28 +79,68 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
     public static let staleAfter: TimeInterval = 2 * 60 * 60
 
     public var status: Status
-    public var login: String?
+    /// Every signed-in account, in account order.
+    public var logins: [String]
+    /// The accounts of `logins` whose sign-in expired.
+    public var reauthLogins: [String]
     public var syncedAt: Date?
     public var repos: [RepoEntry]
 
-    public init(status: Status, login: String?, syncedAt: Date?, repos: [RepoEntry]) {
+    public init(status: Status, logins: [String], reauthLogins: [String], syncedAt: Date?, repos: [RepoEntry]) {
         self.status = status
-        self.login = login
+        self.logins = logins
+        self.reauthLogins = reauthLogins
         self.syncedAt = syncedAt
         self.repos = repos
     }
 
-    public static let signedOut = WidgetSnapshot(status: .signedOut, login: nil, syncedAt: nil, repos: [])
+    public static let signedOut = WidgetSnapshot(status: .signedOut, logins: [], reauthLogins: [], syncedAt: nil, repos: [])
+
+    private enum CodingKeys: String, CodingKey {
+        case status, logins, reauthLogins, syncedAt, repos
+        /// Written by the single-account schema; read only.
+        case login
+    }
+
+    /// Tolerant: a file of the single-account schema has `login` and no `logins`.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        status = try c.decode(Status.self, forKey: .status)
+        if let logins = try c.decodeIfPresent([String].self, forKey: .logins) {
+            self.logins = logins
+        } else if let login = try c.decodeIfPresent(String.self, forKey: .login) {
+            logins = [login]
+        } else {
+            logins = []
+        }
+        reauthLogins = try c.decodeIfPresent([String].self, forKey: .reauthLogins) ?? []
+        syncedAt = try c.decodeIfPresent(Date.self, forKey: .syncedAt)
+        repos = try c.decodeIfPresent([RepoEntry].self, forKey: .repos) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(status, forKey: .status)
+        try c.encode(logins, forKey: .logins)
+        try c.encode(reauthLogins, forKey: .reauthLogins)
+        try c.encodeIfPresent(syncedAt, forKey: .syncedAt)
+        try c.encode(repos, forKey: .repos)
+    }
 
     /// Counts and items follow `ItemFilter.counts`: listed new and updated records, without bots
-    /// only in `.hidden` mode. Every repo of the account gets an entry, also one with nothing to show.
-    public static func make(account: AccountData, settings: AppSettings, auth: AuthState, syncedAt: Date?) -> WidgetSnapshot {
-        let status: Status = switch auth {
-        case .signedIn: .ok
-        case .needsReauth: .needsReauth
-        case .signedOut: .signedOut
+    /// only in `.hidden` mode. Every given repo gets an entry, also one with nothing to show.
+    /// `.signedOut` without logins, `.needsReauth` when every login needs it, else `.ok`.
+    public static func make(
+        repos states: [RepoState], logins: [String], reauthLogins: [String], settings: AppSettings, syncedAt: Date?
+    ) -> WidgetSnapshot {
+        let status: Status = if logins.isEmpty {
+            .signedOut
+        } else if logins.allSatisfy({ login in reauthLogins.contains { $0.caseInsensitiveCompare(login) == .orderedSame } }) {
+            .needsReauth
+        } else {
+            .ok
         }
-        let repos = account.repos.values.map { state in
+        let repos = states.map { state in
             let shown = state.records.values.filter { record in
                 ItemStateEngine.isListed(record) && record.attention != .seen
                     && !(settings.botDisplay == .hidden && record.item.author.isBot)
@@ -112,7 +152,8 @@ public struct WidgetSnapshot: Codable, Sendable, Equatable {
                 updatedCount: shown.count(where: { $0.attention == .updated }),
                 items: newest.prefix(itemsPerRepo).map(ItemEntry.init))
         }
-        return WidgetSnapshot(status: status, login: account.login, syncedAt: syncedAt, repos: sorted(repos))
+        return WidgetSnapshot(
+            status: status, logins: logins, reauthLogins: reauthLogins, syncedAt: syncedAt, repos: sorted(repos))
     }
 
     /// An unknown repo or owner gives an empty summary; the widget picks its own fallback.

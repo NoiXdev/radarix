@@ -361,6 +361,39 @@ struct MultiAccountTests {
         #expect(try h.store.loadAccount(second)?.repos[workOnly.id]?.records[1]?.attention == .seen)
     }
 
+    @Test func snapshotCoversAllAccounts() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [shared], states: [shared: [record(1, .new)]]),
+            account(second, available: [workOnly], states: [workOnly: [record(1, .new, repo: workOnly)]]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        let snapshot = try #require(try h.store.loadSnapshot())
+        #expect(snapshot.summary(for: .all).newCount == 2)
+        #expect(snapshot.logins == ["me", "work"])
+        #expect(snapshot.reauthLogins == [])
+        #expect(snapshot.status == .ok)
+    }
+
+    @Test func markAllSeenWritesSnapshotOnce() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [shared], states: [shared: [record(1, .new)]]),
+            account(second, available: [workOnly], states: [workOnly: [record(1, .new, repo: workOnly)]]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        var reloads = 0
+        controller.onSnapshotWritten = { reloads += 1 }
+
+        controller.markAllSeen()
+
+        #expect(reloads == 1)
+        #expect(try h.store.loadSnapshot()?.summary(for: .all).newCount == 0)
+    }
+
     @Test func markDuringSyncOnRemovedOwnerIsDropped() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }

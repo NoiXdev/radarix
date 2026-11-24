@@ -2,8 +2,6 @@ import Foundation
 import Testing
 @testable import RadarixKit
 
-private let signedIn = AuthState.signedIn(login: "me")
-
 private func rec(
     _ number: Int, _ attention: Attention, repo: Int64 = 1, status: ItemStatus = .open,
     author: String = "alice", updatedAt: Date = t1
@@ -30,7 +28,8 @@ private func settings(_ bots: BotDisplayMode) -> AppSettings {
 }
 
 private func snapshot(_ repos: [(RepoRef, [ItemRecord])], bots: BotDisplayMode = .badge) -> WidgetSnapshot {
-    WidgetSnapshot.make(account: account(repos), settings: settings(bots), auth: signedIn, syncedAt: t2)
+    WidgetSnapshot.make(
+        repos: Array(account(repos).repos.values), logins: ["me"], reauthLogins: [], settings: settings(bots), syncedAt: t2)
 }
 
 struct WidgetSnapshotTests {
@@ -47,7 +46,7 @@ struct WidgetSnapshotTests {
         #expect(Set(entry.items.map(\.key.number)) == [1, 2, 5, 6])
         #expect(entry.fullName == "o/repo1")
         #expect(s.status == .ok)
-        #expect(s.login == "me")
+        #expect(s.logins == ["me"])
         #expect(s.syncedAt == t2)
     }
 
@@ -153,11 +152,37 @@ struct WidgetSnapshotTests {
         #expect(idle.summary(for: .all).busiestRepo == nil)
     }
 
-    @Test func statusFollowsAuth() {
-        let a = account([])
-        #expect(WidgetSnapshot.make(account: a, settings: AppSettings(), auth: .needsReauth(login: "me"), syncedAt: nil).status == .needsReauth)
-        #expect(WidgetSnapshot.make(account: a, settings: AppSettings(), auth: .signedOut, syncedAt: nil).status == .signedOut)
-        #expect(WidgetSnapshot.signedOut == WidgetSnapshot(status: .signedOut, login: nil, syncedAt: nil, repos: []))
+    @Test func statusNeedsReauthOnlyWhenAllNeedIt() {
+        func status(_ logins: [String], _ reauth: [String]) -> WidgetSnapshot.Status {
+            WidgetSnapshot.make(repos: [], logins: logins, reauthLogins: reauth, settings: AppSettings(), syncedAt: nil).status
+        }
+        #expect(status(["a", "b"], ["a"]) == .ok)
+        #expect(status(["a", "b"], ["a", "b"]) == .needsReauth)
+        #expect(status([], []) == .signedOut)
+        #expect(WidgetSnapshot.signedOut == WidgetSnapshot(status: .signedOut, logins: [], reauthLogins: [], syncedAt: nil, repos: []))
+    }
+
+    @Test func legacyLoginDecodesToLogins() throws {
+        let legacy = Data(#"{"status":"ok","login":"x","repos":[]}"#.utf8)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let s = try decoder.decode(WidgetSnapshot.self, from: legacy)
+        #expect(s.logins == ["x"])
+        #expect(s.reauthLogins == [])
+        let current = Data(#"{"status":"ok","logins":["a","b"],"reauthLogins":["b"],"repos":[]}"#.utf8)
+        let c = try decoder.decode(WidgetSnapshot.self, from: current)
+        #expect(c.logins == ["a", "b"])
+        #expect(c.reauthLogins == ["b"])
+    }
+
+    @Test func ownerScopeSpansAccounts() {
+        let one = account([(RepoRef.fixture(id: 1, owner: "org", name: "a"), [rec(1, .new)])])
+        let two = account([(RepoRef.fixture(id: 2, owner: "org", name: "b"), [rec(1, .new, repo: 2)])])
+        let s = WidgetSnapshot.make(
+            repos: Array(one.repos.values) + Array(two.repos.values), logins: ["me", "work"], reauthLogins: [],
+            settings: AppSettings(), syncedAt: t2)
+        #expect(s.summary(for: .owner("org")).repos.count == 2)
+        #expect(s.summary(for: .owner("org")).newCount == 2)
     }
 
     @Test func snapshotJSONHasOnlyKnownKeys() throws {
@@ -171,7 +196,7 @@ struct WidgetSnapshotTests {
         var paths: Set<String> = []
         collectKeyPaths(try JSONSerialization.jsonObject(with: data), prefix: "", into: &paths)
         #expect(paths == [
-            "status", "login", "syncedAt", "repos",
+            "status", "logins", "reauthLogins", "syncedAt", "repos",
             "repos.id", "repos.id.rawValue", "repos.owner", "repos.name", "repos.newCount", "repos.updatedCount",
             "repos.items", "repos.items.key", "repos.items.key.repo", "repos.items.key.repo.rawValue",
             "repos.items.key.number", "repos.items.kind", "repos.items.title", "repos.items.attention",

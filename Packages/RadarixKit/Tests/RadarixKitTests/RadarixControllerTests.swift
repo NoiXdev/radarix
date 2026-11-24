@@ -644,7 +644,7 @@ struct RadarixControllerTests {
         let snapshot = try #require(try h.store.loadSnapshot())
         #expect(written.value > 0)
         #expect(snapshot.status == .ok)
-        #expect(snapshot.login == "me")
+        #expect(snapshot.logins == ["me"])
         #expect(snapshot.syncedAt == controller.lastSyncAt)
         #expect(snapshot.repos.map(\.id) == [repoA.id])
         #expect(snapshot.repos.first?.newCount == 2)
@@ -744,7 +744,7 @@ struct RadarixControllerTests {
         #expect(controller.auth == .needsReauth(login: "me"))
         let snapshot = try #require(try h.store.loadSnapshot())
         #expect(snapshot.status == .needsReauth)
-        #expect(snapshot.login == "me")
+        #expect(snapshot.logins == ["me"])
         #expect(snapshot.repos.first?.newCount == 1)
 
         // An unauthorized owners call changes the status without saving the account.
@@ -816,7 +816,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         let earlier = localNow.addingTimeInterval(-3_600)
-        try h.store.saveSnapshot(WidgetSnapshot(status: .ok, login: "Me", syncedAt: earlier, repos: []))
+        try h.store.saveSnapshot(WidgetSnapshot(status: .ok, logins: ["Me"], reauthLogins: [], syncedAt: earlier, repos: []))
         // Offline: no sync completes, only the session start writes the snapshot.
         await h.api.setOwners(.failure(.network("offline")))
         let controller = h.makeController()
@@ -827,11 +827,11 @@ struct RadarixControllerTests {
         #expect(try h.store.loadSnapshot()?.syncedAt == earlier)
 
         // The time of another account is not carried over.
-        try h.store.saveSnapshot(WidgetSnapshot(status: .ok, login: "someone-else", syncedAt: earlier, repos: []))
+        try h.store.saveSnapshot(WidgetSnapshot(status: .ok, logins: ["someone-else"], reauthLogins: [], syncedAt: earlier, repos: []))
         let other = h.makeController()
         await other.restoreSessions()
         let snapshot = try #require(try h.store.loadSnapshot())
-        #expect(snapshot.login == "me")
+        #expect(snapshot.logins == ["me"])
         #expect(snapshot.syncedAt == nil)
     }
 
@@ -873,6 +873,6 @@ struct RadarixControllerTests {
         #expect(controller.auth == .signedIn(login: "me"))
         let snapshot = try #require(try h.store.loadSnapshot())
         #expect(snapshot.status == .ok)
-        #expect(snapshot.login == "me")
+        #expect(snapshot.logins == ["me"])
     }
 }

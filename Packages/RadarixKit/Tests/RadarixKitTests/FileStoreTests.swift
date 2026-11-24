@@ -87,7 +87,7 @@ struct FileStoreTests {
         #expect(try store.loadSnapshot() == nil)
         try store.removeSnapshot()
 
-        let snapshot = WidgetSnapshot(status: .needsReauth, login: "me", syncedAt: t1, repos: [
+        let snapshot = WidgetSnapshot(status: .needsReauth, logins: ["me"], reauthLogins: [], syncedAt: t1, repos: [
             WidgetSnapshot.RepoEntry(id: RepoID(rawValue: 1), owner: "o", name: "r", newCount: 1, updatedCount: 0, items: [
                 WidgetSnapshot.ItemEntry(
                     key: ItemKey(repo: RepoID(rawValue: 1), number: 3), kind: .issue, title: "T",
