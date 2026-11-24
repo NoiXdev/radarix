@@ -99,7 +99,10 @@ struct DescriptionWindow: View {
                     .textSelection(.enabled)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button("Open on GitHub") { openURL(item.url) }
+            VStack(alignment: .trailing, spacing: 6) {
+                Button("Open on GitHub") { openURL(item.url) }
+                AssignButton(key: item.key)
+            }
         }
         .padding(16)
     }

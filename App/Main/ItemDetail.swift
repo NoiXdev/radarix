@@ -30,6 +30,7 @@ struct ItemDetail: View {
                     Button("Show description", action: onShowDescription)
                     Button("Open on GitHub", action: onOpen)
                 }
+                AssignButton(key: item.key)
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)

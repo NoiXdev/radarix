@@ -217,6 +217,10 @@ extension View {
                 }
                 Button("Open on GitHub") { actions.open(entry.record) }
                 Button("Show Description") { actions.showDescription(key) }
+                if keys.count == 1 {
+                    Divider()
+                    AssignMenuButton(key: key, setAssigned: actions.setAssigned)
+                }
             }
         } primaryAction: { keys in
             if let key = keys.first, let entry = entries.first(where: { $0.id == key }) {

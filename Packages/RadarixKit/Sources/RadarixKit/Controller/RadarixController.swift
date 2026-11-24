@@ -472,12 +472,19 @@ public final class RadarixController {
         writeSnapshot()
     }
 
+    /// Items with an assign or unassign request in flight. A second request for one of them is
+    /// dropped, so two overlapping writes cannot leave a stale assignee list.
+    public private(set) var assigningKeys: Set<ItemKey> = []
+
     /// Assigns or unassigns the owning account's login on GitHub, then stores the resulting
     /// assignees. Attention is unchanged. Throws `AssignError.noOwner` when no session owns the repo.
+    /// Returns at once, without a request, while the item is in `assigningKeys`.
     public func setAssigned(_ assigned: Bool, key: ItemKey) async throws {
         guard let session = owner(of: key.repo), let repo = repos[key.repo]?.repo else {
             throw AssignError.noOwner
         }
+        guard assigningKeys.insert(key).inserted else { return }
+        defer { assigningKeys.remove(key) }
         let logins = try await session.setAssigned(assigned, number: key.number, in: repo)
         session.setAssignees(logins, for: key)
         writeSnapshot()

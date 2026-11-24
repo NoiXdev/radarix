@@ -34,6 +34,8 @@ struct ItemActions {
     var openRepo: @MainActor (RepoRef) -> Void = { _ in }
     /// Opens the item's description window, or brings it to the front.
     var showDescription: @MainActor (ItemKey) -> Void = { _ in }
+    /// Assigns or unassigns the owning account's login on GitHub.
+    var setAssigned: @MainActor (ItemKey, Bool) async throws -> Void = { _, _ in }
 }
 
 /// The sidebar's choice: every watched repository, or one.
@@ -322,7 +324,8 @@ struct MainWindow: View {
             openRepo: { repo in
                 if let url = URL(string: "https://github.com/\(repo.owner)/\(repo.name)") { openURL(url) }
             },
-            showDescription: { openWindow(id: "description", value: $0) }
+            showDescription: { openWindow(id: "description", value: $0) },
+            setAssigned: { key, assigned in try await controller.setAssigned(assigned, key: key) }
         )
     }
 }

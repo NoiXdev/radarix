@@ -182,7 +182,7 @@ private struct SignInSection: View {
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
-                Text("Classic token: repo and read:org. Fine-grained token: read access to metadata, issues and pull requests.")
+                Text("Classic token: repo and read:org. Fine-grained token: read access to metadata, and read and write access to issues and pull requests, which assigning needs.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

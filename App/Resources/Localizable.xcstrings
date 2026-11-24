@@ -589,6 +589,22 @@
         }
       }
     },
+    "Assign to me" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mir zuweisen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assign to me"
+          }
+        }
+      }
+    },
     "Assigned to me" : {
       "localizations" : {
         "de" : {
@@ -765,18 +781,18 @@
         }
       }
     },
-    "Classic token: repo and read:org. Fine-grained token: read access to metadata, issues and pull requests." : {
+    "Classic token: repo and read:org. Fine-grained token: read access to metadata, and read and write access to issues and pull requests, which assigning needs." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Klassisches Token: repo und read:org. Fine-grained Token: Lesezugriff auf Metadaten, Issues und Pull Requests."
+            "value" : "Klassisches Token: repo und read:org. Fine-grained Token: Lesezugriff auf Metadaten sowie Lese- und Schreibzugriff auf Issues und Pull Requests, den das Zuweisen braucht."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Classic token: repo and read:org. Fine-grained token: read access to metadata, issues and pull requests."
+            "value" : "Classic token: repo and read:org. Fine-grained token: read access to metadata, and read and write access to issues and pull requests, which assigning needs."
           }
         }
       }
@@ -2685,6 +2701,22 @@
         }
       }
     },
+    "This sign-in can't assign. A fine-grained token needs write access to issues and pull requests." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit dieser Anmeldung ist das Zuweisen nicht möglich. Ein Fine-grained Token braucht Schreibzugriff auf Issues und Pull Requests."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sign-in can't assign. A fine-grained token needs write access to issues and pull requests."
+          }
+        }
+      }
+    },
     "This build's GitHub sign-in is misconfigured. Use a token under Advanced." : {
       "localizations" : {
         "de" : {
@@ -2745,6 +2777,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try again"
+          }
+        }
+      }
+    },
+    "Unassign me" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuweisung aufheben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unassign me"
           }
         }
       }

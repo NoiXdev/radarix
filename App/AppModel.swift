@@ -234,6 +234,13 @@ final class AppModel {
             case .decoding:
                 decodingMessage
             }
+        case let error as AssignError:
+            switch error {
+            case .notPermitted:
+                String(localized: "This sign-in can't assign. A fine-grained token needs write access to issues and pull requests.")
+            case .noOwner:
+                String(localized: "Something went wrong. Try again.")
+            }
         case let error as DeviceFlowError:
             switch error {
             case .expired:

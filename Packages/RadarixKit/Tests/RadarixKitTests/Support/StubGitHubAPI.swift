@@ -39,6 +39,9 @@ actor StubGitHubAPI: GitHubAPI {
     private var heldItems: RepoID?
     private var heldContinuation: CheckedContinuation<Void, Never>?
     private var holdWaiters: [CheckedContinuation<Void, Never>] = []
+    private var heldAssign: Int?
+    private var heldAssignContinuation: CheckedContinuation<Void, Never>?
+    private var assignWaiters: [CheckedContinuation<Void, Never>] = []
 
     func scriptRepositories(_ owner: String, _ results: Scripted<[RepoRef]>...) {
         repoLists[owner, default: []] += results
@@ -100,6 +103,22 @@ actor StubGitHubAPI: GitHubAPI {
     func releaseItems() {
         heldContinuation?.resume()
         heldContinuation = nil
+    }
+
+    /// The next `setAssigned` call for this item number suspends until `releaseAssign()`.
+    func holdAssign(_ number: Int) {
+        heldAssign = number
+    }
+
+    /// Returns once a held `setAssigned` call is suspended.
+    func waitForHeldAssign() async {
+        guard heldAssignContinuation == nil else { return }
+        await withCheckedContinuation { assignWaiters.append($0) }
+    }
+
+    func releaseAssign() {
+        heldAssignContinuation?.resume()
+        heldAssignContinuation = nil
     }
 
     func setRateLimit(_ limit: RateLimit?) {
@@ -164,6 +183,14 @@ actor StubGitHubAPI: GitHubAPI {
 
     func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String] {
         calls.append(.setAssigned(assigned, login: login, number: number, repo: repo.id))
+        if heldAssign == number {
+            heldAssign = nil
+            await withCheckedContinuation { continuation in
+                heldAssignContinuation = continuation
+                assignWaiters.forEach { $0.resume() }
+                assignWaiters = []
+            }
+        }
         return try (Self.pop(&assignResults, number) ?? .success(assigned ? [login] : [])).get()
     }
 
