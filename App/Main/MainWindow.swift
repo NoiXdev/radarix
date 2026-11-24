@@ -265,7 +265,7 @@ struct MainWindow: View {
     }
 }
 
-/// Warnings above the list: sign-in rejected, rate limit, repositories that failed to sync.
+/// Warnings above the list: sign-in rejected, offline, rate limit, repositories that failed to sync.
 private struct MainBanners: View {
     let openSettings: () -> Void
 
@@ -281,7 +281,12 @@ private struct MainBanners: View {
                 Button("Sign in again", action: openSettings)
             }
         }
-        if let until = controller.lastReport?.rateLimitedUntil {
+        if controller.syncProblem == .offline {
+            Banner(systemImage: "wifi.slash", tint: .secondary) {
+                Text("Can't reach GitHub. Showing saved data.")
+            }
+        }
+        if let until = rateLimitedUntil {
             TimelineView(.everyMinute) { context in
                 if until > context.date {
                     Banner(systemImage: "hourglass", tint: .yellow) {
@@ -296,6 +301,12 @@ private struct MainBanners: View {
             }
             .help(failureDetails(failures))
         }
+    }
+
+    /// From the owners request or the sync itself.
+    private var rateLimitedUntil: Date? {
+        if case .rateLimited(let until) = controller.syncProblem { return until }
+        return controller.lastReport?.rateLimitedUntil
     }
 
     /// One line per failed repo: its name and what went wrong.

@@ -305,6 +305,22 @@
         }
       }
     },
+    "Can't reach GitHub. Showing saved data." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub ist nicht erreichbar. Du siehst die gespeicherten Daten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't reach GitHub. Showing saved data."
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "de" : {

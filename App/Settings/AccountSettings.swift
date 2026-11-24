@@ -153,6 +153,21 @@ private struct AccountInfoSection: View {
                     Text(lastSync)
                 }
             }
+            if let problem = syncProblem {
+                Text(problem)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var syncProblem: String? {
+        switch controller.syncProblem {
+        case .offline:
+            String(localized: "Can't reach GitHub. Showing saved data.")
+        case .rateLimited(let until) where until > .now:
+            String(localized: "GitHub's rate limit is reached. Radarix syncs again after \(until.formatted(date: .omitted, time: .shortened)).")
+        case .rateLimited, nil:
+            nil
         }
     }
 
