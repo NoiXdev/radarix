@@ -15,6 +15,8 @@ private func account(_ mode: OwnerMode = .all(excluded: []), repos: [RepoState] 
     var a = AccountData(accountID: AccountID(rawValue: 42), login: "me")
     a.watch.owners["o"] = mode
     for state in repos { a.repos[state.repo.id] = state }
+    // The repo list of the last sync: the stored repos of "o".
+    a.available = ["o": repos.map(\.repo).filter { $0.owner == "o" }]
     return a
 }
 
@@ -29,13 +31,33 @@ private func baselined(_ repo: RepoRef, _ records: [ItemRecord] = [], highWaterM
         records: Dictionary(uniqueKeysWithValues: records.map { ($0.item.key.number, $0) }))
 }
 
+private func engine(_ api: StubGitHubAPI) -> SyncEngine {
+    SyncEngine(api: api, now: { localNow })
+}
+
+/// One pass as the controller runs it: resolve, then sync the watched repos unless resolving stopped.
+/// `previous` replaces the account's stored repo lists.
 private func run(
     _ api: StubGitHubAPI, _ account: AccountData,
     owners: [OwnerRef] = [user], previous: [String: [RepoRef]]? = nil
 ) async -> (AccountData, SyncReport) {
-    let engine = SyncEngine(api: api, now: { localNow })
-    let previous = previous ?? ["o": account.repos.values.map(\.repo).filter { $0.owner == "o" }]
-    return await engine.sync(account, owners: owners, previousAvailable: previous, viewers: ViewerLogins(["me"]))
+    var input = account
+    if let previous { input.available = previous }
+    let engine = engine(api)
+    let resolution = await engine.resolve(input, owners: owners)
+    var (result, report) = (input, SyncReport())
+    if let stop = resolution.stop {
+        report.record(stop)
+        report.rateLimit = await api.rateLimit()
+    } else {
+        let owned = RepoResolver.watched(config: input.watch, available: resolution.available)
+        let keep = Set(input.repos.values.filter { resolution.unknownOwners.contains($0.repo.owner) }.map(\.repo.id))
+        (result, report) = await engine.sync(input, owned: owned, keep: keep, viewers: ViewerLogins(["me"]))
+    }
+    result.available = resolution.available
+    report.availableRepos = resolution.available
+    report.ownerIssues = resolution.ownerIssues
+    return (result, report)
 }
 
 private func itemQueries(_ api: StubGitHubAPI, repo: RepoRef) async -> [IssueQuery] {
@@ -485,6 +507,55 @@ struct SyncEngineTests {
         let (_, report) = await run(api, account(repos: [baselined(repoA), baselined(repoB)]))
 
         #expect(report.repoFailures == [repoA.id: .http(403), repoB.id: .notFound])
+    }
+
+    // MARK: Phases
+
+    @Test func resolveKeepsPreviousListOnFailure() async {
+        let api = StubGitHubAPI()
+        await api.scriptRepositories("o", .failure(.network("offline")))
+        var start = account()
+        start.available = ["o": [repoA]]
+
+        let resolution = await engine(api).resolve(start, owners: [user])
+
+        #expect(resolution.available["o"] == [repoA])
+        #expect(resolution.unknownOwners.isEmpty)
+        #expect(resolution.stop == nil)
+    }
+
+    @Test func resolveReportsUnknownOwnerWithoutList() async {
+        let api = StubGitHubAPI()
+        await api.scriptRepositories("o", .failure(.network("offline")))
+        var start = account()
+        start.available = [:]
+
+        let resolution = await engine(api).resolve(start, owners: [user])
+
+        #expect(resolution.available.isEmpty)
+        #expect(resolution.unknownOwners == ["o"])
+    }
+
+    @Test func resolveStopsOnReauth() async {
+        let api = StubGitHubAPI()
+        await api.scriptRepositories("o", .failure(.unauthorized))
+
+        let resolution = await engine(api).resolve(account(), owners: [user])
+
+        #expect(resolution.stop == .reauth)
+    }
+
+    @Test func syncDropsStatesNotOwnedOrKept() async {
+        let api = StubGitHubAPI()
+        let start = account(repos: [baselined(repoA), baselined(repoB), baselined(repoC)])
+
+        let (result, _) = await engine(api).sync(
+            start, owned: [repoA], keep: [repoC.id], viewers: ViewerLogins(["me"]))
+
+        #expect(Set(result.repos.keys) == [repoA.id, repoC.id])
+        #expect(result.repos[repoC.id] == start.repos[repoC.id])
+        #expect(await api.forgotten == [repoB.id])
+        #expect(await itemQueries(api, repo: repoC).isEmpty)
     }
 
     @Test func orgReposForbiddenBecomesAccessIssue() async {

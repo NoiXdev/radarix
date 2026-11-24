@@ -21,7 +21,8 @@ public final class RadarixController {
     public private(set) var settings: AppSettings
     public private(set) var account: AccountData?
     public private(set) var credentialKind: CredentialKind?
-    public private(set) var availableRepos: [String: [RepoRef]] = [:]
+    /// Repo lists of the account's active owners from the last sync, keyed by owner login.
+    public var availableRepos: [String: [RepoRef]] { account?.available ?? [:] }
     public private(set) var owners: [OwnerRef] = []
     public private(set) var lastReport: SyncReport?
     /// When the last sync that processed every watched repo finished.
@@ -182,7 +183,6 @@ public final class RadarixController {
         account = nil
         credentialKind = nil
         owners = []
-        availableRepos = [:]
         lastReport = nil
         lastSyncAt = nil
         carriedSyncedAt = nil
@@ -272,18 +272,31 @@ public final class RadarixController {
         followUpRefresh = false
 
         let engine = SyncEngine(api: api, now: now)
-        let (synced, report) = await engine.sync(snapshot, owners: fetchedOwners, previousAvailable: availableRepos,
-            viewers: ViewerLogins([snapshot.login]))
+        let resolution = await engine.resolve(snapshot, owners: fetchedOwners)
+        var synced = snapshot
+        var report = SyncReport()
+        if let stop = resolution.stop {
+            // Nothing was synced yet: the account stays as it was.
+            report.record(stop)
+            report.rateLimit = await api.rateLimit()
+        } else {
+            let owned = RepoResolver.watched(config: snapshot.watch, available: resolution.available)
+            // Owners whose list is unknown (failed, no previous list) keep their repos' state untouched.
+            let keep = Set(snapshot.repos.values.filter { resolution.unknownOwners.contains($0.repo.owner) }.map(\.repo.id))
+            (synced, report) = await engine.sync(snapshot, owned: owned, keep: keep, viewers: ViewerLogins([snapshot.login]))
+        }
+        report.availableRepos = resolution.available
+        report.ownerIssues = resolution.ownerIssues
         guard session == self.session, let current = account else { return false }
 
         // Changes made during the sync win over the snapshot the engine worked on.
         var merged = synced
         merged.watch = current.watch
+        merged.available = resolution.available
         for mark in journal { Self.apply(mark, to: &merged) }
         journal = []
 
         account = merged
-        availableRepos = report.availableRepos
         lastReport = report
         // An offline pass that fell back to known owners is complete for those owners only.
         if report.isComplete, !offline { lastSyncAt = now() }

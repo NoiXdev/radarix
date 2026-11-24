@@ -16,13 +16,67 @@ public struct SyncReport: Sendable, Equatable {
     /// The sync stopped early because its task was cancelled.
     public var wasCancelled = false
     public var rateLimit: RateLimit?
-    /// Repo lists of every owner not in `.off` mode, keyed by owner login.
+    /// Repo lists of every owner not in `.off` mode, keyed by owner login. Filled by the caller from
+    /// the `Resolution`, like `ownerIssues`.
     public var availableRepos: [String: [RepoRef]] = [:]
 
     public init() {}
 
     /// Every watched repo was processed: no cancellation, rate limit or rejected sign-in stopped the sync.
     public var isComplete: Bool { !wasCancelled && !needsReauth && rateLimitedUntil == nil }
+
+    mutating func record(_ stop: SyncStop) {
+        switch stop {
+        case .reauth: needsReauth = true
+        case .rateLimited(let until): rateLimitedUntil = until
+        case .cancelled: wasCancelled = true
+        }
+    }
+}
+
+/// What ends a whole sync pass early.
+public enum SyncStop: Sendable, Equatable {
+    case reauth, rateLimited(until: Date), cancelled
+}
+
+/// Thrown inside the engine to leave its loops.
+extension SyncStop: Error {
+    init?(_ error: Error) {
+        if let stop = error as? SyncStop {
+            self = stop
+            return
+        }
+        if error is CancellationError {
+            self = .cancelled
+            return
+        }
+        switch error as? GitHubError {
+        case .unauthorized: self = .reauth
+        case .rateLimited(let resetAt): self = .rateLimited(until: resetAt)
+        default: return nil
+        }
+    }
+}
+
+/// The repo lists of one account's active owners, from `SyncEngine.resolve`.
+public struct Resolution: Sendable, Equatable {
+    /// Keyed by owner login; only owners not in `.off` mode.
+    public var available: [String: [RepoRef]]
+    /// Active owners without any repo list: their stored repo states must stay untouched.
+    public var unknownOwners: Set<String>
+    public var ownerIssues: [String: OwnerAccessIssue]
+    /// Set when a rejected sign-in, a rate limit or cancellation ended the pass.
+    public var stop: SyncStop?
+
+    public init(
+        available: [String: [RepoRef]] = [:], unknownOwners: Set<String> = [],
+        ownerIssues: [String: OwnerAccessIssue] = [:], stop: SyncStop? = nil
+    ) {
+        self.available = available
+        self.unknownOwners = unknownOwners
+        self.ownerIssues = ownerIssues
+        self.stop = stop
+    }
 }
 
 /// One sync pass over an account's watched repos. Stateless: everything it needs comes in,
@@ -39,57 +93,57 @@ public struct SyncEngine: Sendable {
         self.now = now
     }
 
-    /// `previousAvailable` is the `availableRepos` of the previous report; it answers a repo list
-    /// that is `.notModified` or could not be fetched.
+    /// Fetches the repo list of every owner not in `.off` mode. A list that is `.notModified` or
+    /// could not be fetched is answered from `account.available`.
+    public func resolve(_ account: AccountData, owners: [OwnerRef]) async -> Resolution {
+        let active = owners.filter { (account.watch.owners[$0.login] ?? .off) != .off }
+        var resolution = Resolution(available: account.available.filter { entry in active.contains { $0.login == entry.key } })
+        for owner in active {
+            do {
+                if case .fresh(let repos) = try await api.repositories(of: owner) {
+                    resolution.available[owner.login] = repos
+                }
+            } catch {
+                if let stop = SyncStop(error) {
+                    resolution.stop = stop
+                    break
+                }
+                if owner.kind == .organization, case GitHubError.forbidden(let message) = error {
+                    resolution.ownerIssues[owner.login] = .restricted(message: message)
+                }
+                // Any other failure keeps the previous list.
+            }
+        }
+        resolution.unknownOwners = Set(active.map(\.login)).subtracting(resolution.available.keys)
+        return resolution
+    }
+
+    /// Syncs the items of exactly `owned`, in that order. Stored states of repos neither in `owned`
+    /// nor in `keep` are dropped; those in `keep` stay untouched. `availableRepos` and `ownerIssues`
+    /// of the report are left to the caller, who has them from `resolve`.
     public func sync(
-        _ account: AccountData, owners: [OwnerRef], previousAvailable: [String: [RepoRef]], viewers: ViewerLogins
+        _ account: AccountData, owned: [RepoRef], keep: Set<RepoID>, viewers: ViewerLogins
     ) async -> (AccountData, SyncReport) {
         var result = account
         var report = SyncReport()
-        let active = owners.filter { (account.watch.owners[$0.login] ?? .off) != .off }
-        var available = previousAvailable.filter { entry in active.contains { $0.login == entry.key } }
+        let ownedIDs = Set(owned.map(\.id))
+        let retained: (RepoID) -> Bool = { ownedIDs.contains($0) || keep.contains($0) }
+        for (id, state) in result.repos where !retained(id) {
+            // A later rewatch must not be answered from this repo's old ETags.
+            await api.forgetConditionalState(for: state.repo)
+        }
+        result.repos = result.repos.filter { retained($0.key) }
 
         do {
-            for owner in active {
-                do {
-                    if case .fresh(let repos) = try await api.repositories(of: owner) {
-                        available[owner.login] = repos
-                    }
-                } catch {
-                    if let stop = Stop(error) { throw stop }
-                    if owner.kind == .organization, case GitHubError.forbidden(let message) = error {
-                        report.ownerIssues[owner.login] = .restricted(message: message)
-                    }
-                    // Any other failure keeps the previous list.
-                }
-            }
-
-            let watched = RepoResolver.watched(config: account.watch, available: available)
-            let watchedIDs = Set(watched.map(\.id))
-            // Owners whose list is unknown (failed, no previous list) keep their repos' state untouched.
-            let unknownOwners = Set(active.map(\.login)).subtracting(available.keys)
-            let keep: (RepoState) -> Bool = { watchedIDs.contains($0.repo.id) || unknownOwners.contains($0.repo.owner) }
-            for state in result.repos.values where !keep(state) {
-                // A later rewatch must not be answered from this repo's old ETags.
-                await api.forgetConditionalState(for: state.repo)
-            }
-            result.repos = result.repos.filter { keep($0.value) }
-
-            for ref in watched {
+            for ref in owned {
                 try Task.checkCancellation()
                 try await syncRepo(ref, viewers: viewers, into: &result, report: &report)
             }
         } catch {
-            // Only stops (including cancellation) leave the loops.
-            switch Stop(error) {
-            case .reauth: report.needsReauth = true
-            case .rateLimited(let resetAt): report.rateLimitedUntil = resetAt
-            case .cancelled: report.wasCancelled = true
-            case nil: break
-            }
+            // Only stops (including cancellation) leave the loop.
+            if let stop = SyncStop(error) { report.record(stop) }
         }
 
-        report.availableRepos = available
         report.rateLimit = await api.rateLimit()
         return (result, report)
     }
@@ -123,7 +177,7 @@ public struct SyncEngine: Sendable {
             account.repos[ref.id] = state
             try await mergePullDetails(&state)
         } catch {
-            if let stop = Stop(error) {
+            if let stop = SyncStop(error) {
                 // Items committed before the stop are reported with the committed state.
                 Self.report(changes, of: account.repos[ref.id], into: &report)
                 throw stop
@@ -182,7 +236,7 @@ public struct SyncEngine: Sendable {
                     otherActivity = try await api.hasOtherActivity(on: item, in: state.repo, since: seenAt, viewers: viewers)
                 } catch {
                     // A cancelled request may surface as any error; it must not turn into "updated".
-                    if let stop = Task.isCancelled ? .cancelled : Stop(error) {
+                    if let stop = Task.isCancelled ? .cancelled : SyncStop(error) {
                         // This repo's work is discarded, but the items response already set its ETag:
                         // forget it, or the next identical request answers 304 and these changes are lost.
                         await api.forgetConditionalState(for: state.repo)
@@ -221,29 +275,6 @@ public struct SyncEngine: Sendable {
 
     // MARK: Errors
 
-    /// Errors that end the whole sync.
-    private enum Stop: Error {
-        case reauth
-        case rateLimited(Date)
-        case cancelled
-
-        init?(_ error: Error) {
-            if let stop = error as? Stop {
-                self = stop
-                return
-            }
-            if error is CancellationError {
-                self = .cancelled
-                return
-            }
-            switch error as? GitHubError {
-            case .unauthorized: self = .reauth
-            case .rateLimited(let resetAt): self = .rateLimited(resetAt)
-            default: return nil
-            }
-        }
-    }
-
     private static func failure(for error: Error) -> SyncFailure {
         switch error as? GitHubError {
         case .network(let message): .network(message)
@@ -251,7 +282,7 @@ public struct SyncEngine: Sendable {
         case .http(let code): .http(code)
         case .decoding(let message): .decoding(message)
         case .forbidden: .http(403)
-        // Handled as `Stop` before this point.
+        // Handled as `SyncStop` before this point.
         case .unauthorized: .http(401)
         case .rateLimited: .http(429)
         case nil: .network(String(describing: error))
