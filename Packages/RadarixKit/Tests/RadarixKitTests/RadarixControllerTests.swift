@@ -789,6 +789,30 @@ struct RadarixControllerTests {
         #expect(written.value == 2)
     }
 
+    @Test func snapshotKeepsSyncedAtAcrossLaunches() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        let earlier = localNow.addingTimeInterval(-3_600)
+        try h.store.saveSnapshot(WidgetSnapshot(status: .ok, login: "Me", syncedAt: earlier, repos: []))
+        // Offline: no sync completes, only the session start writes the snapshot.
+        await h.api.setOwners(.failure(.network("offline")))
+        let controller = h.makeController()
+
+        await controller.restoreSession()
+
+        #expect(controller.lastSyncAt == nil)
+        #expect(try h.store.loadSnapshot()?.syncedAt == earlier)
+
+        // The time of another account is not carried over.
+        try h.store.saveSnapshot(WidgetSnapshot(status: .ok, login: "someone-else", syncedAt: earlier, repos: []))
+        let other = h.makeController()
+        await other.restoreSession()
+        let snapshot = try #require(try h.store.loadSnapshot())
+        #expect(snapshot.login == "me")
+        #expect(snapshot.syncedAt == nil)
+    }
+
     @Test func signInWhileOfflineWritesSignedInSnapshot() async throws {
         let h = Harness()
         defer { h.cleanUp() }

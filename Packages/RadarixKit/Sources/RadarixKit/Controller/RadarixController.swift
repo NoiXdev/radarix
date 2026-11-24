@@ -65,6 +65,8 @@ public final class RadarixController {
     @ObservationIgnored private var writtenSnapshot: WidgetSnapshot?
     /// The `syncedAt` of the snapshot at the last `onSnapshotWritten` call.
     @ObservationIgnored private var reloadedSyncedAt: Date?
+    /// The previous launch's sync time of this account, from the snapshot file, until a sync completes.
+    @ObservationIgnored private var carriedSyncedAt: Date?
 
     private static let log = Logger(subsystem: "dev.noix.radarix", category: "controller")
 
@@ -148,6 +150,10 @@ public final class RadarixController {
 
     private func begin(api: GitHubAPI, account: AccountData, kind: CredentialKind) {
         end()
+        // The widget keeps showing how old its data is, also after a relaunch.
+        carriedSyncedAt = (try? store.loadSnapshot()).flatMap { previous in
+            previous.login?.caseInsensitiveCompare(account.login) == .orderedSame ? previous.syncedAt : nil
+        }
         self.api = api
         self.account = account
         credentialKind = kind
@@ -172,6 +178,7 @@ public final class RadarixController {
         availableRepos = [:]
         lastReport = nil
         lastSyncAt = nil
+        carriedSyncedAt = nil
         rateLimitedUntil = nil
         syncProblem = nil
         journal = []
@@ -414,7 +421,8 @@ public final class RadarixController {
     /// from the last one; the widget reloads only when `needsReload` says so, to stay within its budget.
     private func writeSnapshot() {
         let snapshot = if let account, auth != .signedOut {
-            WidgetSnapshot.make(account: account, settings: settings, auth: auth, syncedAt: lastSyncAt)
+            WidgetSnapshot.make(
+                account: account, settings: settings, auth: auth, syncedAt: lastSyncAt ?? carriedSyncedAt)
         } else {
             WidgetSnapshot.signedOut
         }
