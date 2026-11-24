@@ -104,7 +104,14 @@ private struct SignInSection: View {
         }
         Section {
             DisclosureGroup("Advanced") {
-                SecureField("Personal access token", text: $token)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Personal access token")
+                    // The bare form-row field has no visible edge; a bordered box reads as an input.
+                    SecureField("Personal access token", text: $token)
+                        .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .onSubmit { if !trimmedToken.isEmpty && !isSigningIn { signIn() } }
+                }
                 HStack {
                     Button("Use token", action: signIn)
                         .disabled(trimmedToken.isEmpty || isSigningIn)

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// JSON persistence: `settings.json`, `widget-snapshot.json` and `accounts/<accountID>.json` below one directory.
 public final class FileStore: @unchecked Sendable {
@@ -9,15 +10,45 @@ public final class FileStore: @unchecked Sendable {
         self.directory = directory
     }
 
+    /// The shared app group directory when this process may write there, otherwise
+    /// `~/Library/Application Support/Radarix`. An ad-hoc signed build is denied the
+    /// group container, so it falls back (the widget then sees no snapshot).
     public static func defaultDirectory(appGroup: String) -> URL {
-        let base: URL
-        if !appGroup.isEmpty, let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) {
-            base = container.appending(path: "Library/Application Support", directoryHint: .isDirectory)
-        } else {
-            base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        }
-        return base.appending(path: "Radarix", directoryHint: .isDirectory)
+        let container = appGroup.isEmpty
+            ? nil
+            : FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
+        return resolveDirectory(
+            groupContainer: container,
+            fallbackBase: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0],
+            canWrite: canWrite)
     }
+
+    static func resolveDirectory(groupContainer: URL?, fallbackBase: URL, canWrite: (URL) -> Bool) -> URL {
+        if let groupContainer {
+            let shared = groupContainer
+                .appending(path: "Library/Application Support", directoryHint: .isDirectory)
+                .appending(path: "Radarix", directoryHint: .isDirectory)
+            if canWrite(shared) { return shared }
+            log.notice("App group container is not writable; using Application Support")
+        }
+        return fallbackBase.appending(path: "Radarix", directoryHint: .isDirectory)
+    }
+
+    /// Creates `directory` if needed and writes and removes a probe file in it.
+    static func canWrite(_ directory: URL) -> Bool {
+        let fm = FileManager.default
+        let probe = directory.appending(path: ".write-probe-\(UUID().uuidString)")
+        do {
+            try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+            try Data().write(to: probe)
+            try fm.removeItem(at: probe)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private static let log = Logger(subsystem: "dev.noix.radarix", category: "store")
 
     public func loadSettings() throws -> AppSettings {
         try read(AppSettings.self, from: settingsURL) ?? AppSettings()

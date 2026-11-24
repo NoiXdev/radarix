@@ -105,4 +105,53 @@ struct FileStoreTests {
     @Test func defaultDirectoryEndsInRadarix() {
         #expect(FileStore.defaultDirectory(appGroup: "").lastPathComponent == "Radarix")
     }
+
+    @Test func resolveUsesGroupContainerWhenWritable() {
+        let group = URL(filePath: "/group", directoryHint: .isDirectory)
+        let fallback = URL(filePath: "/fallback", directoryHint: .isDirectory)
+        let dir = FileStore.resolveDirectory(groupContainer: group, fallbackBase: fallback, canWrite: { _ in true })
+        #expect(dir.path == "/group/Library/Application Support/Radarix")
+    }
+
+    @Test func resolveFallsBackWhenGroupContainerIsNotWritable() {
+        let group = URL(filePath: "/group", directoryHint: .isDirectory)
+        let fallback = URL(filePath: "/fallback", directoryHint: .isDirectory)
+        var probed: [String] = []
+        let dir = FileStore.resolveDirectory(groupContainer: group, fallbackBase: fallback, canWrite: {
+            probed.append($0.path)
+            return false
+        })
+        #expect(dir.path == "/fallback/Radarix")
+        #expect(probed == ["/group/Library/Application Support/Radarix"])
+    }
+
+    @Test func resolveFallsBackWithoutGroupContainer() {
+        let fallback = URL(filePath: "/fallback", directoryHint: .isDirectory)
+        let dir = FileStore.resolveDirectory(groupContainer: nil, fallbackBase: fallback, canWrite: { _ in
+            Issue.record("must not probe without a group container")
+            return true
+        })
+        #expect(dir.path == "/fallback/Radarix")
+    }
+
+    @Test func canWriteCreatesDirectoryAndLeavesNoProbe() throws {
+        let root = makeDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dir = root.appending(path: "a/b", directoryHint: .isDirectory)
+        #expect(FileStore.canWrite(dir))
+        let contents = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        #expect(contents.isEmpty)
+    }
+
+    @Test func canWriteIsFalseForReadOnlyDirectory() throws {
+        let root = makeDirectory()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: root.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path)
+            try? FileManager.default.removeItem(at: root)
+        }
+        #expect(!FileStore.canWrite(root))
+        #expect(!FileStore.canWrite(root.appending(path: "child", directoryHint: .isDirectory)))
+    }
 }
