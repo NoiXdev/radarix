@@ -4,8 +4,10 @@ import SwiftUI
 extension Color {
     /// `#2F7CF6`, for new items.
     static let attentionNew = Color(red: 0x2F / 255, green: 0x7C / 255, blue: 0xF6 / 255)
-    /// `#F5A524`, for updated items.
+    /// `#F5A524`, for updated items. An accent only: too light for text on a light background.
     static let attentionUpdated = Color(red: 0xF5 / 255, green: 0xA5 / 255, blue: 0x24 / 255)
+    /// `#0B1524`, for text on `attentionUpdated`.
+    static let attentionUpdatedInk = Color(red: 0x0B / 255, green: 0x15 / 255, blue: 0x24 / 255)
 }
 
 /// One issue or pull request in a list.
@@ -38,9 +40,16 @@ struct ItemRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 if entry.record.attention == .updated, entry.record.newComments > 0 {
-                    Text("\(entry.record.newComments) new comments")
-                        .font(.caption)
-                        .foregroundStyle(Color.attentionUpdated)
+                    Label {
+                        Text("\(entry.record.newComments) new comments")
+                    } icon: {
+                        Image(systemName: "circle.fill")
+                            .imageScale(.small)
+                            .foregroundStyle(Color.attentionUpdated)
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
@@ -117,11 +126,11 @@ struct AttentionBadges: View {
     var body: some View {
         HStack(spacing: 4) {
             if counts.new > 0 {
-                CountBadge(count: counts.new, color: .attentionNew)
+                CountBadge(count: counts.new, color: .attentionNew, textColor: .white)
                     .accessibilityLabel("\(counts.new) new")
             }
             if counts.updated > 0 {
-                CountBadge(count: counts.updated, color: .attentionUpdated)
+                CountBadge(count: counts.updated, color: .attentionUpdated, textColor: .attentionUpdatedInk)
                     .accessibilityLabel("\(counts.updated) updated")
             }
         }
@@ -131,12 +140,13 @@ struct AttentionBadges: View {
 private struct CountBadge: View {
     let count: Int
     let color: Color
+    let textColor: Color
 
     var body: some View {
         Text(count, format: .number)
             .font(.caption2.weight(.semibold))
             .monospacedDigit()
-            .foregroundStyle(.white)
+            .foregroundStyle(textColor)
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(color, in: Capsule())
