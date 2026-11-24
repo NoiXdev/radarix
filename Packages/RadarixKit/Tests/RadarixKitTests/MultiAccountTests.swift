@@ -582,4 +582,110 @@ struct MultiAccountTests {
         #expect(!controller.viewers.contains("work"))
     }
 
+    @Test func restoreAssignsOwnershipBeforeFirstPass() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        // The first account still holds an old state of a repo it no longer lists.
+        try h.seed(
+            account(first, available: [], states: [shared: [record(1, .new)]]),
+            account(second, available: [shared], states: [shared: [record(2, .new), record(3, .new)]]))
+        let controller = h.makeController()
+        var snapshots: [WidgetSnapshot] = []
+        controller.onSnapshotWritten = { if let snapshot = try? h.store.loadSnapshot() { snapshots.append(snapshot) } }
+
+        await controller.restoreSessions()
+
+        // The snapshot written before the first pass already follows the ownership rule.
+        let atRestore = try #require(snapshots.first)
+        #expect(atRestore.summary(for: .all).newCount == 2)
+        #expect(controller.ownership[shared.id] == second)
+    }
+
+    @Test func reAddMidPassCarriesSyncState() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared], states: [shared: [record(1, .seen)]]))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        let old = try #require(controller.session(for: first))
+        #expect(old.lastSyncAt == localNow)
+        #expect(old.owners == [org])
+        #expect(old.lastReport != nil)
+        #expect(try h.store.loadSnapshot()?.syncedAt == localNow)
+
+        h.clock.now = localNow.addingTimeInterval(300)
+        await h.me.holdItems(shared)
+        let pass = Task { await controller.refresh() }
+        await h.me.waitForHeldItems()
+
+        // Returns without waiting for the running pass.
+        try await controller.addAccount(token: "t-me", kind: .personalToken)
+
+        let renewed = try #require(controller.session(for: first))
+        #expect(renewed !== old)
+        #expect(renewed.auth == .ok)
+        #expect(renewed.credentialKind == .personalToken)
+        #expect(renewed.owners == [org])
+        #expect(renewed.lastSyncAt == localNow)
+        #expect(renewed.lastReport == old.lastReport)
+        #expect(renewed.unknownOwners == old.unknownOwners)
+        #expect(renewed.rateLimitedUntil == old.rateLimitedUntil)
+        #expect(controller.lastSyncAt == localNow)
+        #expect(try h.store.loadSnapshot()?.syncedAt == localNow)
+
+        await h.me.releaseItems()
+        await pass.value
+        await controller.pendingRefresh?.value
+
+        // The ended session's pass was discarded; a follow-up pass synced the new one.
+        #expect(controller.sessions.count == 1)
+        #expect(controller.session(for: first) === renewed)
+        #expect(renewed.lastSyncAt == localNow.addingTimeInterval(300))
+        #expect(itemCalls(await h.me.calls, for: shared) == 3)
+    }
+
+    @Test func reAddKeepsRateLimit() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: []))
+        let reset = localNow.addingTimeInterval(900)
+        await h.me.setOwners(.failure(.rateLimited(resetAt: reset)))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        #expect(controller.session(for: first)?.rateLimitedUntil == reset)
+        await h.me.resetCalls()
+
+        try await controller.addAccount(token: "t-me", kind: .oauth)
+
+        #expect(controller.session(for: first)?.rateLimitedUntil == reset)
+        // The new session waits for the reset as well.
+        #expect(await h.me.calls == [.viewer])
+    }
+
+    @Test func addAccountMidPassSyncsAfterRunningPass() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared], states: [shared: []]))
+        // A stored file of the second account, which is not in the list yet.
+        try h.store.saveAccount(account(second, available: [shared, workOnly]))
+        await h.me.holdItems(shared)
+        let controller = h.makeController()
+        let restoring = Task { await controller.restoreSessions() }
+        await h.me.waitForHeldItems()
+
+        // Returns without waiting for the running pass.
+        try await controller.addAccount(token: "t-work", kind: .oauth)
+
+        #expect(controller.sessions.map(\.accountID) == [first, second])
+        #expect(await h.work.calls == [.viewer])
+        await h.me.releaseItems()
+        await restoring.value
+        await controller.pendingRefresh?.value
+
+        #expect(controller.ownership[shared.id] == first)
+        #expect(controller.ownership[workOnly.id] == second)
+        #expect(itemCalls(await h.work.calls, for: workOnly) == 1)
+        #expect(itemCalls(await h.work.calls, for: shared) == 0)
+        #expect(controller.session(for: second)?.lastSyncAt == localNow)
+    }
 }

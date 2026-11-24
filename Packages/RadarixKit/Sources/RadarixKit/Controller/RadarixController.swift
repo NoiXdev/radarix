@@ -26,7 +26,7 @@ public final class RadarixController {
     /// One per account in `settings.accountIDs` that could be restored or was added, in that order.
     /// An account restored without a usable credential has a session in needs-reauth.
     public private(set) var sessions: [AccountSession] = []
-    /// Repo id to owning account, from the last sync pass.
+    /// Repo id to owning account, from the last sync pass or, before it, from the restore.
     public private(set) var ownership: [RepoID: AccountID] = [:]
     /// Called after every sync of a session that completed, with that session's account.
     @ObservationIgnored public var onSyncReport: ((AccountData, SyncReport) -> Void)?
@@ -108,6 +108,10 @@ public final class RadarixController {
     /// The session whose state of `repo` is shown and marked: its owner, or for a repo without
     /// one (not yet computed, or a state kept for an owner whose repo list is unknown) the first
     /// session that has a state of it.
+    ///
+    /// The fallback exists for those kept unknown-owner states: without it, a single account could
+    /// not mark a repo whose owner's list it failed to fetch. So the spec's "a mark on a repo that
+    /// no session owns is dropped" applies to repos that no session owns or holds a state of.
     public func owner(of repo: RepoID) -> AccountSession? {
         if let id = ownership[repo] { return session(for: id) }
         return sessions.first { $0.account.repos[repo] != nil }
@@ -126,8 +130,9 @@ public final class RadarixController {
 
     // MARK: Accounts
 
-    /// Builds a session for every account in `settings.accountIDs`, writes the snapshot, then syncs.
-    /// Stored data is shown even when offline.
+    /// Builds a session for every account in `settings.accountIDs`, assigns repo ownership from
+    /// the stored repo lists, writes the snapshot, then syncs. Stored data is shown even when
+    /// offline.
     ///
     /// An account whose credential is missing or cannot be read is restored from its account file
     /// in needs-reauth: it keeps its place, its repos and its login as "me", and never syncs until
@@ -167,20 +172,29 @@ public final class RadarixController {
                 Self.log.error("Restoring account \(id.rawValue) failed: \(error.localizedDescription, privacy: .public)")
             }
         }
+        // The UI and the snapshot follow the ownership rule before the first pass.
+        ownership = RepoOwnership.assign(sessions.map { ($0.accountID, $0.watchedRepos()) })
         writeSnapshot()
         await refresh()
     }
 
     /// Validates the token, keeps any stored data of that account, saves the credential, then syncs.
     /// A new account goes to the end of the list; one already in it gets the new credential.
+    ///
+    /// An account already in the list gets a new session, so a sign-in sheet can tell that it
+    /// arrived. That session takes over the old one's owners, last sync, last report, rate limit
+    /// and unknown owners, so nothing resets and the snapshot's sync time does not go back.
     public func addAccount(token: String, kind: CredentialKind) async throws {
         let api = makeAPI(token)
         let viewer = try await api.viewer()
-        let account = try loadOrCreateAccount(viewer, existing: session(for: viewer.id))
+        let previous = session(for: viewer.id)
+        let account = try loadOrCreateAccount(viewer, existing: previous)
         let credential = Credential(token: token, kind: kind)
         try credentials.save(credential, for: viewer.id)
         if !settings.accountIDs.contains(viewer.id) { settings.accountIDs.append(viewer.id) }
-        insert(makeSession(account: account, credential: credential, api: api))
+        let session = makeSession(account: account, credential: credential, api: api)
+        if let previous { session.adopt(from: previous) }
+        insert(session)
         saveSettings()
         if passRunning {
             // The running pass started without this session.

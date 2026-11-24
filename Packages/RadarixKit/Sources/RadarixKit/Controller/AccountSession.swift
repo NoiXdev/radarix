@@ -94,6 +94,16 @@ public final class AccountSession {
         self.now = now
     }
 
+    /// Takes over what an earlier session of the same account knew, so a new sign-in does not
+    /// reset the owners, the last sync or a running rate limit. Call before the first sync.
+    func adopt(from previous: AccountSession) {
+        owners = previous.owners
+        lastSyncAt = previous.lastSyncAt
+        lastReport = previous.lastReport
+        rateLimitedUntil = previous.rateLimitedUntil
+        unknownOwners = previous.unknownOwners
+    }
+
     /// Cancels running work and discards its result. The session is not used afterwards.
     public func end() {
         generation += 1
