@@ -6,7 +6,8 @@ import Foundation
 /// Results are queued per owner login, repo id or item number and served
 /// first-in-first-out. Unscripted fetches answer `.notModified`, unscripted
 /// activity probes answer `false`. Every network call is recorded in `calls`
-/// (`rateLimit()` is local state, not a call, and is not recorded).
+/// (`rateLimit()` is local state, not a call, and is not recorded); repos whose
+/// conditional state was forgotten are recorded in `forgotten`.
 actor StubGitHubAPI: GitHubAPI {
     enum Call: Equatable, Sendable {
         case viewer
@@ -20,6 +21,7 @@ actor StubGitHubAPI: GitHubAPI {
     typealias Scripted<T: Sendable> = Result<Fetch<T>, GitHubError>
 
     private(set) var calls: [Call] = []
+    private(set) var forgotten: [RepoID] = []
     private var repoLists: [String: [Scripted<[RepoRef]>]] = [:]
     private var itemResults: [RepoID: [Scripted<[Item]>]] = [:]
     private var pullResults: [RepoID: [Scripted<[Int: PullDetails]>]] = [:]
@@ -84,6 +86,10 @@ actor StubGitHubAPI: GitHubAPI {
 
     func rateLimit() async -> RateLimit? {
         currentRateLimit
+    }
+
+    func forgetConditionalState(for repo: RepoRef) async {
+        forgotten.append(repo.id)
     }
 
     private static func pop<Key: Hashable, Value>(_ queues: inout [Key: [Value]], _ key: Key) -> Value? {

@@ -33,6 +33,8 @@ public protocol GitHubAPI: Sendable {
     func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]>
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewer: String) async throws -> Bool
     func rateLimit() async -> RateLimit?
+    /// Forget cached conditional-request state (ETags) for everything under this repo.
+    func forgetConditionalState(for repo: RepoRef) async
 }
 
 extension GitHubClient: GitHubAPI {
@@ -79,7 +81,14 @@ extension GitHubClient: GitHubAPI {
             // Fixed format: the URL (and so the ETag cache key) must be identical for the same Date.
             items.append(URLQueryItem(name: "since", value: ISO8601DateFormatter().string(from: since)))
         }
-        let fetched: Fetch<[IssueDTO]> = try await getAllPagesConditional("/repos/\(repo.owner)/\(repo.name)/issues", query: items)
+        let path = "/repos/\(repo.owner)/\(repo.name)/issues"
+        let fetched: Fetch<[IssueDTO]>
+        if case .openForBaseline = query {
+            // A baseline must always see the full list, never a 304.
+            fetched = .fresh(try await getAllPages(path, query: items))
+        } else {
+            fetched = try await getAllPagesConditional(path, query: items)
+        }
         switch fetched {
         case .notModified: return .notModified
         case .fresh(let issues): return .fresh(issues.map { $0.toItem(repo: repo.id) })

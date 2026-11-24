@@ -63,7 +63,12 @@ public struct SyncEngine: Sendable {
             let watchedIDs = Set(watched.map(\.id))
             // Owners whose list is unknown (failed, no previous list) keep their repos' state untouched.
             let unknownOwners = Set(active.map(\.login)).subtracting(available.keys)
-            result.repos = result.repos.filter { watchedIDs.contains($0.key) || unknownOwners.contains($0.value.repo.owner) }
+            let keep: (RepoState) -> Bool = { watchedIDs.contains($0.repo.id) || unknownOwners.contains($0.repo.owner) }
+            for state in result.repos.values where !keep(state) {
+                // A later rewatch must not be answered from this repo's old ETags.
+                await api.forgetConditionalState(for: state.repo)
+            }
+            result.repos = result.repos.filter { keep($0.value) }
 
             for ref in watched {
                 try await syncRepo(ref, into: &result, report: &report)
@@ -133,7 +138,8 @@ public struct SyncEngine: Sendable {
 
     private func baseline(_ state: inout RepoState) async throws {
         guard case .fresh(let items) = try await api.items(in: state.repo, query: .openForBaseline) else {
-            // Nothing to baseline from; `baselineAt` stays nil and the next sync tries again.
+            // The client never answers a baseline with 304; should an API do so, there is nothing
+            // to baseline from: `baselineAt` stays nil and the next sync tries again.
             return
         }
         let newest = items.map(\.updatedAt).max()
@@ -169,7 +175,12 @@ public struct SyncEngine: Sendable {
                 do {
                     otherActivity = try await api.hasOtherActivity(on: item, in: state.repo, since: seenAt, viewer: viewer)
                 } catch {
-                    if let stop = Stop(error) { throw stop }
+                    if let stop = Stop(error) {
+                        // This repo's work is discarded, but the items response already set its ETag:
+                        // forget it, or the next identical request answers 304 and these changes are lost.
+                        await api.forgetConditionalState(for: state.repo)
+                        throw stop
+                    }
                     otherActivity = nil
                 }
             }

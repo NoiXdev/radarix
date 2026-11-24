@@ -293,6 +293,16 @@ struct SyncEngineTests {
         #expect(r2.newItems.isEmpty)
     }
 
+    @Test func unwatchedRepoForgetsConditionalState() async {
+        let api = StubGitHubAPI()
+        await api.scriptRepositories("o", .success(.fresh([repoA, repoB])))
+        let start = account(.selected([repoA.id]), repos: [baselined(repoA), baselined(repoB)])
+
+        _ = await run(api, start)
+
+        #expect(await api.forgotten == [repoB.id])
+    }
+
     @Test func renamedRepoKeepsState() async {
         let api = StubGitHubAPI()
         let renamed = RepoRef.fixture(id: 1, name: "renamed")
@@ -362,6 +372,28 @@ struct SyncEngineTests {
         #expect(await itemQueries(api, repo: repoB).isEmpty)
         #expect(result.repos == start.repos)
         #expect(report.newItems.isEmpty && report.updatedItems.isEmpty)
+    }
+
+    @Test func discardedRepoWorkForgetsConditionalState() async {
+        let item = Item.fixture(number: 1, updatedAt: t0)
+        var moved = item
+        moved.updatedAt = t1
+        let start = account(repos: [baselined(repoA, [seen(item)]), baselined(repoB)])
+
+        // The probe stops the sync after the items response arrived: that work is discarded, so its ETag must go.
+        let api = StubGitHubAPI()
+        await api.scriptItems(repoA, .success(.fresh([moved])))
+        await api.scriptActivity(1, .failure(.unauthorized))
+        let (result, report) = await run(api, start)
+        #expect(report.needsReauth)
+        #expect(result.repos == start.repos)
+        #expect(await api.forgotten == [repoA.id])
+
+        // A stop on the items request itself discards nothing and forgets nothing.
+        let itemsAPI = StubGitHubAPI()
+        await itemsAPI.scriptItems(repoA, .failure(.rateLimited(resetAt: t2)))
+        _ = await run(itemsAPI, start)
+        #expect(await itemsAPI.forgotten.isEmpty)
     }
 
     @Test func networkErrorKeepsPreviousItems() async {

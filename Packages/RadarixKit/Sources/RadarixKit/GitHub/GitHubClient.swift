@@ -82,6 +82,21 @@ public actor GitHubClient {
         return result
     }
 
+    // MARK: Conditional state
+
+    /// Drops every cached ETag for URLs under `/repos/{owner}/{name}/` (case-insensitive),
+    /// so the next conditional request for that repo answers with a full response.
+    public func forgetConditionalState(for repo: RepoRef) {
+        let basePath = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)?.path ?? ""
+        let prefix = (basePath.hasSuffix("/") ? String(basePath.dropLast()) : basePath)
+            + "/repos/\(repo.owner)/\(repo.name)/"
+        let lowered = prefix.lowercased()
+        etags = etags.filter { key, _ in
+            guard let path = URLComponents(string: key)?.path else { return true }
+            return !path.lowercased().hasPrefix(lowered)
+        }
+    }
+
     // MARK: Plumbing
 
     private func pagedQuery(_ query: [URLQueryItem]) -> [URLQueryItem] {
@@ -98,7 +113,7 @@ public actor GitHubClient {
     }
 
     /// Sends one request. Returns nil data on 304 (only possible when `conditional`).
-    /// Stores the ETag only from a 200. Throws mapped errors for non-2xx.
+    /// Stores the ETag only from a 200 to a conditional request. Throws mapped errors for non-2xx.
     private func perform(_ url: URL, conditional: Bool) async throws -> (Data?, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -126,7 +141,7 @@ public actor GitHubClient {
 
         switch response.statusCode {
         case 200..<300:
-            if response.statusCode == 200, let etag = response.value(forHTTPHeaderField: "ETag") {
+            if conditional, response.statusCode == 200, let etag = response.value(forHTTPHeaderField: "ETag") {
                 etags[key] = etag
             }
             return (data, response)

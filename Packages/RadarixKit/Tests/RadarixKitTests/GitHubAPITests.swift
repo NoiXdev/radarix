@@ -56,6 +56,50 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
         #expect(items.isEmpty)
     }
 
+    @Test func baselineIsNeverConditional() async throws {
+        let stub = StubTransport()
+        let url = "\(base)/repos/octo/hello-world/issues?state=open&sort=updated&direction=desc&per_page=100"
+        await stub.enqueue(url, status: 200, headers: ["ETag": "\"b1\""], body: "[]")
+        await stub.enqueue(url, status: 200, headers: ["ETag": "\"b2\""], body: "[]")
+        let client = makeClient(stub)
+
+        guard case .fresh = try await client.items(in: repo, query: .openForBaseline) else { Issue.record("expected fresh"); return }
+        guard case .fresh = try await client.items(in: repo, query: .openForBaseline) else { Issue.record("expected fresh"); return }
+
+        let sent = await stub.sent
+        #expect(sent.count == 2)
+        #expect(sent.allSatisfy { $0.value(forHTTPHeaderField: "If-None-Match") == nil })
+
+        // The baseline's ETag was not stored either: a conditional request for the same URL goes out plain.
+        await stub.enqueue(url, status: 200, body: "[]")
+        let _: Fetch<[IssueDTO]> = try await client.getAllPagesConditional(
+            "/repos/octo/hello-world/issues",
+            query: [URLQueryItem(name: "state", value: "open"), URLQueryItem(name: "sort", value: "updated"),
+                    URLQueryItem(name: "direction", value: "desc")])
+        #expect(await stub.sent[2].value(forHTTPHeaderField: "If-None-Match") == nil)
+    }
+
+    @Test func forgetConditionalStateOnlyAffectsThatRepo() async throws {
+        let stub = StubTransport()
+        let client = makeClient(stub)
+        let paths = ["/repos/octo/hello-world/pulls", "/repos/octo/hello-world-two/pulls", "/repos/other/hello-world/pulls"]
+        for path in paths {
+            await stub.enqueue("\(base)\(path)?per_page=100", status: 200, headers: ["ETag": "\"\(path)\""], body: "[]")
+            await stub.enqueue("\(base)\(path)?per_page=100", status: 200, body: "[]")
+            let _: Fetch<[PullDTO]> = try await client.getAllPagesConditional(path, query: [])
+        }
+
+        // Owner and name match case-insensitively; `hello-world` must not match `hello-world-two`.
+        let differentCase = RepoRef(id: repo.id, owner: "Octo", name: "Hello-World", isPrivate: false, isArchived: false, isFork: false)
+        await client.forgetConditionalState(for: differentCase)
+        for path in paths {
+            let _: Fetch<[PullDTO]> = try await client.getAllPagesConditional(path, query: [])
+        }
+
+        let resent = await stub.sent.suffix(3).map { $0.value(forHTTPHeaderField: "If-None-Match") }
+        #expect(resent == [nil, "\"\(paths[1])\"", "\"\(paths[2])\""])
+    }
+
     @Test func changedQueryRequestsAllStatesSince() async throws {
         let stub = StubTransport()
         let since = Date(timeIntervalSince1970: 1_795_507_200.4) // fractional part must be dropped
