@@ -173,7 +173,11 @@ final class AppModel {
     /// Resets all data, dropping a pending link and the delivered notifications. A reset that
     /// fails after the credentials were deleted has ended the session as well.
     func resetAllData() throws {
-        defer { if !controller.isSignedIn { clearSession() } }
+        defer {
+            if !controller.isSignedIn { clearSession() }
+            // A reset restores the default settings, so the check follows them, even after a partial failure.
+            updates?.setEnabled(controller.settings.checkForUpdates)
+        }
         try controller.resetAllData()
     }
 
