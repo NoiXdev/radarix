@@ -95,7 +95,7 @@ struct SchemaEvolutionTests {
         let ids = try #require(object["accountIDs"] as? [[String: Int]])
         #expect(ids == [["rawValue": 1], ["rawValue": 2]])
         #expect(object["lastAccountID"] == nil)
-        #expect(object["schemaVersion"] as? Int == 4)
+        #expect(object["schemaVersion"] as? Int == 5)
     }
 
     @Test func settingsFromOneZeroLoadWithFilterDefaults() throws {
@@ -114,6 +114,32 @@ struct SchemaEvolutionTests {
         settings.groupAllByRepo = true
         let data = try JSONEncoder().encode(settings)
         #expect(try JSONDecoder().decode(AppSettings.self, from: data) == settings)
+    }
+
+    @Test func settingsFromOneOneLoadWithNewDefaults() throws {
+        let settings = try decode(AppSettings.self, #"{"schemaVersion":4,"layout":"grouped","accountIDs":[{"rawValue":42}]}"#)
+        #expect(settings.descriptionPlacement == .window)
+        #expect(settings.startInBackground == false)
+        #expect(settings.menuBarOnlyWhenClosed == false)
+        #expect(settings.layout == .grouped)
+        #expect(settings.accountIDs == [AccountID(rawValue: 42)])
+    }
+
+    @Test func newSettingsRoundTrip() throws {
+        var settings = AppSettings()
+        settings.descriptionPlacement = .sidebar
+        settings.startInBackground = true
+        settings.menuBarOnlyWhenClosed = true
+        let data = try JSONEncoder().encode(settings)
+        #expect(try JSONDecoder().decode(AppSettings.self, from: data) == settings)
+    }
+
+    @Test func unknownDescriptionPlacementFallsBackToWindow() throws {
+        let settings = try decode(AppSettings.self, #"{"schemaVersion":5,"layout":"grouped","descriptionPlacement":"popover","startInBackground":true,"accountIDs":[{"rawValue":42}]}"#)
+        #expect(settings.descriptionPlacement == .window)
+        #expect(settings.startInBackground)
+        #expect(settings.layout == .grouped)
+        #expect(settings.accountIDs == [AccountID(rawValue: 42)])
     }
 
     @Test func filterMissingAKeyKeepsTheOthers() throws {
@@ -181,7 +207,7 @@ struct SchemaEvolutionTests {
         try store.saveAccount(account)
 
         var reloadedSettings = try store.loadSettings()
-        #expect(reloadedSettings.schemaVersion == 4)
+        #expect(reloadedSettings.schemaVersion == 5)
         reloadedSettings.schemaVersion = 1
         #expect(reloadedSettings == settings)
 

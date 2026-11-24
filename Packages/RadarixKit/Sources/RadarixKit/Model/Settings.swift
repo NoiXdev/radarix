@@ -2,10 +2,11 @@ import Foundation
 
 public enum MainLayout: String, Codable, Sendable { case sidebar, grouped }
 public enum BotDisplayMode: String, Codable, Sendable { case badge, grouped, hidden }
+public enum DescriptionPlacement: String, Codable, Sendable { case window, sidebar }
 
 public struct AppSettings: Codable, Sendable, Equatable {
     /// Version of the file layout. Files written before versioning decode as 1; saving always writes the current one.
-    public static let currentSchemaVersion = 4
+    public static let currentSchemaVersion = 5
     public var schemaVersion = AppSettings.currentSchemaVersion
     public var layout: MainLayout = .sidebar
     public var refreshInterval: TimeInterval = 300
@@ -23,12 +24,19 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var showsBots = false
     /// Group the "All" list by repository.
     public var groupAllByRepo = false
+    /// Where the item description shows: its own window, or inline below the sidebar's details.
+    public var descriptionPlacement: DescriptionPlacement = .window
+    /// When on, no launch opens the main window. The menu bar item opens it.
+    public var startInBackground = false
+    /// When on, closing the last Radarix window hides the Dock icon and leaves the app in the menu bar.
+    public var menuBarOnlyWhenClosed = false
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, checkForUpdates, accountIDs
         case filter, showsBots, groupAllByRepo
+        case descriptionPlacement, startInBackground, menuBarOnlyWhenClosed
         /// Schema 1 and 2 only; decoded into `accountIDs`, never written.
         case lastAccountID
     }
@@ -47,6 +55,11 @@ public struct AppSettings: Codable, Sendable, Equatable {
         filter = try c.decodeIfPresent(FilterSet.self, forKey: .filter) ?? defaults.filter
         showsBots = try c.decodeIfPresent(Bool.self, forKey: .showsBots) ?? defaults.showsBots
         groupAllByRepo = try c.decodeIfPresent(Bool.self, forKey: .groupAllByRepo) ?? defaults.groupAllByRepo
+        // Read as a raw string so an unknown value falls back instead of failing the whole file.
+        let placement = try c.decodeIfPresent(String.self, forKey: .descriptionPlacement)
+        descriptionPlacement = placement.flatMap(DescriptionPlacement.init(rawValue:)) ?? defaults.descriptionPlacement
+        startInBackground = try c.decodeIfPresent(Bool.self, forKey: .startInBackground) ?? defaults.startInBackground
+        menuBarOnlyWhenClosed = try c.decodeIfPresent(Bool.self, forKey: .menuBarOnlyWhenClosed) ?? defaults.menuBarOnlyWhenClosed
         if let ids = try c.decodeIfPresent([AccountID].self, forKey: .accountIDs) {
             accountIDs = ids
         } else if let legacy = try c.decodeIfPresent(AccountID.self, forKey: .lastAccountID) {
@@ -68,6 +81,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         try c.encode(filter, forKey: .filter)
         try c.encode(showsBots, forKey: .showsBots)
         try c.encode(groupAllByRepo, forKey: .groupAllByRepo)
+        try c.encode(descriptionPlacement, forKey: .descriptionPlacement)
+        try c.encode(startInBackground, forKey: .startInBackground)
+        try c.encode(menuBarOnlyWhenClosed, forKey: .menuBarOnlyWhenClosed)
     }
 }
 
