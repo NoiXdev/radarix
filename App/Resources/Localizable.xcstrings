@@ -14,6 +14,18 @@
             "state" : "translated",
             "value" : "%@ is already added. To add another account, sign in to it on github.com first, or use a token of that account."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est déjà ajouté. Pour ajouter un autre compte, connectez-vous d’abord à ce compte sur github.com ou utilisez un jeton de ce compte."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konto %@ jest już dodane. Aby dodać inne konto, najpierw zaloguj się do niego na github.com lub użyj tokenu tego konta."
+          }
         }
       }
     },
@@ -30,6 +42,18 @@
             "state" : "translated",
             "value" : "%@: sign in again"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ : se reconnecter"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: zaloguj się ponownie"
+          }
         }
       }
     },
@@ -45,6 +69,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld / %lld, resets at %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld / %lld, réinitialisation à %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld / %lld, odnowienie o %@"
           }
         }
       }
@@ -106,6 +142,74 @@
               }
             }
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@, nouvelles : %2$lld, mises à jour : %3$lld"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg issue"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg issues"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@, nowe: %2$lld, zaktualizowane: %3$lld"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "few" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg issue"
+                    }
+                  },
+                  "many" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg issue"
+                    }
+                  },
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg issue"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg issue"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -122,6 +226,42 @@
             "state" : "translated",
             "value" : "%lld minutes"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld minutes"
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minuty"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minut"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minuta"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minuty"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -137,6 +277,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld new"
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nouveau"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nouveaux"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowe"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowych"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowy"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowego"
+                }
+              }
+            }
           }
         }
       }
@@ -178,6 +366,54 @@
               }
             }
           }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nouveau commentaire"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nouveaux commentaires"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowe komentarze"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowych komentarzy"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowy komentarz"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowego komentarza"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -214,6 +450,54 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld new items"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nouvel élément"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nouveaux éléments"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowe elementy"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowych elementów"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowy element"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld nowego elementu"
                 }
               }
             }
@@ -318,6 +602,126 @@
               }
             }
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@new@ · %#@updated@"
+          },
+          "substitutions" : {
+            "new" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg nouveau"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg nouveaux"
+                    }
+                  }
+                }
+              }
+            },
+            "updated" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg mis à jour"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg mis à jour"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@new@ · %#@updated@"
+          },
+          "substitutions" : {
+            "new" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "few" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg nowe"
+                    }
+                  },
+                  "many" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg nowych"
+                    }
+                  },
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg nowy"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg nowego"
+                    }
+                  }
+                }
+              }
+            },
+            "updated" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "few" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg zaktualizowane"
+                    }
+                  },
+                  "many" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg zaktualizowanych"
+                    }
+                  },
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg zaktualizowany"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg zaktualizowanego"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -378,6 +782,74 @@
               }
             }
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@, nouvelles : %2$lld, mises à jour : %3$lld"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg pull request"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg pull requests"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@count@, nowe: %2$lld, zaktualizowane: %3$lld"
+          },
+          "substitutions" : {
+            "count" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "few" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg pull requesty"
+                    }
+                  },
+                  "many" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg pull requestów"
+                    }
+                  },
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg pull request"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg pull requesta"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -418,6 +890,54 @@
               }
             }
           }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Impossible de mettre à jour %lld dépôt."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Impossible de mettre à jour %lld dépôts."
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Nie udało się zaktualizować %lld repozytoria."
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Nie udało się zaktualizować %lld repozytoriów."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Nie udało się zaktualizować %lld repozytorium."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Nie udało się zaktualizować %lld repozytorium."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -433,6 +953,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld updated"
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld mis à jour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld mis à jour"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowane"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowanych"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowany"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowanego"
+                }
+              }
+            }
           }
         }
       }
@@ -474,6 +1042,54 @@
               }
             }
           }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld élément mis à jour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld éléments mis à jour"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowane elementy"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowanych elementów"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowany element"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld zaktualizowanego elementu"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -489,6 +1105,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Account"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compte"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konto"
           }
         }
       }
@@ -506,6 +1134,18 @@
             "state" : "translated",
             "value" : "Accounts"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comptes"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konta"
+          }
         }
       }
     },
@@ -521,6 +1161,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add account…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un compte…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodaj konto…"
           }
         }
       }
@@ -538,6 +1190,18 @@
             "state" : "translated",
             "value" : "Advanced"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avancé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaawansowane"
+          }
         }
       }
     },
@@ -553,6 +1217,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystkie"
           }
         }
       }
@@ -570,6 +1246,18 @@
             "state" : "translated",
             "value" : "Allow Radarix in System Settings → Login Items."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorisez Radarix dans Réglages Système → Ouverture."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zezwól na Radarix w Ustawieniach systemowych → Rzeczy otwierane podczas logowania."
+          }
         }
       }
     },
@@ -585,6 +1273,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Archived"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zarchiwizowane"
           }
         }
       }
@@ -602,6 +1302,18 @@
             "state" : "translated",
             "value" : "Assign to me"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "M’assigner"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przypisz do mnie"
+          }
         }
       }
     },
@@ -617,6 +1329,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Assigned to me"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assigné à moi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przypisane do mnie"
           }
         }
       }
@@ -634,6 +1358,18 @@
             "state" : "translated",
             "value" : "Assignees"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assignés"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przypisani"
+          }
         }
       }
     },
@@ -649,6 +1385,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Author"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auteur"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autor"
           }
         }
       }
@@ -666,6 +1414,18 @@
             "state" : "translated",
             "value" : "Badge"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pastille"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plakietka"
+          }
         }
       }
     },
@@ -681,6 +1441,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bot items"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éléments de bots"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elementy botów"
           }
         }
       }
@@ -698,6 +1470,18 @@
             "state" : "translated",
             "value" : "Bots"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bots"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boty"
+          }
         }
       }
     },
@@ -713,6 +1497,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Can't reach GitHub. Showing saved data."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub est injoignable. Affichage des données enregistrées."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak połączenia z serwisem GitHub. Wyświetlane są zapisane dane."
           }
         }
       }
@@ -730,6 +1526,18 @@
             "state" : "translated",
             "value" : "Cancel"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuler"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anuluj"
+          }
         }
       }
     },
@@ -745,6 +1553,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check for updates"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher les mises à jour"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprawdzaj uaktualnienia"
           }
         }
       }
@@ -762,6 +1582,18 @@
             "state" : "translated",
             "value" : "Choose repositories"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir les dépôts"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybierz repozytoria"
+          }
         }
       }
     },
@@ -777,6 +1609,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose the repositories Radarix should watch."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez les dépôts que Radarix doit surveiller."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybierz repozytoria, które Radarix ma obserwować."
           }
         }
       }
@@ -794,6 +1638,18 @@
             "state" : "translated",
             "value" : "Classic token: repo and read:org. Fine-grained token: read access to metadata, and read and write access to issues and pull requests, which assigning needs."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeton classique : repo et read:org. Jeton fine-grained : accès en lecture aux métadonnées, et en lecture et écriture aux issues et pull requests, requis pour l’assignation."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token klasyczny: repo i read:org. Token fine-grained: odczyt metadanych oraz odczyt i zapis issue i pull requestów, potrzebny do przypisywania."
+          }
         }
       }
     },
@@ -809,6 +1665,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamknij"
           }
         }
       }
@@ -826,6 +1694,18 @@
             "state" : "translated",
             "value" : "Closed"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zamknięte"
+          }
         }
       }
     },
@@ -841,6 +1721,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiuj"
           }
         }
       }
@@ -858,6 +1750,18 @@
             "state" : "translated",
             "value" : "Couldn't load the description."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger la description."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie można wczytać opisu."
+          }
         }
       }
     },
@@ -873,6 +1777,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Created by a bot"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créé par un bot"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utworzone przez bota"
           }
         }
       }
@@ -890,6 +1806,18 @@
             "state" : "translated",
             "value" : "Draft"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brouillon"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szkic"
+          }
         }
       }
     },
@@ -906,6 +1834,18 @@
             "state" : "translated",
             "value" : "Enter this code on GitHub:"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez ce code sur GitHub :"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wpisz ten kod w serwisie GitHub:"
+          }
         }
       }
     },
@@ -918,6 +1858,18 @@
           }
         },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fork"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fork"
+          }
+        },
+        "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fork"
@@ -938,6 +1890,18 @@
             "state" : "translated",
             "value" : "General"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Général"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ogólne"
+          }
         }
       }
     },
@@ -953,6 +1917,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub answered with error %lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub a répondu avec l’erreur %lld."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub zwrócił błąd %lld."
           }
         }
       }
@@ -970,6 +1946,18 @@
             "state" : "translated",
             "value" : "GitHub could not be reached. Check your connection."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub est injoignable. Vérifiez votre connexion."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak połączenia z serwisem GitHub. Sprawdź połączenie."
+          }
         }
       }
     },
@@ -985,6 +1973,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub could not find what Radarix asked for."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub n’a pas trouvé ce que Radarix a demandé."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub nie znalazł tego, o co prosił Radarix."
           }
         }
       }
@@ -1002,6 +2002,18 @@
             "state" : "translated",
             "value" : "GitHub denied access. Check the permissions of your sign-in."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub a refusé l’accès. Vérifiez les autorisations de votre connexion."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub odmówił dostępu. Sprawdź uprawnienia logowania."
+          }
         }
       }
     },
@@ -1017,6 +2029,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub no longer accepts the sign-in for %@. Sign in again to continue syncing."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub n’accepte plus la connexion de %@. Reconnectez-vous pour poursuivre la synchronisation."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub nie akceptuje już logowania konta %@. Zaloguj się ponownie, aby kontynuować synchronizację."
           }
         }
       }
@@ -1034,6 +2058,18 @@
             "state" : "translated",
             "value" : "GitHub sent an answer Radarix could not read."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub a envoyé une réponse que Radarix ne peut pas lire."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub wysłał odpowiedź, której Radarix nie może odczytać."
+          }
         }
       }
     },
@@ -1049,6 +2085,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub sign-in"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logowanie przez GitHub"
           }
         }
       }
@@ -1066,6 +2114,18 @@
             "state" : "translated",
             "value" : "GitHub's rate limit is reached. Radarix syncs again after %@."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La limite de requêtes GitHub est atteinte. Radarix se synchronisera après %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osiągnięto limit zapytań GitHub. Radarix wznowi synchronizację po %@."
+          }
         }
       }
     },
@@ -1081,6 +2141,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub's rate limit is reached. Try again at %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La limite de requêtes GitHub est atteinte. Réessayez à %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osiągnięto limit zapytań GitHub. Spróbuj ponownie o %@."
           }
         }
       }
@@ -1098,6 +2170,18 @@
             "state" : "translated",
             "value" : "Grant access on GitHub"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser l’accès sur GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przyznaj dostęp w serwisie GitHub"
+          }
         }
       }
     },
@@ -1113,6 +2197,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Group by repository"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grouper par dépôt"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupuj według repozytorium"
           }
         }
       }
@@ -1130,6 +2226,18 @@
             "state" : "translated",
             "value" : "Hidden"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masqués"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ukryte"
+          }
         }
       }
     },
@@ -1145,6 +2253,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide from the Dock when the window is closed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer du Dock quand la fenêtre est fermée"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie pokazuj w Docku, gdy okno jest zamknięte"
           }
         }
       }
@@ -1162,6 +2282,18 @@
             "state" : "translated",
             "value" : "In a window"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans une fenêtre"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W oknie"
+          }
         }
       }
     },
@@ -1177,6 +2309,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In the sidebar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans la barre latérale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Na pasku bocznym"
           }
         }
       }
@@ -1194,6 +2338,18 @@
             "state" : "translated",
             "value" : "Inspector"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspecteur"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspektor"
+          }
         }
       }
     },
@@ -1206,6 +2362,18 @@
           }
         },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue"
+          }
+        },
+        "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Issue"
@@ -1226,6 +2394,18 @@
             "state" : "translated",
             "value" : "Issues"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issues"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue"
+          }
         }
       }
     },
@@ -1241,6 +2421,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Item not available"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Élément indisponible"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Element niedostępny"
           }
         }
       }
@@ -1258,6 +2450,18 @@
             "state" : "translated",
             "value" : "Labels"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étiquettes"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etykiety"
+          }
         }
       }
     },
@@ -1273,6 +2477,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Last sync"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière synchronisation"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnia synchronizacja"
           }
         }
       }
@@ -1290,6 +2506,18 @@
             "state" : "translated",
             "value" : "Layout"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disposition"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Układ"
+          }
         }
       }
     },
@@ -1305,6 +2533,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading accounts and organizations…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement des comptes et organisations…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wczytywanie kont i organizacji…"
           }
         }
       }
@@ -1322,6 +2562,18 @@
             "state" : "translated",
             "value" : "Loading repositories…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement des dépôts…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wczytywanie repozytoriów…"
+          }
         }
       }
     },
@@ -1337,6 +2589,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Make sure the right account is signed in on github.com."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérifiez que le bon compte est connecté sur github.com."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upewnij się, że na github.com zalogowane jest właściwe konto."
           }
         }
       }
@@ -1354,6 +2618,18 @@
             "state" : "translated",
             "value" : "Mark all as seen"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout marquer comme vu"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznacz wszystkie jako przejrzane"
+          }
         }
       }
     },
@@ -1369,6 +2645,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mark as seen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marquer comme vu"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznacz jako przejrzane"
           }
         }
       }
@@ -1386,6 +2674,18 @@
             "state" : "translated",
             "value" : "Mark as unseen"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marquer comme non vu"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznacz jako nieprzejrzane"
+          }
         }
       }
     },
@@ -1401,6 +2701,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mark repository as seen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marquer le dépôt comme vu"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznacz repozytorium jako przejrzane"
           }
         }
       }
@@ -1418,6 +2730,18 @@
             "state" : "translated",
             "value" : "Merged"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fusionné"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scalone"
+          }
         }
       }
     },
@@ -1433,6 +2757,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Missing repositories? Grant access on GitHub"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des dépôts manquent ? Autorisez l’accès sur GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brakuje repozytoriów? Przyznaj dostęp w serwisie GitHub"
           }
         }
       }
@@ -1450,6 +2786,18 @@
             "state" : "translated",
             "value" : "New"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowe"
+          }
         }
       }
     },
@@ -1465,6 +2813,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New issue"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle issue"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowe issue"
           }
         }
       }
@@ -1482,6 +2842,18 @@
             "state" : "translated",
             "value" : "New pull request"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle pull request"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowy pull request"
+          }
         }
       }
     },
@@ -1497,6 +2869,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New repositories are watched automatically. Forks are not included. Uncheck a repository to exclude it."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les nouveaux dépôts sont surveillés automatiquement. Les forks ne sont pas inclus. Décochez un dépôt pour l’exclure."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowe repozytoria są obserwowane automatycznie. Forki nie są uwzględniane. Odznacz repozytorium, aby je wykluczyć."
           }
         }
       }
@@ -1514,6 +2898,18 @@
             "state" : "translated",
             "value" : "No accounts or organizations found."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun compte ni organisation trouvé."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie znaleziono kont ani organizacji."
+          }
         }
       }
     },
@@ -1529,6 +2925,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No description."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune description."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak opisu."
           }
         }
       }
@@ -1546,6 +2954,18 @@
             "state" : "translated",
             "value" : "No item selected"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun élément sélectionné"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie wybrano elementu"
+          }
         }
       }
     },
@@ -1561,6 +2981,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No items"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun élément"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak elementów"
           }
         }
       }
@@ -1578,6 +3010,18 @@
             "state" : "translated",
             "value" : "No matching repositories"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun dépôt correspondant"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak pasujących repozytoriów"
+          }
         }
       }
     },
@@ -1593,6 +3037,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No repositories watched"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun dépôt surveillé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak obserwowanych repozytoriów"
           }
         }
       }
@@ -1610,6 +3066,18 @@
             "state" : "translated",
             "value" : "Nobody"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personne"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nikt"
+          }
         }
       }
     },
@@ -1625,6 +3093,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not yet"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeszcze nie"
           }
         }
       }
@@ -1642,6 +3122,18 @@
             "state" : "translated",
             "value" : "Nothing matches the current filters."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien ne correspond aux filtres actuels."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nic nie pasuje do bieżących filtrów."
+          }
         }
       }
     },
@@ -1657,6 +3149,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing new."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien de nouveau."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nic nowego."
           }
         }
       }
@@ -1674,6 +3178,18 @@
             "state" : "translated",
             "value" : "Notifications"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadomienia"
+          }
         }
       }
     },
@@ -1689,6 +3205,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notifications are off"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications désactivées"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadomienia wyłączone"
           }
         }
       }
@@ -1706,6 +3234,18 @@
             "state" : "translated",
             "value" : "Notifications are on"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications activées"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadomienia włączone"
+          }
         }
       }
     },
@@ -1721,6 +3261,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notifications are turned off for Radarix in System Settings."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les notifications de Radarix sont désactivées dans Réglages Système."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadomienia aplikacji Radarix są wyłączone w Ustawieniach systemowych."
           }
         }
       }
@@ -1738,6 +3290,18 @@
             "state" : "translated",
             "value" : "Notify about bot items"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifier les éléments de bots"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadamiaj o elementach botów"
+          }
         }
       }
     },
@@ -1753,6 +3317,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notify about updated items"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifier les éléments mis à jour"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Powiadamiaj o zaktualizowanych elementach"
           }
         }
       }
@@ -1770,6 +3346,18 @@
             "state" : "translated",
             "value" : "Off"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyłączone"
+          }
         }
       }
     },
@@ -1782,6 +3370,18 @@
           }
         },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
@@ -1802,6 +3402,18 @@
             "state" : "translated",
             "value" : "Only selected"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sélectionnés uniquement"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tylko wybrane"
+          }
         }
       }
     },
@@ -1817,6 +3429,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvert"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwarte"
           }
         }
       }
@@ -1834,6 +3458,18 @@
             "state" : "translated",
             "value" : "Open GitHub"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz GitHub"
+          }
         }
       }
     },
@@ -1849,6 +3485,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open in window"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans une fenêtre"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz w oknie"
           }
         }
       }
@@ -1866,6 +3514,18 @@
             "state" : "translated",
             "value" : "Open Login Items"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les réglages Ouverture"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz ustawienia logowania"
+          }
         }
       }
     },
@@ -1881,6 +3541,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Notifications"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les réglages Notifications"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz ustawienia powiadomień"
           }
         }
       }
@@ -1898,6 +3570,18 @@
             "state" : "translated",
             "value" : "Open Radarix"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir Radarix"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz Radarix"
+          }
         }
       }
     },
@@ -1913,6 +3597,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open at login"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir avec la session"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwieraj podczas logowania"
           }
         }
       }
@@ -1930,6 +3626,18 @@
             "state" : "translated",
             "value" : "Open on GitHub"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir sur GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otwórz w serwisie GitHub"
+          }
         }
       }
     },
@@ -1945,6 +3653,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Own group"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupe distinct"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osobna grupa"
           }
         }
       }
@@ -1962,6 +3682,18 @@
             "state" : "translated",
             "value" : "Personal access token"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeton d’accès personnel"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Osobisty token dostępu"
+          }
         }
       }
     },
@@ -1978,6 +3710,18 @@
             "state" : "translated",
             "value" : "Private"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privé"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prywatne"
+          }
         }
       }
     },
@@ -1990,6 +3734,18 @@
           }
         },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull request"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull request"
+          }
+        },
+        "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pull request"
@@ -2010,6 +3766,18 @@
             "state" : "translated",
             "value" : "Pull requests"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull requests"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull requesty"
+          }
         }
       }
     },
@@ -2026,6 +3794,18 @@
             "state" : "translated",
             "value" : "Quit Radarix"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter Radarix"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zakończ Radarix"
+          }
         }
       }
     },
@@ -2038,6 +3818,18 @@
           }
         },
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix"
+          }
+        },
+        "pl" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Radarix"
@@ -2057,6 +3849,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Radarix watches your GitHub repositories for new and updated pull requests and issues."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix surveille les nouvelles pull requests et issues de vos dépôts GitHub, ainsi que leurs mises à jour."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix obserwuje repozytoria GitHub pod kątem nowych i zaktualizowanych pull requestów oraz issue."
           }
         }
       }
@@ -2094,6 +3898,54 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Radarix, %lld new or updated"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nouveau ou mis à jour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nouveaux ou mis à jour"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowe lub zaktualizowane"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowych lub zaktualizowanych"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowy lub zaktualizowany"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowego lub zaktualizowanego"
                 }
               }
             }
@@ -2138,6 +3990,54 @@
               }
             }
           }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nouveau ou mis à jour, se reconnecter"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nouveaux ou mis à jour, se reconnecter"
+                }
+              }
+            }
+          }
+        },
+        "pl" : {
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowe lub zaktualizowane, zaloguj się ponownie"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowych lub zaktualizowanych, zaloguj się ponownie"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowy lub zaktualizowany, zaloguj się ponownie"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Radarix, %lld nowego lub zaktualizowanego, zaloguj się ponownie"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2153,6 +4053,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Radarix, sign in again"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix, se reconnecter"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radarix, zaloguj się ponownie"
           }
         }
       }
@@ -2170,6 +4082,18 @@
             "state" : "translated",
             "value" : "Rate limit"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite de requêtes"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limit zapytań"
+          }
         }
       }
     },
@@ -2185,6 +4109,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualiser"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odśwież"
           }
         }
       }
@@ -2202,6 +4138,18 @@
             "state" : "translated",
             "value" : "Refresh every"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualiser toutes les"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odświeżaj co"
+          }
         }
       }
     },
@@ -2217,6 +4165,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh repository"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualiser le dépôt"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odśwież repozytorium"
           }
         }
       }
@@ -2234,6 +4194,18 @@
             "state" : "translated",
             "value" : "Remove"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usuń"
+          }
         }
       }
     },
@@ -2249,6 +4221,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Repositories"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dépôts"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repozytoria"
           }
         }
       }
@@ -2266,6 +4250,18 @@
             "state" : "translated",
             "value" : "Requested reviewers"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relecteurs demandés"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proszeni o recenzję"
+          }
         }
       }
     },
@@ -2281,6 +4277,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Requesting a code…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demande d’un code…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pobieranie kodu…"
           }
         }
       }
@@ -2298,6 +4306,18 @@
             "state" : "translated",
             "value" : "Reset all data"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser toutes les données"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resetuj wszystkie dane"
+          }
         }
       }
     },
@@ -2313,6 +4333,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reset all data?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser toutes les données ?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resetować wszystkie dane?"
           }
         }
       }
@@ -2330,6 +4362,18 @@
             "state" : "translated",
             "value" : "Reset all data…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser toutes les données…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resetuj wszystkie dane…"
+          }
         }
       }
     },
@@ -2345,6 +4389,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Review requested"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relecture demandée"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prośba o recenzję"
           }
         }
       }
@@ -2362,6 +4418,18 @@
             "state" : "translated",
             "value" : "Search repositories"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher des dépôts"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szukaj repozytoriów"
+          }
         }
       }
     },
@@ -2377,6 +4445,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Seen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vu"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przejrzane"
           }
         }
       }
@@ -2394,6 +4474,18 @@
             "state" : "translated",
             "value" : "Settings…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustawienia…"
+          }
         }
       }
     },
@@ -2409,6 +4501,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Description"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la description"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż opis"
           }
         }
       }
@@ -2426,6 +4530,18 @@
             "state" : "translated",
             "value" : "Show archived repositories"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les dépôts archivés"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż zarchiwizowane repozytoria"
+          }
         }
       }
     },
@@ -2441,6 +4557,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show description"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la description"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż opis"
           }
         }
       }
@@ -2458,6 +4586,18 @@
             "state" : "translated",
             "value" : "Show only items created by bots"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher uniquement les éléments créés par des bots"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż tylko elementy utworzone przez boty"
+          }
         }
       }
     },
@@ -2473,6 +4613,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show or hide the inspector"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher ou masquer l’inspecteur"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pokaż lub ukryj inspektora"
           }
         }
       }
@@ -2490,6 +4642,18 @@
             "state" : "translated",
             "value" : "Sidebar"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre latérale"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pasek boczny"
+          }
         }
       }
     },
@@ -2505,6 +4669,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign in"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się"
           }
         }
       }
@@ -2522,6 +4698,18 @@
             "state" : "translated",
             "value" : "Sign in again"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se reconnecter"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się ponownie"
+          }
         }
       }
     },
@@ -2537,6 +4725,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign in to GitHub"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się do serwisu GitHub"
           }
         }
       }
@@ -2554,6 +4754,18 @@
             "state" : "translated",
             "value" : "Sign in to choose repositories."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous pour choisir des dépôts."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się, aby wybrać repozytoria."
+          }
         }
       }
     },
@@ -2569,6 +4781,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign in to see what's new"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous pour voir les nouveautés"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się, aby zobaczyć nowości"
           }
         }
       }
@@ -2586,6 +4810,18 @@
             "state" : "translated",
             "value" : "Sign in with GitHub"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter avec GitHub"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaloguj się przez GitHub"
+          }
         }
       }
     },
@@ -2601,6 +4837,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in with GitHub is not set up in this build."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion avec GitHub n’est pas configurée dans cette version."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logowanie przez GitHub nie jest skonfigurowane w tej wersji."
           }
         }
       }
@@ -2618,6 +4866,18 @@
             "state" : "translated",
             "value" : "Sign-in with GitHub is not set up in this build. Use a personal access token under Advanced."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion avec GitHub n’est pas configurée dans cette version. Utilisez un jeton d’accès personnel dans « Avancé »."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logowanie przez GitHub nie jest skonfigurowane w tej wersji. Użyj osobistego tokenu dostępu w sekcji „Zaawansowane”."
+          }
         }
       }
     },
@@ -2633,6 +4893,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in with GitHub is turned off for this app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion avec GitHub est désactivée pour cette app."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logowanie przez GitHub jest wyłączone dla tej aplikacji."
           }
         }
       }
@@ -2650,6 +4922,18 @@
             "state" : "translated",
             "value" : "Signed in with"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté avec"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zalogowano przez"
+          }
         }
       }
     },
@@ -2665,6 +4949,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Single list"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liste unique"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedna lista"
           }
         }
       }
@@ -2682,6 +4978,18 @@
             "state" : "translated",
             "value" : "Something went wrong. Try again."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une erreur s’est produite. Réessayez."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coś poszło nie tak. Spróbuj ponownie."
+          }
         }
       }
     },
@@ -2697,6 +5005,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start in the background"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarrer en arrière-plan"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uruchamiaj w tle"
           }
         }
       }
@@ -2714,6 +5034,18 @@
             "state" : "translated",
             "value" : "Status"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statut"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stan"
+          }
         }
       }
     },
@@ -2729,6 +5061,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Synced %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisé %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zsynchronizowano %@"
           }
         }
       }
@@ -2746,6 +5090,18 @@
             "state" : "translated",
             "value" : "Syncing…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronizowanie…"
+          }
         }
       }
     },
@@ -2761,6 +5117,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The code has expired. Start the sign-in again."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le code a expiré. Recommencez la connexion."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kod wygasł. Rozpocznij logowanie od nowa."
           }
         }
       }
@@ -2778,6 +5146,18 @@
             "state" : "translated",
             "value" : "The repository was not found on GitHub."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dépôt est introuvable sur GitHub."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie znaleziono repozytorium w serwisie GitHub."
+          }
         }
       }
     },
@@ -2793,6 +5173,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The sign-in was denied on GitHub."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion a été refusée sur GitHub."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logowanie zostało odrzucone w serwisie GitHub."
           }
         }
       }
@@ -2810,6 +5202,18 @@
             "state" : "translated",
             "value" : "The token was rejected. Check it and try again."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le jeton a été refusé. Vérifiez-le et réessayez."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token został odrzucony. Sprawdź go i spróbuj ponownie."
+          }
         }
       }
     },
@@ -2825,6 +5229,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This sign-in can't assign. A fine-grained token needs write access to issues and pull requests."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette connexion ne permet pas d’assigner. Un jeton fine-grained nécessite l’accès en écriture aux issues et pull requests."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To logowanie nie pozwala przypisywać. Token fine-grained wymaga uprawnień do zapisu issue i pull requestów."
           }
         }
       }
@@ -2842,6 +5258,18 @@
             "state" : "translated",
             "value" : "This build's GitHub sign-in is misconfigured. Use a token under Advanced."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La connexion GitHub de cette version est mal configurée. Utilisez un jeton dans « Avancé »."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logowanie przez GitHub w tej wersji jest źle skonfigurowane. Użyj tokenu w sekcji „Zaawansowane”."
+          }
         }
       }
     },
@@ -2857,6 +5285,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This organization restricts access. Some repositories may be missing."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette organisation restreint l’accès. Certains dépôts peuvent manquer."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ta organizacja ogranicza dostęp. Może brakować niektórych repozytoriów."
           }
         }
       }
@@ -2874,6 +5314,18 @@
             "state" : "translated",
             "value" : "This removes your sign-in, your watched repositories and what you have seen from this Mac."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette action supprime de ce Mac votre connexion, vos dépôts surveillés et ce que vous avez déjà vu."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spowoduje to usunięcie z tego Maca logowania, obserwowanych repozytoriów i informacji o przejrzanych elementach."
+          }
         }
       }
     },
@@ -2889,6 +5341,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try again"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayer"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spróbuj ponownie"
           }
         }
       }
@@ -2906,6 +5370,18 @@
             "state" : "translated",
             "value" : "Unassign me"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me désassigner"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cofnij przypisanie"
+          }
         }
       }
     },
@@ -2921,6 +5397,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unassigned"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non assigné"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieprzypisane"
           }
         }
       }
@@ -2938,6 +5426,18 @@
             "state" : "translated",
             "value" : "Update with: brew upgrade --cask radarix"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre à jour avec : brew upgrade --cask radarix"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uaktualnij poleceniem: brew upgrade --cask radarix"
+          }
         }
       }
     },
@@ -2953,6 +5453,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updated"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mis à jour"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaktualizowane"
           }
         }
       }
@@ -2970,6 +5482,18 @@
             "state" : "translated",
             "value" : "Updated issue"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue mise à jour"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaktualizowane issue"
+          }
         }
       }
     },
@@ -2985,6 +5509,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updated pull request"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull request mise à jour"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zaktualizowany pull request"
           }
         }
       }
@@ -3002,6 +5538,18 @@
             "state" : "translated",
             "value" : "Use token"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser le jeton"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Użyj tokenu"
+          }
         }
       }
     },
@@ -3017,6 +5565,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Version %@ is available – View release"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La version %@ est disponible – Voir la version"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wersja %@ jest dostępna – Zobacz wydanie"
           }
         }
       }
@@ -3034,6 +5594,18 @@
             "state" : "translated",
             "value" : "Version %@ is available."
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La version %@ est disponible."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wersja %@ jest dostępna."
+          }
         }
       }
     },
@@ -3049,6 +5621,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "View release"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voir la version"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zobacz wydanie"
           }
         }
       }
@@ -3066,6 +5650,18 @@
             "state" : "translated",
             "value" : "Waiting for you to confirm on GitHub…"
           }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente de votre confirmation sur GitHub…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oczekiwanie na potwierdzenie w serwisie GitHub…"
+          }
         }
       }
     },
@@ -3081,6 +5677,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Watched via %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Surveillé via %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obserwowane przez %@"
           }
         }
       }
