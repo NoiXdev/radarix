@@ -1,0 +1,12 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Radarix" : {
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Radarix" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Radarix" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

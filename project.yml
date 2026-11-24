@@ -1,0 +1,34 @@
+name: Radarix
+options:
+  bundleIdPrefix: dev.noix
+  deploymentTarget:
+    macOS: "15.0"
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+packages:
+  RadarixKit:
+    path: Packages/RadarixKit
+targets:
+  Radarix:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: RadarixKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.noix.radarix
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: App/Radarix.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        GitHubOAuthClientID: $(RADARIX_OAUTH_CLIENT_ID)
+        RadarixAppGroup: $(TeamIdentifierPrefix)dev.noix.radarix
+        LSApplicationCategoryType: public.app-category.developer-tools
