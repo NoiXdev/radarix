@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # `macos-latest`, as in the release workflow: both move together, so this
+    # gate meets a new runner image before a release does.
+    runs-on: macos-latest
+    # The net for a hung test process, not a measurement: a hang would
+    # otherwise burn the runner's default six-hour budget. Neither the kit nor
+    # the app build has run on a hosted runner yet; tighten this from the
+    # first green run's measured duration.
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Select the newest installed Xcode
+        # Radarix is Swift 6 on a macOS 15+ SDK, and the maintainer's machine
+        # runs a much newer Xcode than a hosted image may default to. Rather
+        # than depend on the runner's default (a moving label), pick the
+        # newest Xcode the image ships. Only plain release names count
+        # (`Xcode_26.1.app`); `Xcode_27_beta.app` and the like are skipped so
+        # a beta never becomes the toolchain by accident.
+        #
+        # Both versions are printed, because inferring the Swift version from
+        # the Xcode version is what goes wrong. The figures measured by the
+        # first real run belong in this comment; none has been taken yet.
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "--- runner default ---"
+          xcodebuild -version
+          swift --version
+          latest=$(printf '%s\n' /Applications/Xcode_*.app \
+            | grep -E '/Xcode_[0-9]+(\.[0-9]+)*\.app$' \
+            | sort -V | tail -n 1)
+          [ -n "$latest" ] || { echo "::error::no /Applications/Xcode_<version>.app on this runner" >&2; exit 1; }
+          echo "selecting $latest"
+          sudo xcode-select -s "$latest"
+          echo "--- selected ---"
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Kit tests
+        working-directory: Packages/RadarixKit
+        run: swift test
+
+      - name: Build the app (unsigned Debug)
+        # The project is generated, not committed. Unsigned: CI has no
+        # identity and a pull request must never need one.
+        run: |
+          set -o pipefail
+          xcodegen generate
+          xcodebuild build \
+            -project Radarix.xcodeproj \
+            -scheme Radarix \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO
