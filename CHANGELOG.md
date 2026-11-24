@@ -1,3 +1,23 @@
+## [1.1.0](https://github.com/NoiXdev/radarix/compare/v1.0.0...v1.1.0) (2026-11-24)
+
+### Features
+
+* fetch an item's rendered description ([8e161f6](https://github.com/NoiXdev/radarix/commit/8e161f6786672138a4d8a764e1af11a02a182f8f))
+* give the widget snapshot what filters need ([375bafe](https://github.com/NoiXdev/radarix/commit/375bafede9d1e193342f1d8119771413c18268fe))
+* group the All list by repository ([ea1a035](https://github.com/NoiXdev/radarix/commit/ea1a035b59185e14795dd9739d1a47f5fcdfab3c))
+* keep the list filters across launches ([867c8c6](https://github.com/NoiXdev/radarix/commit/867c8c652cc5a9a4d614cd63f5bd96e353bd6e3b))
+* let each widget filter what it shows ([95c113f](https://github.com/NoiXdev/radarix/commit/95c113fe6960d92fdf9d5b89660857f6cfe868de))
+* show an item's description in its own window ([d952e49](https://github.com/NoiXdev/radarix/commit/d952e4964fdbbbf15fa84f27c197b615174b35d7))
+* split the sidebar counts into pull requests and issues ([a0471c7](https://github.com/NoiXdev/radarix/commit/a0471c7fd880b37eedcbc2de853469e3dcfb5dd1))
+
+### Bug Fixes
+
+* mark a truncated repo's widget badges ([84f0823](https://github.com/NoiXdev/radarix/commit/84f08238a3160b1193428447d94fdaf7ac17da7e))
+* pluralize the kind badge accessibility labels ([c684439](https://github.com/NoiXdev/radarix/commit/c6844397b50da517ddfeafa02ef651324ad68698))
+* **radarix:** open fragment links in the description on the item's page ([7126521](https://github.com/NoiXdev/radarix/commit/712652100702e72d3d42fde56c54a723c71d3fc8))
+* **radarix:** remove File > New from the description window group ([f79b6a6](https://github.com/NoiXdev/radarix/commit/f79b6a684f3ed0410818dcef96ef3574a6514758))
+* **radarix:** scroll to a deep-linked item when grouped All swaps the list ([b9de885](https://github.com/NoiXdev/radarix/commit/b9de885a1d1a0fca7e75c6f26af00d4dd2244b27))
+
 ## 1.0.0-rc.2 (2026-11-24)
 
 ## 1.0.0-rc.1 (2026-11-24)
