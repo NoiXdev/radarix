@@ -81,7 +81,10 @@ struct DescriptionContent: View {
         guard entry != nil else { return }
         phase = .loading
         do {
-            phase = .loaded(try await model.controller.renderedDescription(of: key))
+            let html = try await model.controller.renderedDescription(of: key)
+            // A result for a selection that has since changed must not overwrite the new phase.
+            guard !Task.isCancelled else { return }
+            phase = .loaded(html)
         } catch {
             // Cancelled when the selection changes or the view goes away; a cancelled request
             // can arrive as a network error.
