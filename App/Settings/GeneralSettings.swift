@@ -13,7 +13,9 @@ struct GeneralSettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Open at login", isOn: Binding(get: { opensAtLogin }, set: setOpenAtLogin))
+                // A closure, not `set: setOpenAtLogin`: Swift 6.3 (Xcode 26) crashes in IRGen on
+                // the method reference converted to an @isolated(any) setter.
+                Toggle("Open at login", isOn: Binding(get: { opensAtLogin }, set: { setOpenAtLogin($0) }))
                 if let loginItemError {
                     Text(loginItemError)
                         .foregroundStyle(.red)
