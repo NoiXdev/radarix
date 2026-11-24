@@ -2,7 +2,7 @@ import AppKit
 import RadarixKit
 import SwiftUI
 
-/// Runs the OAuth device flow while shown. Closing the sheet cancels the wait.
+/// Runs the OAuth device flow. Closes once signed in; closing it earlier cancels the flow.
 struct DeviceFlowSheet: View {
     let controller: RadarixController
 
@@ -10,6 +10,8 @@ struct DeviceFlowSheet: View {
     @Environment(\.openURL) private var openURL
     @State private var code: DeviceCode?
     @State private var errorMessage: String?
+    /// Not owned by the sheet's lifetime, so the initial sync after sign-in outlives the sheet.
+    @State private var flow: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -40,8 +42,22 @@ struct DeviceFlowSheet: View {
         }
         .padding(24)
         .frame(width: 380)
-        // `.task` is cancelled when the sheet closes, which stops the polling.
-        .task { await run() }
+        .onAppear {
+            guard flow == nil else { return }
+            flow = Task { await run() }
+        }
+        // `completeDeviceFlow` goes on with the first sync after signing in; that is not a wait for the user.
+        .onChange(of: isSignedIn) { _, signedIn in
+            if signedIn { dismiss() }
+        }
+        .onDisappear {
+            // Closed before sign-in finished: stop polling GitHub.
+            if !isSignedIn { flow?.cancel() }
+        }
+    }
+
+    private var isSignedIn: Bool {
+        if case .signedIn = controller.auth { true } else { false }
     }
 
     private func progress(_ text: LocalizedStringKey) -> some View {
@@ -56,7 +72,6 @@ struct DeviceFlowSheet: View {
             let code = try await controller.startDeviceFlow()
             self.code = code
             try await controller.completeDeviceFlow(code)
-            dismiss()
         } catch {
             // Closing the sheet is not an error, whatever form the cancellation takes.
             guard !Task.isCancelled, !(error is CancellationError) else { return }
