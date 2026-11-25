@@ -68,6 +68,7 @@ public actor GitHubClient {
         if let failure = envelope.errors?.first {
             switch failure.type {
             case "NOT_FOUND": throw GitHubError.notFound
+            case "FORBIDDEN": throw GitHubError.forbidden(failure.message)
             case "RATE_LIMITED": throw GitHubError.rateLimited(resetAt: resetDate(response))
             default: throw GitHubError.decoding(failure.message)
             }

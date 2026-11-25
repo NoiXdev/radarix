@@ -158,7 +158,9 @@ struct RepoOverviewWindow: View {
     }
 
     private func showInfo(_ ids: Set<RepoID>) {
-        for id in ids { openWindow(id: "repo-info", value: id) }
+        // Capped at 5 windows (the first 5 in table order) so a large selection cannot flood the screen.
+        let ordered = rows.map(\.id).filter { ids.contains($0) }
+        for id in ordered.prefix(5) { openWindow(id: "repo-info", value: id) }
     }
 
     private func openOnGitHub(_ ids: Set<RepoID>) {

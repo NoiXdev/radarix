@@ -193,7 +193,7 @@ struct RepoInfoWindow: View {
                     .monospacedDigit()
                     .gridColumnAlignment(.trailing)
             } else {
-                Text(verbatim: "–")
+                Text(verbatim: "—")
                     .foregroundStyle(.secondary)
                     .gridColumnAlignment(.trailing)
             }

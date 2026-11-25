@@ -1,11 +1,6 @@
 import Foundation
 import RadarixKit
 
-extension RepoRef {
-    /// The repository's page on github.com.
-    var githubURL: URL? { URL(string: "https://github.com/\(owner)/\(name)") }
-}
-
 extension RadarixController {
     /// The watched repositories per account, in the order the sidebar shows them: accounts in
     /// session order, each account's repos ordered like its owners list, then by owner and name.

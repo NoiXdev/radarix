@@ -164,6 +164,16 @@ private func variables(of request: URLRequest) throws -> [String: String] {
         }
     }
 
+    @Test func graphQLForbiddenMaps() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(
+            graphQLURL, status: 200,
+            body: #"{"data":null,"errors":[{"type":"FORBIDDEN","message":"no access"}]}"#)
+        await #expect(throws: GitHubError.forbidden("no access")) {
+            _ = try await makeClient(stub).insights(for: repo, since: since)
+        }
+    }
+
     @Test func graphQLRateLimitedMaps() async throws {
         let stub = StubTransport()
         await stub.enqueue(

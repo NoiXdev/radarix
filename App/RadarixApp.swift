@@ -55,6 +55,7 @@ struct RadarixApp: App {
                 .background(WindowMarker(kind: .overview, tracker: windows))
         }
         .defaultSize(width: 720, height: 480)
+        .keyboardShortcut("o", modifiers: [.command, .shift])
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .handlesExternalEvents(matching: [])
@@ -84,11 +85,6 @@ private struct MainCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
-        CommandGroup(before: .windowList) {
-            Button("Repository Overview") { openWindow(id: "repo-overview") }
-                .keyboardShortcut("o", modifiers: [.command, .shift])
-            Divider()
-        }
         CommandGroup(after: .toolbar) {
             Divider()
             Button("Refresh") {

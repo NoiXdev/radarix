@@ -127,7 +127,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld Tage"
+                  "value" : "%lld Tagen"
                 }
               }
             }

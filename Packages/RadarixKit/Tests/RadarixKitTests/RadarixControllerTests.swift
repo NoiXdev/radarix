@@ -422,6 +422,7 @@ struct RadarixControllerTests {
         seeded.available = ["o": [repoA]]
         seeded.stats[repoA.id] = RepoStats(stars: 5, forks: 2, language: "Swift")
         try await h.seed(seeded)
+        await h.api.scriptListings("o", .success(.notModified))
         let controller = h.makeController()
 
         await controller.restoreSessions()
@@ -444,6 +445,28 @@ struct RadarixControllerTests {
         await controller.restoreSessions()
 
         let expected = [repoA.id: RepoStats(stars: 6, openIssuesAndPulls: 3)]
+        #expect(controller.account?.stats == expected)
+        #expect(try h.store.loadAccount(me)?.stats == expected)
+    }
+
+    @Test func stopBranchSavesFreshStats() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        let second = OwnerRef(login: "p", kind: .user)
+        var seeded = account()
+        seeded.watch.owners["p"] = .all(excluded: [])
+        seeded.stats[repoA.id] = RepoStats(stars: 5)
+        try await h.seed(seeded)
+        await h.api.setOwners(.success([user, second]))
+        let resetAt = localNow.addingTimeInterval(900)
+        await h.api.scriptListings("o", .success(.fresh([RepoListing(ref: repoA, stats: RepoStats(stars: 6))])))
+        await h.api.scriptListings("p", .failure(.rateLimited(resetAt: resetAt)))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.lastReport?.rateLimitedUntil == resetAt)
+        let expected = [repoA.id: RepoStats(stars: 6)]
         #expect(controller.account?.stats == expected)
         #expect(try h.store.loadAccount(me)?.stats == expected)
     }
