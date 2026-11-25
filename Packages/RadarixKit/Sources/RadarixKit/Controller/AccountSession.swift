@@ -155,6 +155,9 @@ public final class AccountSession {
             guard generation == self.generation else { return false }
             switch error as? GitHubError {
             case .unauthorized:
+                // One 401 is not a rejected sign-in: GitHub must say it again.
+                guard await rejectionConfirmed() else { return false }
+                guard generation == self.generation else { return false }
                 auth = .needsReauth
                 // GitHub answered; the sign-in is the problem, shown by `auth`.
                 syncProblem = nil
@@ -188,6 +191,8 @@ public final class AccountSession {
             var report = SyncReport()
             report.record(stop)
             report.rateLimit = await cancellable { [api] in await api.rateLimit() }
+            guard generation == self.generation else { return false }
+            await withholdUnconfirmedRejection(&report)
             guard generation == self.generation else { return false }
             report.availableRepos = resolution.available
             report.ownerIssues = resolution.ownerIssues
@@ -241,6 +246,8 @@ public final class AccountSession {
             await SyncEngine(api: api, now: now).sync(snapshot, owned: owned, keep: keep, viewers: viewers)
         }
         guard generation == self.generation else { return nil }
+        await withholdUnconfirmedRejection(&report)
+        guard generation == self.generation else { return nil }
         report.availableRepos = pass.resolution.available
         report.ownerIssues = pass.resolution.ownerIssues
 
@@ -271,9 +278,11 @@ public final class AccountSession {
         // Everything until now is in the snapshot.
         let snapshot = account
         journal = []
-        let (synced, report) = await cancellable { [api, now] in
+        var (synced, report) = await cancellable { [api, now] in
             await SyncEngine(api: api, now: now).sync(snapshot, repo: ref, viewers: viewers)
         }
+        guard generation == self.generation else { return nil }
+        await withholdUnconfirmedRejection(&report)
         guard generation == self.generation else { return nil }
 
         // Only this repo's state comes from the sync; the marks made on it meanwhile win.
@@ -327,6 +336,27 @@ public final class AccountSession {
             syncProblem = nil
         }
         save()
+    }
+
+    /// Asks GitHub who the credential belongs to. True only when GitHub rejects it again; any other
+    /// answer, including no answer, leaves the sign-in standing. Check `generation` afterwards.
+    private func rejectionConfirmed() async -> Bool {
+        let result: Result<Viewer, any Error> = await cancellable { [api] in
+            do { return .success(try await api.viewer()) } catch { return .failure(error) }
+        }
+        if case .failure(let error) = result, case .unauthorized = error as? GitHubError { return true }
+        return false
+    }
+
+    /// Turns a rejected sign-in that GitHub does not repeat into an unconfirmed one: the report
+    /// stays incomplete, but `auth` is not touched. Check `generation` afterwards.
+    private func withholdUnconfirmedRejection(_ report: inout SyncReport) async {
+        guard report.needsReauth else { return }
+        guard await rejectionConfirmed() else {
+            report.needsReauth = false
+            report.unconfirmedRejection = true
+            return
+        }
     }
 
     /// Runs `work` in its own task, which `end()` and a cancellation of the caller both cancel.

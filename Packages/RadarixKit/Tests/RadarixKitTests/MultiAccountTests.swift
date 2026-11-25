@@ -502,6 +502,7 @@ struct MultiAccountTests {
             account(first, available: [shared], states: [shared: []]),
             account(second, available: [shared, workOnly], states: [workOnly: [record(1, .new, repo: workOnly)]]))
         await h.work.setOwners(.failure(.unauthorized))
+        await h.work.setViewer(.failure(.unauthorized))
         await h.me.scriptItems(shared, .success(.fresh([.fixture(repo: shared.id.rawValue, number: 5, createdAt: t2, updatedAt: t2)])))
         let controller = h.makeController()
 
@@ -731,6 +732,7 @@ struct MultiAccountTests {
         // A session that needs reauth no longer counts.
         h.clock.now = localNow.addingTimeInterval(600)
         await h.me.setOwners(.failure(.unauthorized))
+        await h.me.setViewer(.failure(.unauthorized))
         await h.work.setOwners(.failure(.network("offline")))
         await controller.refresh()
         #expect(controller.session(for: first)?.auth == .needsReauth)
@@ -738,6 +740,7 @@ struct MultiAccountTests {
 
         // Every session needs reauth: the oldest of all.
         await h.work.setOwners(.failure(.unauthorized))
+        await h.work.setViewer(.failure(.unauthorized))
         await controller.refresh()
         #expect(controller.needsReauth.count == 2)
         #expect(controller.lastSyncAt == syncedFirst)
@@ -1041,6 +1044,7 @@ struct MultiAccountTests {
             account(first, available: [shared], states: [shared: []]),
             account(second, available: [shared, workOnly], states: [workOnly: []]))
         await h.work.setOwners(.failure(.unauthorized))
+        await h.work.setViewer(.failure(.unauthorized))
         let controller = h.makeController()
         await controller.restoreSessions()
         #expect(controller.session(for: second)?.auth == .needsReauth)

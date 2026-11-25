@@ -277,6 +277,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         await h.api.scriptRepositories("o", .failure(.unauthorized))
+        await h.api.setViewer(.failure(.unauthorized))
         let controller = h.makeController()
 
         await controller.restoreSessions()
@@ -289,6 +290,77 @@ struct RadarixControllerTests {
         await h.api.resetCalls()
         await controller.refresh()
         #expect(await h.api.calls.isEmpty)
+    }
+
+    @Test func singleUnauthorizedIsConfirmedFirst() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        await h.api.scriptRepositories("o", .failure(.unauthorized))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        // GitHub accepts the credential again: the 401 was a stray one.
+        #expect(controller.auth == .signedIn(login: "me"))
+        #expect(controller.lastReport?.needsReauth != true)
+        #expect(controller.lastSyncAt == nil)
+        #expect(await h.api.calls.contains(.viewer))
+
+        await h.api.resetCalls()
+        await controller.refresh()
+        #expect(!(await h.api.calls.isEmpty))
+    }
+
+    @Test func confirmedUnauthorizedNeedsReauth() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        await h.api.scriptRepositories("o", .failure(.unauthorized))
+        await h.api.setViewer(.failure(.unauthorized))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.auth == .needsReauth(login: "me"))
+        #expect(controller.lastReport?.needsReauth == true)
+    }
+
+    @Test func unauthorizedOwnersWhileOfflineStaysSignedIn() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        await h.api.setOwners(.failure(.unauthorized))
+        await h.api.setViewer(.failure(.network("offline")))
+        await h.api.resetCalls()
+        await controller.refresh()
+
+        #expect(controller.auth == .signedIn(login: "me"))
+        #expect(await h.api.calls == [.owners, .viewer])
+    }
+
+    @Test func repoRefreshUnauthorizedIsConfirmedFirst() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account([repoA: [record(1, .new)]]))
+        await h.api.scriptRepositories("o", .success(.fresh([repoA])))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+        await h.api.scriptItems(repoA, .failure(.unauthorized), .failure(.unauthorized))
+        await h.api.resetCalls()
+
+        await controller.refresh(repo: repoA.id)
+
+        #expect(controller.auth == .signedIn(login: "me"))
+        #expect(controller.lastReport?.needsReauth != true)
+        #expect(await h.api.calls.contains(.viewer))
+
+        await h.api.setViewer(.failure(.unauthorized))
+        await controller.refresh(repo: repoA.id)
+        #expect(controller.auth == .needsReauth(login: "me"))
     }
 
     @Test func ownersErrorsFollowTheRules() async throws {
@@ -314,10 +386,11 @@ struct RadarixControllerTests {
 
         // Unauthorized owners call: needs reauth, no sync.
         await h.api.setOwners(.failure(.unauthorized))
+        await h.api.setViewer(.failure(.unauthorized))
         await h.api.resetCalls()
         await controller.refresh()
         #expect(controller.auth == .needsReauth(login: "me"))
-        #expect(await h.api.calls == [.owners])
+        #expect(await h.api.calls == [.owners, .viewer])
     }
 
     @Test func refreshSkippedWhileRateLimited() async throws {
@@ -656,6 +729,7 @@ struct RadarixControllerTests {
 
         // Owners fall back to the known list, then the engine meets a 401.
         await h.api.scriptRepositories("o", .failure(.unauthorized))
+        await h.api.setViewer(.failure(.unauthorized))
         await controller.refresh()
         #expect(controller.auth == .needsReauth(login: "me"))
         #expect(controller.syncProblem == nil)
@@ -811,6 +885,7 @@ struct RadarixControllerTests {
         defer { h.cleanUp() }
         try await h.seed(account([repoA: [record(1, .new)]]))
         await h.api.scriptRepositories("o", .failure(.unauthorized))
+        await h.api.setViewer(.failure(.unauthorized))
         let controller = h.makeController()
 
         await controller.restoreSessions()

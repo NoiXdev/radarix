@@ -12,6 +12,8 @@ public struct SyncReport: Sendable, Equatable {
     public var repoFailures: [RepoID: SyncFailure] = [:]
     public var ownerIssues: [String: OwnerAccessIssue] = [:]
     public var needsReauth = false
+    /// A 401 stopped the sync, but GitHub did not repeat it when asked; the sign-in stands.
+    public var unconfirmedRejection = false
     public var rateLimitedUntil: Date?
     /// The sync stopped early because its task was cancelled.
     public var wasCancelled = false
@@ -23,7 +25,7 @@ public struct SyncReport: Sendable, Equatable {
     public init() {}
 
     /// Every watched repo was processed: no cancellation, rate limit or rejected sign-in stopped the sync.
-    public var isComplete: Bool { !wasCancelled && !needsReauth && rateLimitedUntil == nil }
+    public var isComplete: Bool { !wasCancelled && !needsReauth && !unconfirmedRejection && rateLimitedUntil == nil }
 
     mutating func record(_ stop: SyncStop) {
         switch stop {
