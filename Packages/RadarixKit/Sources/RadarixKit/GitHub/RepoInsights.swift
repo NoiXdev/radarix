@@ -241,9 +241,11 @@ extension GitHubClient {
         var value = 0
         while true {
             value += page.dates.filter { $0 >= since }.count
-            guard page.hasNextPage, let cursor = page.endCursor, page.dates.allSatisfy({ $0 >= since }) else {
+            guard page.hasNextPage, page.dates.allSatisfy({ $0 >= since }) else {
                 return PeriodCount(value: value, atLeast: false)
             }
+            // More entries may be inside the period; without a cursor they cannot be read, so the count is cut off.
+            guard let cursor = page.endCursor else { return PeriodCount(value: value, atLeast: true) }
             if pagesRead >= RepoInsights.maxPages { return PeriodCount(value: value, atLeast: true) }
             page = try await next(cursor)
             pagesRead += 1

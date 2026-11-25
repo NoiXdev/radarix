@@ -121,6 +121,26 @@ private func variables(of request: URLRequest) throws -> [String: String] {
         #expect(await stub.sent.count == 5)
     }
 
+    @Test func missingCursorOnFullPageIsAtLeast() async throws {
+        let stub = StubTransport()
+        let stars = page([inside, inside, inside], hasNext: true, cursor: nil)
+        await stub.enqueue(graphQLURL, status: 200, body: firstResponse(stargazers: stars))
+        let insights = try await makeClient(stub).insights(for: repo, since: since)
+        #expect(insights.period[.stars] == PeriodCount(value: 3, atLeast: true))
+        #expect(await stub.sent.count == 1)
+    }
+
+    @Test func searchDayIsUTCAndBoundIsInclusive() async throws {
+        let stub = StubTransport()
+        let late = Date(timeIntervalSince1970: 1_793_057_400) // 2026-10-26T23:30:00Z
+        let stars = page(["2026-10-26T23:30:00Z", "2026-10-26T23:29:59Z"])
+        await stub.enqueue(graphQLURL, status: 200, body: firstResponse(stargazers: stars))
+        let insights = try await makeClient(stub).insights(for: repo, since: late)
+        let request = try #require(await stub.sent.first)
+        #expect(try variables(of: request)["issues"] == "repo:octo/hello-world is:issue created:>=2026-10-26")
+        #expect(insights.period[.stars] == PeriodCount(value: 1, atLeast: false))
+    }
+
     @Test func forksCountedWithinPeriod() async throws {
         let stub = StubTransport()
         let first = page(Array(repeating: inside, count: 100), hasNext: true, cursor: "f1", key: "nodes")
@@ -165,8 +185,14 @@ private func variables(of request: URLRequest) throws -> [String: String] {
     @Test func graphQLNullDataIsDecoding() async throws {
         let stub = StubTransport()
         await stub.enqueue(graphQLURL, status: 200, body: #"{"data":null}"#)
-        await #expect(throws: GitHubError.self) {
+        do {
             _ = try await makeClient(stub).insights(for: repo, since: since)
+            Issue.record("expected a throw")
+        } catch let error as GitHubError {
+            guard case .decoding = error else {
+                Issue.record("expected .decoding, got \(error)")
+                return
+            }
         }
     }
 
