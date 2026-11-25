@@ -181,6 +181,37 @@ struct MultiAccountTests {
         }
     }
 
+    @Test func insightsUsesOwnerAndPeriod() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(
+            account(first, available: [], states: [:]),
+            account(second, available: [workOnly], states: [workOnly: [record(3, .new, repo: workOnly)]]))
+        await h.work.scriptInsights(workOnly, .success(RepoInsights(stars: 5)))
+        h.clock.now = Date(timeIntervalSince1970: 1_795_651_200)  // 2026-11-25T00:00:00Z
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        let insights = try await controller.insights(for: workOnly.id, days: 30)
+
+        #expect(insights.stars == 5)
+        let since = Date(timeIntervalSince1970: 1_793_059_200)  // 2026-10-26T00:00:00Z
+        #expect(await h.work.calls.contains(.insights(repo: workOnly.id, since: since)))
+        #expect(await h.me.calls.allSatisfy { if case .insights = $0 { false } else { true } })
+    }
+
+    @Test func insightsWithoutOwnerThrows() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: []))
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        await #expect(throws: InsightsError.self) {
+            try await controller.insights(for: workOnly.id, days: 30)
+        }
+    }
+
     @Test func controllerAssignUpdatesRecordWithoutChangingAttention() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }

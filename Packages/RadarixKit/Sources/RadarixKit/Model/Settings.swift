@@ -6,7 +6,7 @@ public enum DescriptionPlacement: String, Codable, Sendable { case window, sideb
 
 public struct AppSettings: Codable, Sendable, Equatable {
     /// Version of the file layout. Files written before versioning decode as 1; saving always writes the current one.
-    public static let currentSchemaVersion = 5
+    public static let currentSchemaVersion = 6
     public var schemaVersion = AppSettings.currentSchemaVersion
     public var layout: MainLayout = .sidebar
     public var refreshInterval: TimeInterval = 300
@@ -30,13 +30,16 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var startInBackground = false
     /// When on, closing the last Radarix window hides the Dock icon and leaves the app in the menu bar.
     public var menuBarOnlyWhenClosed = false
+    public static let repoInfoPeriods = [7, 30, 90]
+    /// The period, in days, the repository info window counts over. One of `repoInfoPeriods`.
+    public var repoInfoPeriodDays: Int = 30
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, layout, refreshInterval, botDisplay, notifyBots, notifyUpdated, openAtLogin, checkForUpdates, accountIDs
         case filter, showsBots, groupAllByRepo
-        case descriptionPlacement, startInBackground, menuBarOnlyWhenClosed
+        case descriptionPlacement, startInBackground, menuBarOnlyWhenClosed, repoInfoPeriodDays
         /// Schema 1 and 2 only; decoded into `accountIDs`, never written.
         case lastAccountID
     }
@@ -60,6 +63,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         descriptionPlacement = placement.flatMap(DescriptionPlacement.init(rawValue:)) ?? defaults.descriptionPlacement
         startInBackground = try c.decodeIfPresent(Bool.self, forKey: .startInBackground) ?? defaults.startInBackground
         menuBarOnlyWhenClosed = try c.decodeIfPresent(Bool.self, forKey: .menuBarOnlyWhenClosed) ?? defaults.menuBarOnlyWhenClosed
+        // A stored value outside the offered periods, or of another type, falls back to the default.
+        let period = try? c.decodeIfPresent(Int.self, forKey: .repoInfoPeriodDays)
+        repoInfoPeriodDays = period.flatMap { Self.repoInfoPeriods.contains($0) ? $0 : nil } ?? defaults.repoInfoPeriodDays
         if let ids = try c.decodeIfPresent([AccountID].self, forKey: .accountIDs) {
             accountIDs = ids
         } else if let legacy = try c.decodeIfPresent(AccountID.self, forKey: .lastAccountID) {
@@ -84,6 +90,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         try c.encode(descriptionPlacement, forKey: .descriptionPlacement)
         try c.encode(startInBackground, forKey: .startInBackground)
         try c.encode(menuBarOnlyWhenClosed, forKey: .menuBarOnlyWhenClosed)
+        try c.encode(repoInfoPeriodDays, forKey: .repoInfoPeriodDays)
     }
 }
 

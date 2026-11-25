@@ -17,6 +17,9 @@ public enum SyncProblem: Sendable, Equatable {
 /// Why an item's description could not be fetched.
 public enum DescriptionError: Error { case noOwner }
 
+/// Why a repository's insights could not be fetched.
+public enum InsightsError: Error { case noOwner }
+
 /// The app's single source of truth: settings, one session per signed-in account, repo ownership,
 /// scheduling and the widget snapshot.
 ///
@@ -568,6 +571,15 @@ public final class RadarixController {
             throw DescriptionError.noOwner
         }
         return try await session.renderedBody(number: key.number, in: repo)
+    }
+
+    /// Counts and facts of a repo over the last `days` days, fetched with the owning account's credential.
+    /// Throws `InsightsError.noOwner` when no session owns the repo or it is not watched.
+    public func insights(for id: RepoID, days: Int) async throws -> RepoInsights {
+        guard let session = owner(of: id),
+            let repo = repos[id]?.repo ?? session.watchedRepos().first(where: { $0.id == id })
+        else { throw InsightsError.noOwner }
+        return try await session.insights(for: repo, since: now().addingTimeInterval(-Double(days) * 86_400))
     }
 
     /// Records of one repo, or of every watched repo for nil, each repo from its owner.

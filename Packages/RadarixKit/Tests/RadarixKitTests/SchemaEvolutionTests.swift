@@ -95,7 +95,7 @@ struct SchemaEvolutionTests {
         let ids = try #require(object["accountIDs"] as? [[String: Int]])
         #expect(ids == [["rawValue": 1], ["rawValue": 2]])
         #expect(object["lastAccountID"] == nil)
-        #expect(object["schemaVersion"] as? Int == 5)
+        #expect(object["schemaVersion"] as? Int == 6)
     }
 
     @Test func settingsFromOneZeroLoadWithFilterDefaults() throws {
@@ -212,7 +212,7 @@ struct SchemaEvolutionTests {
         try store.saveAccount(account)
 
         var reloadedSettings = try store.loadSettings()
-        #expect(reloadedSettings.schemaVersion == 5)
+        #expect(reloadedSettings.schemaVersion == 6)
         reloadedSettings.schemaVersion = 1
         #expect(reloadedSettings == settings)
 
@@ -220,5 +220,31 @@ struct SchemaEvolutionTests {
         #expect(reloadedAccount.schemaVersion == 4)
         reloadedAccount.schemaVersion = 1
         #expect(reloadedAccount == account)
+    }
+
+    @Test func periodDefaultsTo30() throws {
+        #expect(AppSettings().repoInfoPeriodDays == 30)
+        #expect(try decode(AppSettings.self, fixtureJSON("plan2-settings")).repoInfoPeriodDays == 30)
+    }
+
+    @Test func periodDecodesTolerantly() throws {
+        #expect(try decode(AppSettings.self, #"{"schemaVersion":6,"repoInfoPeriodDays":14}"#).repoInfoPeriodDays == 30)
+        #expect(try decode(AppSettings.self, #"{"schemaVersion":6,"repoInfoPeriodDays":90}"#).repoInfoPeriodDays == 90)
+        #expect(try decode(AppSettings.self, #"{"schemaVersion":6,"repoInfoPeriodDays":"x"}"#).repoInfoPeriodDays == 30)
+    }
+
+    @Test func periodRoundTrips() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = FileStore(directory: dir)
+        let controller = await MainActor.run {
+            let controller = RadarixController(
+                store: store, credentials: InMemoryCredentialStore(),
+                makeAPI: { _ in StubGitHubAPI() }, oauthClientID: "client-id")
+            controller.updateSettings { $0.repoInfoPeriodDays = 7 }
+            return controller
+        }
+        _ = controller
+        #expect(try store.loadSettings().repoInfoPeriodDays == 7)
     }
 }
