@@ -49,6 +49,16 @@ struct RadarixApp: App {
         .restorationBehavior(.disabled)
         .handlesExternalEvents(matching: [])
         .environment(model)
+        // One overview of every watched repository.
+        Window("Repository Overview", id: "repo-overview") {
+            RepoOverviewWindow()
+                .background(WindowMarker(kind: .overview, tracker: windows))
+        }
+        .defaultSize(width: 720, height: 480)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .handlesExternalEvents(matching: [])
+        .environment(model)
         Settings {
             SettingsView()
                 .background(WindowMarker(kind: .settings, tracker: windows))
@@ -66,11 +76,19 @@ struct RadarixApp: App {
     }
 }
 
-/// Refresh (⌘R) and Mark all as seen (⇧⌘K) in the View menu.
+/// Refresh (⌘R) and Mark all as seen (⇧⌘K) in the View menu, Repository Overview (⇧⌘O) in the
+/// Window menu.
 private struct MainCommands: Commands {
     let controller: RadarixController
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Commands {
+        CommandGroup(before: .windowList) {
+            Button("Repository Overview") { openWindow(id: "repo-overview") }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
+            Divider()
+        }
         CommandGroup(after: .toolbar) {
             Divider()
             Button("Refresh") {

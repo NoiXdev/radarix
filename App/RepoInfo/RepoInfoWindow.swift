@@ -85,7 +85,7 @@ struct RepoInfoWindow: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button("Open on GitHub") {
-                    if let url = URL(string: "https://github.com/\(repo.owner)/\(repo.name)") { openURL(url) }
+                    if let url = repo.githubURL { openURL(url) }
                 }
             }
             if let description, !description.isEmpty {

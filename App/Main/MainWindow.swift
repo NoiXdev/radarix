@@ -297,28 +297,16 @@ struct MainWindow: View {
     /// its owners list, then by name. An account that owns no watched repo has an empty section.
     private func accountSections(_ repos: [RepoID: RepoState], entries: [ItemEntry]) -> [AccountSection] {
         let byRepo = Dictionary(grouping: entries, by: \.repo.id)
-        let byOwner = Dictionary(grouping: repos.values.map(\.repo)) { controller.owner(of: $0.id)?.accountID }
-        return controller.sessions.map { session in
-            let owned = byOwner[session.accountID] ?? []
-            let ownerOrder = Dictionary(
-                session.owners.enumerated().map { ($1.login, $0) }, uniquingKeysWith: { first, _ in first }
-            )
-            let sections = owned
-                .sorted { a, b in
-                    let rankA = ownerOrder[a.owner] ?? .max, rankB = ownerOrder[b.owner] ?? .max
-                    if rankA != rankB { return rankA < rankB }
-                    if a.owner != b.owner { return a.owner.localizedCaseInsensitiveCompare(b.owner) == .orderedAscending }
-                    return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-                }
-                .map { repo in
-                    RepoSection(
-                        repo: repo,
-                        kindCounts: controller.kindCounts(in: repo.id),
-                        entries: byRepo[repo.id] ?? [],
-                        failure: session.lastReport?.repoFailures[repo.id],
-                        isRefreshing: controller.refreshingRepos.contains(repo.id)
-                    )
-                }
+        return controller.orderedRepos(in: repos).map { session, owned in
+            let sections = owned.map { repo in
+                RepoSection(
+                    repo: repo,
+                    kindCounts: controller.kindCounts(in: repo.id),
+                    entries: byRepo[repo.id] ?? [],
+                    failure: session.lastReport?.repoFailures[repo.id],
+                    isRefreshing: controller.refreshingRepos.contains(repo.id)
+                )
+            }
             return AccountSection(login: session.login, repos: sections)
         }
     }
@@ -341,7 +329,7 @@ struct MainWindow: View {
             },
             markRepoSeen: { controller.markRepoSeen($0) },
             openRepo: { repo in
-                if let url = URL(string: "https://github.com/\(repo.owner)/\(repo.name)") { openURL(url) }
+                if let url = repo.githubURL { openURL(url) }
             },
             refreshRepo: { id in Task { await controller.refresh(repo: id) } },
             showDescription: { openWindow(id: "description", value: $0) },

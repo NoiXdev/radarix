@@ -2637,6 +2637,34 @@
         }
       }
     },
+    "Last push" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzter Push"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last push"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernier push"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatni push"
+          }
+        }
+      }
+    },
     "Last sync" : {
       "localizations" : {
         "de" : {
@@ -3361,6 +3389,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Brak obserwowanych repozytoriów"
+          }
+        }
+      }
+    },
+    "No repositories yet. Radarix fills this in after the first sync." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Repositories. Radarix füllt die Übersicht nach der ersten Synchronisierung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No repositories yet. Radarix fills this in after the first sync."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun dépôt pour l’instant. Radarix remplit cette vue après la première synchronisation."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak repozytoriów. Radarix uzupełni ten widok po pierwszej synchronizacji."
           }
         }
       }
@@ -4717,6 +4773,34 @@
         }
       }
     },
+    "Repository" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dépôt"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repozytorium"
+          }
+        }
+      }
+    },
     "Repository Info…" : {
       "localizations" : {
         "de" : {
@@ -4769,6 +4853,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Repozytorium niedostępne"
+          }
+        }
+      }
+    },
+    "Repository Overview" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository-Übersicht"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository Overview"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vue d’ensemble des dépôts"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przegląd repozytoriów"
           }
         }
       }
