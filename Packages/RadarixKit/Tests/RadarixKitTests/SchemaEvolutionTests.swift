@@ -157,6 +157,11 @@ struct SchemaEvolutionTests {
         #expect(account.available == [:])
     }
 
+    @Test func accountV3DecodesWithoutStats() throws {
+        let account = try decode(AccountData.self, fixtureJSON("plan1-account"))
+        #expect(account.stats == [:])
+    }
+
     @Test func emptyObjectsUseDefaults() throws {
         var expected = AppSettings()
         expected.schemaVersion = 1
@@ -212,7 +217,7 @@ struct SchemaEvolutionTests {
         #expect(reloadedSettings == settings)
 
         var reloadedAccount = try #require(try store.loadAccount(account.accountID))
-        #expect(reloadedAccount.schemaVersion == 3)
+        #expect(reloadedAccount.schemaVersion == 4)
         reloadedAccount.schemaVersion = 1
         #expect(reloadedAccount == account)
     }

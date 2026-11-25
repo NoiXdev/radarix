@@ -36,7 +36,7 @@ public protocol GitHubAPI: Sendable {
     func viewer() async throws -> Viewer
     /// The viewer (user) first, then the organizations they belong to.
     func owners() async throws -> [OwnerRef]
-    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]>
+    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoListing]>
     func items(in repo: RepoRef, query: IssueQuery) async throws -> Fetch<[Item]>
     func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]>
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool
@@ -66,7 +66,7 @@ extension GitHubClient: GitHubAPI {
         return [OwnerRef(login: me.login, kind: .user)] + orgs.map { OwnerRef(login: $0.login, kind: .organization) }
     }
 
-    public func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]> {
+    public func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoListing]> {
         let fetched: Fetch<[RepoDTO]>
         switch owner.kind {
         case .user:
@@ -81,8 +81,13 @@ extension GitHubClient: GitHubAPI {
             return .notModified
         case .fresh(let repos):
             return .fresh(repos.map {
-                RepoRef(id: RepoID(rawValue: $0.id), owner: $0.owner.login, name: $0.name,
-                        isPrivate: $0.private, isArchived: $0.archived, isFork: $0.fork)
+                RepoListing(
+                    ref: RepoRef(id: RepoID(rawValue: $0.id), owner: $0.owner.login, name: $0.name,
+                                 isPrivate: $0.private, isArchived: $0.archived, isFork: $0.fork),
+                    stats: RepoStats(
+                        stars: $0.stargazersCount ?? 0, forks: $0.forksCount ?? 0,
+                        openIssuesAndPulls: $0.openIssuesCount ?? 0,
+                        pushedAt: $0.pushedAt, description: $0.description, language: $0.language))
             })
         }
     }

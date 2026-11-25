@@ -25,7 +25,7 @@ actor StubGitHubAPI: GitHubAPI {
 
     private(set) var calls: [Call] = []
     private(set) var forgotten: [RepoID] = []
-    private var repoLists: [String: [Scripted<[RepoRef]>]] = [:]
+    private var repoLists: [String: [Scripted<[RepoListing]>]] = [:]
     private var itemResults: [RepoID: [Scripted<[Item]>]] = [:]
     private var pullResults: [RepoID: [Scripted<[Int: PullDetails]>]] = [:]
     private var activityResults: [Int: [Result<Bool, GitHubError>]] = [:]
@@ -46,7 +46,19 @@ actor StubGitHubAPI: GitHubAPI {
     private var heldAssignContinuation: CheckedContinuation<Void, Never>?
     private var assignWaiters: [CheckedContinuation<Void, Never>] = []
 
+    /// Repos listed with zero stats.
     func scriptRepositories(_ owner: String, _ results: Scripted<[RepoRef]>...) {
+        repoLists[owner, default: []] += results.map { result in
+            result.map { fetch in
+                switch fetch {
+                case .notModified: .notModified
+                case .fresh(let refs): .fresh(refs.map { RepoListing(ref: $0, stats: RepoStats()) })
+                }
+            }
+        }
+    }
+
+    func scriptListings(_ owner: String, _ results: Scripted<[RepoListing]>...) {
         repoLists[owner, default: []] += results
     }
 
@@ -160,7 +172,7 @@ actor StubGitHubAPI: GitHubAPI {
         return try ownersResult.get()
     }
 
-    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]> {
+    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoListing]> {
         calls.append(.repositories(owner: owner.login))
         if heldRepositories == owner.login {
             heldRepositories = nil

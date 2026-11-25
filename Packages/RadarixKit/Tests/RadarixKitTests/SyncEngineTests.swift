@@ -68,6 +68,24 @@ private func itemQueries(_ api: StubGitHubAPI, repo: RepoRef) async -> [IssueQue
 }
 
 struct SyncEngineTests {
+    @Test func resolveCollectsStats() async {
+        let api = StubGitHubAPI()
+        let stats = RepoStats(stars: 7, forks: 1, openIssuesAndPulls: 2, pushedAt: t1, description: "d", language: "Go")
+        await api.scriptListings("o", .success(.fresh([RepoListing(ref: repoA, stats: stats), RepoListing(ref: repoB, stats: RepoStats())])))
+
+        let resolution = await engine(api).resolve(account(repos: []), owners: [user])
+
+        #expect(resolution.available["o"] == [repoA, repoB])
+        #expect(resolution.stats == [repoA.id: stats, repoB.id: RepoStats()])
+    }
+
+    @Test func resolveOfNotModifiedListHasNoStats() async {
+        let api = StubGitHubAPI()
+        let resolution = await engine(api).resolve(account(repos: [baselined(repoA)]), owners: [user])
+        #expect(resolution.stats.isEmpty)
+        #expect(resolution.available["o"] == [repoA])
+    }
+
     // MARK: Baseline
 
     @Test func baselineFetchesOpenItemsOnlyAndPages() async {

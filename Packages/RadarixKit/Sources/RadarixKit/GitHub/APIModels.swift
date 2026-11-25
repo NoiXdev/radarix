@@ -20,6 +20,13 @@ struct RepoDTO: Decodable {
     let `private`: Bool
     let archived: Bool
     let fork: Bool
+    // Counts the listing may omit decode as 0.
+    let stargazersCount: Int?
+    let forksCount: Int?
+    let openIssuesCount: Int?
+    let pushedAt: Date?
+    let description: String?
+    let language: String?
 }
 
 struct IssueDTO: Decodable {

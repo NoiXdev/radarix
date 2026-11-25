@@ -192,16 +192,26 @@ public final class AccountSession {
             report.availableRepos = resolution.available
             report.ownerIssues = resolution.ownerIssues
             account.available = resolution.available
+            if adoptStats(from: resolution) { save() }
             stoppedReport = report
             finish(report, offline: offline)
             return false
         }
 
-        if account.available != resolution.available {
-            account.available = resolution.available
-            save()
-        }
+        let availableChanged = account.available != resolution.available
+        if availableChanged { account.available = resolution.available }
+        if adoptStats(from: resolution) || availableChanged { save() }
         pass = Pass(resolution: resolution, offline: offline)
+        return true
+    }
+
+    /// Overwrites the stored stats with the fresh ones and drops those of repos no longer in
+    /// `account.available`. Returns whether the stored stats changed. Call after `available` is set.
+    private func adoptStats(from resolution: Resolution) -> Bool {
+        let listed = Set(account.available.values.joined().map(\.id))
+        let merged = account.stats.merging(resolution.stats) { _, fresh in fresh }.filter { listed.contains($0.key) }
+        guard merged != account.stats else { return false }
+        account.stats = merged
         return true
     }
 
@@ -444,7 +454,7 @@ public final class AccountSession {
 private struct RejectingAPI: GitHubAPI {
     func viewer() async throws -> Viewer { throw GitHubError.unauthorized }
     func owners() async throws -> [OwnerRef] { throw GitHubError.unauthorized }
-    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoRef]> { throw GitHubError.unauthorized }
+    func repositories(of owner: OwnerRef) async throws -> Fetch<[RepoListing]> { throw GitHubError.unauthorized }
     func items(in repo: RepoRef, query: IssueQuery) async throws -> Fetch<[Item]> { throw GitHubError.unauthorized }
     func openPullDetails(in repo: RepoRef) async throws -> Fetch<[Int: PullDetails]> { throw GitHubError.unauthorized }
     func hasOtherActivity(on item: Item, in repo: RepoRef, since: Date, viewers: ViewerLogins) async throws -> Bool {

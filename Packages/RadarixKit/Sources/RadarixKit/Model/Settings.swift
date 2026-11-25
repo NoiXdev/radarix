@@ -146,7 +146,7 @@ public struct RepoState: Codable, Sendable, Equatable {
 
 public struct AccountData: Codable, Sendable, Equatable {
     /// Version of the file layout. Files written before versioning decode as 1; saving always writes the current one.
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 4
     public var schemaVersion = AccountData.currentSchemaVersion
     public let accountID: AccountID
     public var login: String
@@ -154,19 +154,22 @@ public struct AccountData: Codable, Sendable, Equatable {
     public var repos: [RepoID: RepoState] = [:]
     /// Repo list of every active owner from the last resolution, keyed by owner login.
     public var available: [String: [RepoRef]] = [:]
+    /// Stats from the last fresh listing of every repo in `available`.
+    public var stats: [RepoID: RepoStats] = [:]
 
     public init(
         accountID: AccountID, login: String, watch: WatchConfig = WatchConfig(), repos: [RepoID: RepoState] = [:],
-        available: [String: [RepoRef]] = [:]
+        available: [String: [RepoRef]] = [:], stats: [RepoID: RepoStats] = [:]
     ) {
         self.accountID = accountID
         self.login = login
         self.watch = watch
         self.repos = repos
         self.available = available
+        self.stats = stats
     }
 
-    private enum CodingKeys: String, CodingKey { case schemaVersion, accountID, login, watch, repos, available }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, accountID, login, watch, repos, available, stats }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -176,6 +179,7 @@ public struct AccountData: Codable, Sendable, Equatable {
         watch = try c.decodeIfPresent(WatchConfig.self, forKey: .watch) ?? WatchConfig()
         repos = try c.decodeIfPresent([RepoID: RepoState].self, forKey: .repos) ?? [:]
         available = try c.decodeIfPresent([String: [RepoRef]].self, forKey: .available) ?? [:]
+        stats = try c.decodeIfPresent([RepoID: RepoStats].self, forKey: .stats) ?? [:]
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -186,5 +190,6 @@ public struct AccountData: Codable, Sendable, Equatable {
         try c.encode(watch, forKey: .watch)
         try c.encode(repos, forKey: .repos)
         try c.encode(available, forKey: .available)
+        try c.encode(stats, forKey: .stats)
     }
 }

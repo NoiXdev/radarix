@@ -334,6 +334,21 @@ struct MultiAccountTests {
         #expect(controller.settings.accountIDs == [second])
     }
 
+    @Test func repoStatsComeFromOwner() async throws {
+        let h = await Harness.make()
+        defer { h.cleanUp() }
+        try h.seed(account(first, available: [shared]), account(second, available: [shared]))
+        await h.me.scriptListings("org", .success(.fresh([RepoListing(ref: shared, stats: RepoStats(stars: 10))])))
+        await h.work.scriptListings("org", .success(.fresh([RepoListing(ref: shared, stats: RepoStats(stars: 99))])))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.ownership[shared.id] == first)
+        #expect(controller.repoStats(shared.id)?.stars == 10)
+        #expect(controller.repoStats(RepoID(rawValue: 12345)) == nil)
+    }
+
     @Test func accountWithoutCredentialKeepsSharedRepo() async throws {
         let h = await Harness.make()
         defer { h.cleanUp() }

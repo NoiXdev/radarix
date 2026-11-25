@@ -1,3 +1,5 @@
+import Foundation
+
 public enum OwnerKind: String, Sendable, Codable, Hashable {
     case user, organization
 }
@@ -8,6 +10,41 @@ public struct OwnerRef: Sendable, Codable, Hashable {
     public init(login: String, kind: OwnerKind) {
         self.login = login
         self.kind = kind
+    }
+}
+
+/// Numbers and texts the repository listing carries along. Not part of `RepoRef`, which is
+/// compared and hashed across sync.
+public struct RepoStats: Sendable, Codable, Hashable {
+    public var stars: Int
+    public var forks: Int
+    /// GitHub counts issues and pull requests together here.
+    public var openIssuesAndPulls: Int
+    public var pushedAt: Date?
+    public var description: String?
+    public var language: String?
+
+    public init(
+        stars: Int = 0, forks: Int = 0, openIssuesAndPulls: Int = 0,
+        pushedAt: Date? = nil, description: String? = nil, language: String? = nil
+    ) {
+        self.stars = stars
+        self.forks = forks
+        self.openIssuesAndPulls = openIssuesAndPulls
+        self.pushedAt = pushedAt
+        self.description = description
+        self.language = language
+    }
+}
+
+/// One entry of a repository listing.
+public struct RepoListing: Sendable, Equatable {
+    public let ref: RepoRef
+    public let stats: RepoStats
+
+    public init(ref: RepoRef, stats: RepoStats) {
+        self.ref = ref
+        self.stats = stats
     }
 }
 

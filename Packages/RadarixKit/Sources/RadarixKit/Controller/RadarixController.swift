@@ -128,6 +128,11 @@ public final class RadarixController {
         return sessions.first { $0.account.repos[repo] != nil }
     }
 
+    /// The listing stats of `id`, from the account that owns it.
+    public func repoStats(_ id: RepoID) -> RepoStats? {
+        owner(of: id)?.account.stats[id]
+    }
+
     /// The state of every repo, each from its owner.
     public var repos: [RepoID: RepoState] {
         var result: [RepoID: RepoState] = [:]

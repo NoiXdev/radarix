@@ -413,6 +413,57 @@ struct RadarixControllerTests {
         }
     }
 
+    // MARK: Stats
+
+    @Test func notModifiedKeepsStats() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        var seeded = account()
+        seeded.available = ["o": [repoA]]
+        seeded.stats[repoA.id] = RepoStats(stars: 5, forks: 2, language: "Swift")
+        try await h.seed(seeded)
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(controller.account?.stats == seeded.stats)
+        #expect(controller.repoStats(repoA.id)?.stars == 5)
+        #expect(try h.store.loadAccount(me)?.stats == seeded.stats)
+    }
+
+    @Test func freshStatsAreSaved() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        var seeded = account()
+        seeded.available = ["o": [repoA]]
+        seeded.stats[repoA.id] = RepoStats(stars: 5)
+        try await h.seed(seeded)
+        await h.api.scriptListings("o", .success(.fresh([RepoListing(ref: repoA, stats: RepoStats(stars: 6, openIssuesAndPulls: 3))])))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        let expected = [repoA.id: RepoStats(stars: 6, openIssuesAndPulls: 3)]
+        #expect(controller.account?.stats == expected)
+        #expect(try h.store.loadAccount(me)?.stats == expected)
+    }
+
+    @Test func statsOfUnlistedReposArePruned() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        var seeded = account()
+        seeded.available = ["o": [repoA, repoB]]
+        seeded.stats = [repoA.id: RepoStats(stars: 1), repoB.id: RepoStats(stars: 2)]
+        try await h.seed(seeded)
+        await h.api.scriptListings("o", .success(.fresh([RepoListing(ref: repoA, stats: RepoStats(stars: 1))])))
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+
+        #expect(Set(controller.account?.stats.keys ?? [:].keys) == [repoA.id])
+        #expect(try h.store.loadAccount(me)?.stats.keys.sorted { $0.rawValue < $1.rawValue } == [repoA.id])
+    }
+
     @Test func markSeenDuringSyncSurvives() async throws {
         let h = Harness()
         defer { h.cleanUp() }

@@ -39,12 +39,29 @@ private func makeClient(_ stub: StubTransport) -> GitHubClient {
             Issue.record("expected fresh"); return
         }
         #expect(repos.count == 2)
-        #expect(repos[0] == RepoRef(id: RepoID(rawValue: 1296269), owner: "octo", name: "hello-world", isPrivate: false, isArchived: false, isFork: false))
-        #expect(repos[1] == RepoRef(id: RepoID(rawValue: 1296270), owner: "octo", name: "secret-sauce", isPrivate: true, isArchived: true, isFork: true))
+        #expect(repos.map(\.ref)[0] == RepoRef(id: RepoID(rawValue: 1296269), owner: "octo", name: "hello-world", isPrivate: false, isArchived: false, isFork: false))
+        #expect(repos.map(\.ref)[1] == RepoRef(id: RepoID(rawValue: 1296270), owner: "octo", name: "secret-sauce", isPrivate: true, isArchived: true, isFork: true))
 
         guard case .fresh = try await client.repositories(of: OwnerRef(login: "acme", kind: .organization)) else {
             Issue.record("expected fresh"); return
         }
+    }
+
+    @Test func repositoriesDecodeStats() async throws {
+        let stub = StubTransport()
+        await stub.enqueue("\(base)/user/repos?affiliation=owner&sort=updated&direction=desc&per_page=100", status: 200, body: try fixtureJSON("repos"))
+        guard case .fresh(let listings) = try await makeClient(stub).repositories(of: OwnerRef(login: "octo", kind: .user)) else {
+            Issue.record("expected fresh"); return
+        }
+        #expect(listings.map(\.ref.name) == ["hello-world", "secret-sauce"])
+        let hello = listings[0].stats
+        #expect(hello.stars == 1420)
+        #expect(hello.forks == 87)
+        #expect(hello.openIssuesAndPulls == 12)
+        #expect(hello.language == "Swift")
+        #expect(hello.description == "My first repository")
+        #expect(hello.pushedAt == Date(timeIntervalSince1970: 1_772_619_630))
+        #expect(listings[1].stats == RepoStats())
     }
 
     @Test func baselineQueryRequestsOpenItems() async throws {

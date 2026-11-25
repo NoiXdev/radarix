@@ -62,6 +62,8 @@ extension SyncStop: Error {
 public struct Resolution: Sendable, Equatable {
     /// Keyed by owner login; only owners not in `.off` mode.
     public var available: [String: [RepoRef]]
+    /// Stats of the repos in freshly fetched lists only; a list that was not fetched adds none.
+    public var stats: [RepoID: RepoStats]
     /// Active owners without any repo list: their stored repo states must stay untouched.
     public var unknownOwners: Set<String>
     public var ownerIssues: [String: OwnerAccessIssue]
@@ -69,10 +71,11 @@ public struct Resolution: Sendable, Equatable {
     public var stop: SyncStop?
 
     public init(
-        available: [String: [RepoRef]] = [:], unknownOwners: Set<String> = [],
+        available: [String: [RepoRef]] = [:], stats: [RepoID: RepoStats] = [:], unknownOwners: Set<String> = [],
         ownerIssues: [String: OwnerAccessIssue] = [:], stop: SyncStop? = nil
     ) {
         self.available = available
+        self.stats = stats
         self.unknownOwners = unknownOwners
         self.ownerIssues = ownerIssues
         self.stop = stop
@@ -100,8 +103,9 @@ public struct SyncEngine: Sendable {
         var resolution = Resolution(available: account.available.filter { entry in active.contains { $0.login == entry.key } })
         for owner in active {
             do {
-                if case .fresh(let repos) = try await api.repositories(of: owner) {
-                    resolution.available[owner.login] = repos
+                if case .fresh(let listings) = try await api.repositories(of: owner) {
+                    resolution.available[owner.login] = listings.map(\.ref)
+                    for listing in listings { resolution.stats[listing.ref.id] = listing.stats }
                 }
             } catch {
                 if let stop = SyncStop(error) {
