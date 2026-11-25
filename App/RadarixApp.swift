@@ -77,12 +77,9 @@ struct RadarixApp: App {
     }
 }
 
-/// Refresh (⌘R) and Mark all as seen (⇧⌘K) in the View menu, Repository Overview (⇧⌘O) in the
-/// Window menu.
+/// Refresh (⌘R) and Mark all as seen (⇧⌘K) in the View menu.
 private struct MainCommands: Commands {
     let controller: RadarixController
-
-    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
