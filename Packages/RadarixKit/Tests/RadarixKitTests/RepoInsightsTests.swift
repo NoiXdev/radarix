@@ -20,7 +20,7 @@ private func page(_ dates: [String], hasNext: Bool = false, cursor: String? = ni
 
 private func firstResponse(
     stargazers: String = page([]), forks: String = page([], key: "nodes"),
-    spdxId: String? = "MIT", licenseName: String = "MIT License"
+    spdxId: String? = "MIT", licenseName: String = "MIT License", stargazerCount: Int = 1420
 ) -> String {
     let spdx = spdxId.map { #""\#($0)""# } ?? "null"
     return """
@@ -28,7 +28,7 @@ private func firstResponse(
       "description":"A repo","primaryLanguage":{"name":"Swift"},
       "licenseInfo":{"spdxId":\(spdx),"name":"\(licenseName)"},
       "repositoryTopics":{"nodes":[{"topic":{"name":"swift"}},{"topic":{"name":"macos"}}]},
-      "stargazerCount":1420,"forkCount":87,"watchers":{"totalCount":31},
+      "stargazerCount":\(stargazerCount),"forkCount":87,"watchers":{"totalCount":31},
       "issues":{"totalCount":9},"pullRequests":{"totalCount":3},
       "latestRelease":{"name":"Two","tagName":"v2.0.0","publishedAt":"2026-11-02T09:00:00Z"},
       "stargazers":\(stargazers),"forks":\(forks)},
@@ -94,6 +94,21 @@ private func variables(of request: URLRequest) throws -> [String: String] {
         let insights = try await makeClient(stub).insights(for: repo, since: since)
         #expect(insights.period[.stars] == PeriodCount(value: 3, atLeast: false))
         #expect(await stub.sent.count == 1)
+    }
+
+    @Test func hiddenStargazerListLeavesStarsOut() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(graphQLURL, status: 200, body: firstResponse(stargazers: page([]), stargazerCount: 1420))
+        let insights = try await makeClient(stub).insights(for: repo, since: since)
+        #expect(insights.period[.stars] == nil)
+        #expect(insights.period[.openedIssues] == PeriodCount(value: 4, atLeast: false))
+    }
+
+    @Test func repositoryWithoutStarsCountsZero() async throws {
+        let stub = StubTransport()
+        await stub.enqueue(graphQLURL, status: 200, body: firstResponse(stargazers: page([]), stargazerCount: 0))
+        let insights = try await makeClient(stub).insights(for: repo, since: since)
+        #expect(insights.period[.stars] == PeriodCount(value: 0, atLeast: false))
     }
 
     @Test func starsFollowNextPage() async throws {

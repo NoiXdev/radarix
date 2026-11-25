@@ -196,7 +196,10 @@ extension GitHubClient {
         ])
         let source = response.repository
 
-        let stars = try await countSince(since, first: Self.datePage(source.stargazers)) { cursor in
+        // GitHub hides the stargazer list of repositories the sign-in cannot administer: it comes back
+        // empty although the repository has stars. Counting it would show "0 new", so the metric is left out.
+        let starsHidden = source.stargazerCount > 0 && source.stargazers.edges.isEmpty
+        let stars: PeriodCount? = starsHidden ? nil : try await countSince(since, first: Self.datePage(source.stargazers)) { cursor in
             let next: StarsFollowUp = try await self.graphQL(
                 RepoInsights.starsPageQuery, variables: ["owner": repo.owner, "name": repo.name, "after": cursor])
             return Self.datePage(next.repository.stargazers)
@@ -228,7 +231,7 @@ extension GitHubClient {
                 .openedIssues: PeriodCount(value: response.openedIssues.issueCount, atLeast: false),
                 .openedPulls: PeriodCount(value: response.openedPulls.issueCount, atLeast: false),
                 .mergedPulls: PeriodCount(value: response.mergedPulls.issueCount, atLeast: false),
-            ])
+            ].compactMapValues { $0 })
     }
 
     /// Counts entries dated `since` or later in a newest-first paged list. Reads the next page only
