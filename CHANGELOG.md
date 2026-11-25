@@ -1,3 +1,25 @@
+## [1.3.0](https://github.com/NoiXdev/radarix/compare/v1.2.0...v1.3.0) (2026-11-25)
+
+### Features
+
+* add French and Polish translations ([d18c319](https://github.com/NoiXdev/radarix/commit/d18c319dd3957bf5214e6c78fb503d028581733f))
+* keep repository stats from the listing ([af32659](https://github.com/NoiXdev/radarix/commit/af32659e1b1937c6a2d0baa384f35c13fc3f2064))
+* load repository insights in one GraphQL query ([d231427](https://github.com/NoiXdev/radarix/commit/d2314271d2d98ae28e1817537de56d3029daccc7))
+* repository info window ([38d814b](https://github.com/NoiXdev/radarix/commit/38d814b77d32b3fa0e99dafd6d0972e861ddacab))
+* repository insights for the owning account ([82ad811](https://github.com/NoiXdev/radarix/commit/82ad811e0b98c487a5a937a320d0a8cc67c2949a))
+* repository overview window ([b51ff0f](https://github.com/NoiXdev/radarix/commit/b51ff0f0f3e2fa946b6fe74561431fa0950bdfd6))
+
+### Bug Fixes
+
+* address final review of repository info ([df5185e](https://github.com/NoiXdev/radarix/commit/df5185eeb68c0b2d87e8ead83049e6b130952c17))
+* confirm a rejected sign-in before asking to sign in again ([b3cf164](https://github.com/NoiXdev/radarix/commit/b3cf164bddf4da2aea84e7f94043a39dfa6811d7))
+* give debug builds their own keychain entry ([e27a007](https://github.com/NoiXdev/radarix/commit/e27a007f5a1184fc6e6e387fcb1055398d01ca5d))
+* leave new stars out when GitHub hides the stargazer list ([11f463d](https://github.com/NoiXdev/radarix/commit/11f463da54e4e4bd67b067334c28425281bedb1f))
+* let the device-flow sheet track its own sign-in ([8b93e47](https://github.com/NoiXdev/radarix/commit/8b93e47922d7d3be54772693f39c660cbfc1fb31))
+* mark a cut-off insights count as at least ([cc17256](https://github.com/NoiXdev/radarix/commit/cc17256a82591e948ed6713886a3255a9450dd5b))
+* retry a sign-in the keychain could not read ([9149eb4](https://github.com/NoiXdev/radarix/commit/9149eb474932f3a0d08fe53f926233c75eaa8884))
+* tell period labels from current counts, wrap the info error line ([46c812a](https://github.com/NoiXdev/radarix/commit/46c812aa35304282313986399c8cbf2c318d8ade))
+
 ## [1.2.0](https://github.com/NoiXdev/radarix/compare/v1.1.0...v1.2.0) (2026-11-24)
 
 ### Features
