@@ -205,8 +205,7 @@ public final class RadarixController {
     /// Validates the token, keeps any stored data of that account, saves the credential, then syncs.
     /// A new account goes to the end of the list; one already in it gets the new credential.
     ///
-    /// An account already in the list gets a new session, so a sign-in sheet can tell that it
-    /// arrived. That session takes over the old one's owners, last sync, last report, rate limit
+    /// An account already in the list gets a new session. That session takes over the old one's owners, last sync, last report, rate limit
     /// and unknown owners, so nothing resets and the snapshot's sync time does not go back.
     ///
     /// Returns which account the token belongs to, and whether it was not in the list before. A
@@ -240,9 +239,12 @@ public final class RadarixController {
         try await DeviceFlow(clientID: oauthClientID).start()
     }
 
+    /// Waits until GitHub accepts the sign-in, then adds the account. `onAccepted` runs once GitHub
+    /// handed out the token, before the account is added and syncs.
     @discardableResult
-    public func completeDeviceFlow(_ code: DeviceCode) async throws -> AddedAccount {
+    public func completeDeviceFlow(_ code: DeviceCode, onAccepted: () -> Void = {}) async throws -> AddedAccount {
         let token = try await DeviceFlow(clientID: oauthClientID).waitForToken(code)
+        onAccepted()
         return try await addAccount(token: token, kind: .oauth)
     }
 

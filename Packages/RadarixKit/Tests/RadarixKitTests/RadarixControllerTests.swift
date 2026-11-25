@@ -303,7 +303,9 @@ struct RadarixControllerTests {
 
         // GitHub accepts the credential again: the 401 was a stray one.
         #expect(controller.auth == .signedIn(login: "me"))
-        #expect(controller.lastReport?.needsReauth != true)
+        #expect(controller.lastReport?.needsReauth == false)
+        #expect(controller.lastReport?.unconfirmedRejection == true)
+        #expect(controller.lastReport?.isComplete == false)
         #expect(controller.lastSyncAt == nil)
         #expect(await h.api.calls.contains(.viewer))
 

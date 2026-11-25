@@ -15,9 +15,9 @@ struct DeviceFlowSheet: View {
     @State private var errorMessage: String?
     /// Not owned by the sheet's lifetime, so the initial sync after sign-in outlives the sheet.
     @State private var flow: Task<Void, Never>?
-    /// The sessions when the flow started. A session not among them is the one this flow added,
-    /// also when it replaced the session of the same account.
-    @State private var sessionsAtStart: [AccountSession]?
+    /// GitHub accepted the sign-in; `completeDeviceFlow` goes on with adding the account and its
+    /// first sync. Set by the flow itself: a session replaced for another reason does not count.
+    @State private var accepted = false
     @State private var completed = false
 
     var body: some View {
@@ -55,7 +55,6 @@ struct DeviceFlowSheet: View {
         .frame(width: 380)
         .onAppear {
             guard flow == nil else { return }
-            sessionsAtStart = controller.sessions
             flow = Task { await run() }
         }
         .onDisappear {
@@ -63,13 +62,6 @@ struct DeviceFlowSheet: View {
             // account is added and its first sync must not be cut short.
             if !completed, !accepted { flow?.cancel() }
         }
-    }
-
-    /// GitHub accepted the sign-in and the account is added; `completeDeviceFlow` goes on with
-    /// its first sync.
-    private var accepted: Bool {
-        guard let sessionsAtStart else { return false }
-        return controller.sessions.contains { session in !sessionsAtStart.contains { $0 === session } }
     }
 
     private func progress(_ text: LocalizedStringKey) -> some View {
@@ -83,7 +75,7 @@ struct DeviceFlowSheet: View {
         do {
             let code = try await controller.startDeviceFlow()
             self.code = code
-            let added = try await controller.completeDeviceFlow(code)
+            let added = try await controller.completeDeviceFlow(code) { accepted = true }
             completed = true
             onSignedIn(added)
             dismiss()

@@ -26,9 +26,10 @@ public struct KeychainError: Error, Equatable {
     public let status: OSStatus
     public init(status: OSStatus) { self.status = status }
 
-    /// The keychain may read the item later: it is locked (-25308) or user interaction is not
-    /// allowed (-25291). Any other status will not change by waiting.
-    public var isTemporary: Bool { status == -25308 || status == -25291 }
+    /// The keychain may read the item later: it could not ask the user, for example because it is
+    /// locked (`errSecInteractionNotAllowed`), or no keychain is available (`errSecNotAvailable`).
+    /// Any other status, a denied prompt included, will not change by waiting.
+    public var isTemporary: Bool { status == errSecInteractionNotAllowed || status == errSecNotAvailable }
 }
 
 public struct KeychainCredentialStore: CredentialStore {
