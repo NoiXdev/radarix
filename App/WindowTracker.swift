@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The windows that count as Radarix windows for the Dock icon.
 enum RadarixWindowKind {
-    case main, description, settings
+    case main, description, repoInfo, settings
 }
 
 /// Knows Radarix's own windows and keeps the Dock icon in step with them under "Hide from the

@@ -284,6 +284,11 @@ final class AppModel {
             case .noOwner:
                 String(localized: "Something went wrong. Try again.")
             }
+        case let error as InsightsError:
+            switch error {
+            case .noOwner:
+                String(localized: "Not signed in to an account that watches this repository.")
+            }
         case let error as DeviceFlowError:
             switch error {
             case .expired:

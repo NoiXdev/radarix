@@ -187,6 +187,7 @@ struct RepoContextMenu: View {
         Button("Mark repository as seen") { actions.markRepoSeen(section.id) }
         Button("Refresh repository") { actions.refreshRepo(section.id) }
             .disabled(section.isRefreshing)
+        Button("Repository Info…") { actions.showRepoInfo(section.id) }
         Button("Open on GitHub") { actions.openRepo(section.repo) }
     }
 }

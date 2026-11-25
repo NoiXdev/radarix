@@ -36,6 +36,19 @@ struct RadarixApp: App {
         // Deep links belong to the main window.
         .handlesExternalEvents(matching: [])
         .environment(model)
+        // One window per repository; opening a repository that has one brings it to the front.
+        WindowGroup(id: "repo-info", for: RepoID.self) { $id in
+            if let id {
+                RepoInfoWindow(id: id)
+                    .background(WindowMarker(kind: .repoInfo, tracker: windows))
+            }
+        }
+        .defaultSize(width: 520, height: 560)
+        .commandsRemoved()
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .handlesExternalEvents(matching: [])
+        .environment(model)
         Settings {
             SettingsView()
                 .background(WindowMarker(kind: .settings, tracker: windows))

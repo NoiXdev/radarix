@@ -38,6 +38,8 @@ struct ItemActions {
     var refreshRepo: @MainActor (RepoID) -> Void = { _ in }
     /// Opens the item's description window, or brings it to the front.
     var showDescription: @MainActor (ItemKey) -> Void = { _ in }
+    /// Opens the repository's info window, or brings it to the front.
+    var showRepoInfo: @MainActor (RepoID) -> Void = { _ in }
     /// Assigns or unassigns the owning account's login on GitHub.
     var setAssigned: @MainActor (ItemKey, Bool) async throws -> Void = { _, _ in }
 }
@@ -343,6 +345,7 @@ struct MainWindow: View {
             },
             refreshRepo: { id in Task { await controller.refresh(repo: id) } },
             showDescription: { openWindow(id: "description", value: $0) },
+            showRepoInfo: { openWindow(id: "repo-info", value: $0) },
             setAssigned: { key, assigned in try await controller.setAssigned(assigned, key: key) }
         )
     }
