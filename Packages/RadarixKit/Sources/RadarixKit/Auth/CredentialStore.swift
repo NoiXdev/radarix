@@ -28,9 +28,12 @@ public struct KeychainError: Error, Equatable {
 }
 
 public struct KeychainCredentialStore: CredentialStore {
+    /// The keychain service of release builds.
+    public static let defaultService = "dev.noix.radarix.credential"
+
     private let service: String
 
-    public init(service: String = "dev.noix.radarix.credential") {
+    public init(service: String = KeychainCredentialStore.defaultService) {
         self.service = service
     }
 

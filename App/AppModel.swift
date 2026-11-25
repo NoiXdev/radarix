@@ -47,12 +47,22 @@ final class AppModel {
     /// Item notifications clicked before the session was restored (a click that launched the app).
     @ObservationIgnored private var pendingSeen: [ItemKey] = []
 
+    /// Debug builds are signed differently, so they get their own entry. A shared one would be
+    /// taken over by whichever build signed in last.
+    private static let credentialService: String = {
+        #if DEBUG
+        "dev.noix.radarix.credential.debug"
+        #else
+        KeychainCredentialStore.defaultService
+        #endif
+    }()
+
     init() {
         let clientID = Self.infoValue("GitHubOAuthClientID")
         oauthClientID = clientID
         controller = RadarixController(
             store: FileStore(directory: FileStore.defaultDirectory(appGroup: Self.infoValue("RadarixAppGroup"))),
-            credentials: KeychainCredentialStore(),
+            credentials: KeychainCredentialStore(service: Self.credentialService),
             makeAPI: { GitHubClient(token: $0) },
             oauthClientID: clientID
         )

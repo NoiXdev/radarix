@@ -29,6 +29,11 @@ import Testing
         try store.delete(for: account) // deleting a missing item is not an error
     }
 
+    @Test func defaultServiceIsTheReleaseEntry() {
+        // Guards the release entry: changing it would sign every release user out.
+        #expect(KeychainCredentialStore.defaultService == "dev.noix.radarix.credential")
+    }
+
     @Test func inMemoryRoundTrip() throws {
         let store = InMemoryCredentialStore()
         let account = AccountID(rawValue: 1)
