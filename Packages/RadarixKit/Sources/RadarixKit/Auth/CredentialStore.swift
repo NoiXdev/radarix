@@ -25,6 +25,10 @@ public protocol CredentialStore: Sendable {
 public struct KeychainError: Error, Equatable {
     public let status: OSStatus
     public init(status: OSStatus) { self.status = status }
+
+    /// The keychain may read the item later: it is locked (-25308) or user interaction is not
+    /// allowed (-25291). Any other status will not change by waiting.
+    public var isTemporary: Bool { status == -25308 || status == -25291 }
 }
 
 public struct KeychainCredentialStore: CredentialStore {

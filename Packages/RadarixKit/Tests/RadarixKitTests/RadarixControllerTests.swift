@@ -29,7 +29,7 @@ private final class TokenLog: Sendable {
 @MainActor
 private final class Harness {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-    let credentials = InMemoryCredentialStore()
+    let credentials = ScriptedCredentialStore()
     let api = StubGitHubAPI()
     let clock = TestClock(localNow)
     let tokens = TokenLog()
@@ -716,6 +716,73 @@ struct RadarixControllerTests {
         #expect(controller.lastSyncAt == localNow)
     }
 
+    @Test func lockedKeychainIsRetriedOnRefresh() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        h.credentials.failLoads(for: me, with: KeychainError(status: -25308), times: 1)
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+        #expect(controller.auth == .needsReauth(login: "me"))
+
+        await controller.refresh()
+        #expect(controller.auth == .signedIn(login: "me"))
+        #expect(controller.credentialKind == .oauth)
+        #expect(await h.api.calls.contains(.owners))
+    }
+
+    @Test func deniedKeychainIsNotRetried() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        h.credentials.failLoads(for: me, with: KeychainError(status: -128), times: 1)
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+        await controller.refresh()
+        await controller.refresh()
+
+        #expect(h.credentials.loadCount(for: me) == 1)
+        #expect(controller.auth == .needsReauth(login: "me"))
+    }
+
+    @Test func stillLockedKeepsRetrying() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        h.credentials.failLoads(for: me, with: KeychainError(status: -25308), times: 2)
+        let controller = h.makeController()
+
+        await controller.restoreSessions()
+        await controller.refresh()
+        #expect(controller.auth == .needsReauth(login: "me"))
+
+        await controller.refresh()
+        #expect(controller.auth == .signedIn(login: "me"))
+    }
+
+    @Test func signInDuringRetryWins() async throws {
+        let h = Harness()
+        defer { h.cleanUp() }
+        try await h.seed(account())
+        h.credentials.failLoads(for: me, with: KeychainError(status: -25308), times: 1)
+        let controller = h.makeController()
+        await controller.restoreSessions()
+
+        try await controller.addAccount(token: "pat-new", kind: .personalToken)
+        await controller.refresh()
+
+        #expect(controller.credentialKind == .personalToken)
+        #expect(try h.credentials.load(for: me) == Credential(token: "pat-new", kind: .personalToken))
+    }
+
+    @Test func keychainErrorTemporaryStatuses() {
+        #expect(KeychainError(status: -25308).isTemporary)
+        #expect(KeychainError(status: -25291).isTemporary)
+        for status: OSStatus in [-128, -25293, -25300] { #expect(!KeychainError(status: status).isTemporary) }
+    }
+
     @Test func needsReauthClearsOfflineProblem() async throws {
         let h = Harness()
         defer { h.cleanUp() }
@@ -991,7 +1058,7 @@ struct RadarixControllerTests {
             try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: parent.path)
             try? FileManager.default.removeItem(at: parent)
         }
-        let credentials = InMemoryCredentialStore()
+        let credentials = ScriptedCredentialStore()
         let api = StubGitHubAPI()
         await api.setOwners(.success([user]))
         let controller = RadarixController(

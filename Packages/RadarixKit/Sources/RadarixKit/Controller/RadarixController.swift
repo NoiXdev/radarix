@@ -53,6 +53,9 @@ public final class RadarixController {
     private let oauthClientID: String
     private let now: @Sendable () -> Date
 
+    /// Accounts in needs-reauth because the keychain could not read their credential for now.
+    /// `refresh()` loads it again.
+    @ObservationIgnored private var unreadableCredentials: Set<AccountID> = []
     /// A sync pass is running.
     @ObservationIgnored private var passRunning = false
     /// A watch change arrived after the running sync took its snapshot.
@@ -164,6 +167,7 @@ public final class RadarixController {
                 credential = try credentials.load(for: id)
             } catch {
                 Self.log.error("Loading the credential of account \(id.rawValue) failed: \(error.localizedDescription, privacy: .public)")
+                if (error as? KeychainError)?.isTemporary == true { unreadableCredentials.insert(id) }
                 credential = nil
             }
             let stored = try? store.loadAccount(id)
@@ -194,7 +198,8 @@ public final class RadarixController {
         // The UI and the snapshot follow the ownership rule before the first pass.
         ownership = RepoOwnership.assign(sessions.map { ($0.accountID, $0.watchedRepos()) })
         writeSnapshot()
-        await refresh()
+        // The credentials were just tried; the retry starts with the next refresh.
+        await runRefresh()
     }
 
     /// Validates the token, keeps any stored data of that account, saves the credential, then syncs.
@@ -216,6 +221,7 @@ public final class RadarixController {
         let account = try loadOrCreateAccount(viewer, existing: previous)
         let credential = Credential(token: token, kind: kind)
         try credentials.save(credential, for: viewer.id)
+        unreadableCredentials.remove(viewer.id)
         if !settings.accountIDs.contains(viewer.id) { settings.accountIDs.append(viewer.id) }
         let session = makeSession(account: account, credential: credential, api: api)
         if let previous { session.adopt(from: previous) }
@@ -244,6 +250,7 @@ public final class RadarixController {
     /// adding it again resumes its settings and seen state. Another account may take over its repos.
     public func removeAccount(_ id: AccountID) throws {
         try credentials.delete(for: id)
+        unreadableCredentials.remove(id)
         if let index = sessions.firstIndex(where: { $0.accountID == id }) {
             sessions[index].end()
             sessions.remove(at: index)
@@ -259,6 +266,7 @@ public final class RadarixController {
     /// Deletes every credential and every file, the widget snapshot included.
     public func resetAllData() throws {
         try credentials.deleteAll()
+        unreadableCredentials = []
         do {
             try store.resetAll()
         } catch {
@@ -340,8 +348,13 @@ public final class RadarixController {
     /// needs reauth or waits for a rate limit to reset skips the pass. A running `refresh(repo:)`
     /// finishes first.
     public func refresh() async {
+        await runRefresh(retryingCredentials: true)
+    }
+
+    private func runRefresh(retryingCredentials: Bool = false) async {
         while repoRefreshRunning, !passRunning { await waitForIdle() }
         guard !passRunning, !sessions.isEmpty else { return }
+        if retryingCredentials { retryUnreadableCredentials() }
         passRunning = true
         let completed = await runPass()
         passRunning = false
@@ -352,6 +365,28 @@ public final class RadarixController {
             requestRefresh()
         }
         resumeIdleWaiters()
+    }
+
+    /// Loads again the credentials the keychain could not read. An account that has one now gets
+    /// a full session in place of its needs-reauth one, unless it signed in meanwhile. Runs
+    /// without a suspension point, so a pass starts with the result.
+    private func retryUnreadableCredentials() {
+        for id in unreadableCredentials {
+            let credential: Credential?
+            do {
+                credential = try credentials.load(for: id)
+            } catch {
+                if (error as? KeychainError)?.isTemporary == true { continue }
+                Self.log.error("Loading the credential of account \(id.rawValue) failed: \(error.localizedDescription, privacy: .public)")
+                unreadableCredentials.remove(id)
+                continue
+            }
+            unreadableCredentials.remove(id)
+            guard let credential, let old = session(for: id), old.credentialKind == nil else { continue }
+            let session = makeSession(account: old.account, credential: credential, api: makeAPI(credential.token))
+            session.adopt(from: old)
+            insert(session)
+        }
     }
 
     /// Repos with a `refresh(repo:)` waiting or running.
