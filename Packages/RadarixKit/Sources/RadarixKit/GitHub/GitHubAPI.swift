@@ -45,6 +45,8 @@ public protocol GitHubAPI: Sendable {
     /// Assigns (`true`) or unassigns (`false`) `login` on the item and returns the resulting assignee
     /// logins. Throws `AssignError.notPermitted` when GitHub refuses or does not reflect the request.
     func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String]
+    /// Counts, metadata and period activity for one repository, in one GraphQL query plus paging.
+    func insights(for repo: RepoRef, since: Date) async throws -> RepoInsights
     func rateLimit() async -> RateLimit?
     /// Forget cached conditional-request state (ETags) for everything under this repo.
     func forgetConditionalState(for repo: RepoRef) async

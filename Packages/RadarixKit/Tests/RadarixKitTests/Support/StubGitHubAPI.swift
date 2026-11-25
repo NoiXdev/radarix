@@ -18,6 +18,7 @@ actor StubGitHubAPI: GitHubAPI {
         case pullDetails(repo: RepoID)
         case activity(number: Int, since: Date, viewers: ViewerLogins)
         case renderedBody(number: Int, repo: RepoID)
+        case insights(repo: RepoID, since: Date)
         case setAssigned(Bool, login: String, number: Int, repo: RepoID)
     }
 
@@ -30,6 +31,7 @@ actor StubGitHubAPI: GitHubAPI {
     private var pullResults: [RepoID: [Scripted<[Int: PullDetails]>]] = [:]
     private var activityResults: [Int: [Result<Bool, GitHubError>]] = [:]
     private var renderedBodies: [Int: [Result<String?, GitHubError>]] = [:]
+    private var insightsResults: [RepoID: [Result<RepoInsights, GitHubError>]] = [:]
     private var assignResults: [Int: [Result<[String], any Error>]] = [:]
     private var timelines: [Int: [String]] = [:]
     private var currentRateLimit: RateLimit?
@@ -76,6 +78,10 @@ actor StubGitHubAPI: GitHubAPI {
 
     func scriptRenderedBody(_ number: Int, _ results: Result<String?, GitHubError>...) {
         renderedBodies[number, default: []] += results
+    }
+
+    func scriptInsights(_ repo: RepoRef, _ results: Result<RepoInsights, GitHubError>...) {
+        insightsResults[repo.id, default: []] += results
     }
 
     func scriptAssigned(_ number: Int, _ results: Result<[String], any Error>...) {
@@ -218,6 +224,11 @@ actor StubGitHubAPI: GitHubAPI {
     func renderedBody(number: Int, in repo: RepoRef) async throws -> String? {
         calls.append(.renderedBody(number: number, repo: repo.id))
         return try (Self.pop(&renderedBodies, number) ?? .success(nil)).get()
+    }
+
+    func insights(for repo: RepoRef, since: Date) async throws -> RepoInsights {
+        calls.append(.insights(repo: repo.id, since: since))
+        return try (Self.pop(&insightsResults, repo.id) ?? .success(RepoInsights())).get()
     }
 
     func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String] {

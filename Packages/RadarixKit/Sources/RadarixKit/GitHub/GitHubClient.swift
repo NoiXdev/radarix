@@ -5,6 +5,23 @@ public enum Fetch<Value: Sendable>: Sendable {
     case fresh(Value)
 }
 
+/// A GraphQL reply: `data` and/or `errors`.
+private struct GraphQLEnvelope<T: Decodable>: Decodable {
+    struct Failure: Decodable { let type: String?; let message: String }
+    let errors: [Failure]?
+    /// The decoded `data`, or why it did not decode. A reply with `errors` may carry partial `data`
+    /// (a null `repository`), so a decode failure only matters when there are no `errors`.
+    let data: Result<T?, any Error>
+
+    private enum CodingKeys: String, CodingKey { case data, errors }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        errors = try container.decodeIfPresent([Failure].self, forKey: .errors)
+        data = Result { try container.decodeIfPresent(T.self, forKey: .data) }
+    }
+}
+
 /// Minimal GitHub REST client: auth headers, ETag cache, rate-limit tracking, pagination.
 /// Endpoint methods live in extensions elsewhere.
 public actor GitHubClient {
@@ -38,6 +55,31 @@ public actor GitHubClient {
         let (data, response) = try await perform(url, conditional: false, method: method, body: body)
         guard let data else { throw GitHubError.http(response.statusCode) }
         return try decode(T.self, from: data)
+    }
+
+    /// Runs a GraphQL query. Errors in the reply map to `GitHubError`; HTTP errors map as for REST.
+    /// GraphQL answers carry the separate GraphQL budget in `X-RateLimit-*`, so they never touch `latestRateLimit`.
+    public func graphQL<T: Decodable>(_ query: String, variables: [String: String]) async throws -> T {
+        let url = try makeURL("/graphql", query: [])
+        let body = try JSONSerialization.data(withJSONObject: ["query": query, "variables": variables])
+        let (data, response) = try await perform(url, conditional: false, method: "POST", body: body, tracksRateLimit: false)
+        guard let data else { throw GitHubError.http(response.statusCode) }
+        let envelope = try decode(GraphQLEnvelope<T>.self, from: data)
+        if let failure = envelope.errors?.first {
+            switch failure.type {
+            case "NOT_FOUND": throw GitHubError.notFound
+            case "RATE_LIMITED": throw GitHubError.rateLimited(resetAt: resetDate(response))
+            default: throw GitHubError.decoding(failure.message)
+            }
+        }
+        do {
+            guard let value = try envelope.data.get() else { throw GitHubError.decoding("GraphQL reply has no data") }
+            return value
+        } catch let error as GitHubError {
+            throw error
+        } catch {
+            throw GitHubError.decoding(String(describing: error))
+        }
     }
 
     public func getConditional<T: Decodable>(_ path: String, query: [URLQueryItem]) async throws -> Fetch<T> {
@@ -138,7 +180,7 @@ public actor GitHubClient {
     /// Never stores an ETag: callers commit it once the whole fetch succeeded. Throws mapped errors for non-2xx.
     private func perform(
         _ url: URL, conditional: Bool, accept: String = "application/vnd.github+json",
-        method: String = "GET", body: Data? = nil
+        method: String = "GET", body: Data? = nil, tracksRateLimit: Bool = true
     ) async throws -> (Data?, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -168,7 +210,7 @@ public actor GitHubClient {
             throw GitHubError.network(error.localizedDescription)
         }
 
-        if let limit = RateLimit(response: response) { latestRateLimit = limit }
+        if tracksRateLimit, let limit = RateLimit(response: response) { latestRateLimit = limit }
 
         switch response.statusCode {
         case 200..<300:

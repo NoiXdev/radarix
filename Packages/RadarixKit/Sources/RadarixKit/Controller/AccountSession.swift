@@ -348,6 +348,11 @@ public final class AccountSession {
         try await api.renderedBody(number: number, in: repo)
     }
 
+    /// Counts, metadata and period activity for the repo. Does not touch the sync state.
+    public func insights(for repo: RepoRef, since: Date) async throws -> RepoInsights {
+        try await api.insights(for: repo, since: since)
+    }
+
     /// Assigns or unassigns the account's own login on GitHub; returns the resulting assignees.
     public func setAssigned(_ assigned: Bool, number: Int, in repo: RepoRef) async throws -> [String] {
         try await api.setAssigned(assigned, login: login, number: number, in: repo)
@@ -464,6 +469,7 @@ private struct RejectingAPI: GitHubAPI {
     func setAssigned(_ assigned: Bool, login: String, number: Int, in repo: RepoRef) async throws -> [String] {
         throw GitHubError.unauthorized
     }
+    func insights(for repo: RepoRef, since: Date) async throws -> RepoInsights { throw GitHubError.unauthorized }
     func rateLimit() async -> RateLimit? { nil }
     func forgetConditionalState(for repo: RepoRef) async {}
 }
