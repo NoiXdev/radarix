@@ -61,6 +61,7 @@ struct RepoInfoWindow: View {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
                         Text(verbatim: failure)
+                            .fixedSize(horizontal: false, vertical: true)
                         Button("Try again") { attempt += 1 }
                     }
                 }

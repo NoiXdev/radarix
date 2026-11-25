@@ -4070,7 +4070,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Geöffnete Issues"
+            "value" : "Neue Issues"
           }
         },
         "en" : {
@@ -4082,13 +4082,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tickets ouverts"
+            "value" : "Nouveaux tickets"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Otwarte zgłoszenia"
+            "value" : "Nowe zgłoszenia"
           }
         }
       }
@@ -4098,7 +4098,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Geöffnete Pull Requests"
+            "value" : "Neue Pull Requests"
           }
         },
         "en" : {
@@ -4110,13 +4110,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pull requests ouvertes"
+            "value" : "Nouvelles pull requests"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Otwarte pull requesty"
+            "value" : "Nowe pull requesty"
           }
         }
       }
